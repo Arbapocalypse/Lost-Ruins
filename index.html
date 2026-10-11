@@ -30,7 +30,9 @@ input,select{max-width:100%}
 .map-tile.selected{border:2px solid #ffd166}
 .map-tile.territory{box-shadow:inset 0 0 0 2px #78c66a}
 .map-tile.developed{background:#41413a}
-.map-tile.fog{background:#111!important;color:#555}
+.map-tile.fog,.map-tile.unknown{background:#000!important;color:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;outline:0!important}
+.map-tile.fog:before,.map-tile.unknown:before{display:none!important}
+.map-tile.fog .tile-main,.map-tile.unknown .tile-main,.map-tile.fog .tile-detail,.map-tile.unknown .tile-detail{display:none!important}
 .map-tile.known-distant{opacity:.9;border-color:#555}
 .map-tile.unknown{background:#292929;color:#777}
 .tile-progress{height:8px;background:#111;border-radius:6px;overflow:hidden;margin:8px 0}
@@ -362,6 +364,22 @@ input,select{max-width:100%}
 <button class="full-button" onclick="backToWorld()">Back to World</button>
 </section>
 
+<section class="panel hidden" id="multiplayerPanel">
+<h2>🌐 Lost Ruin Online</h2>
+<p class="muted">Connect to a Lost Ruin multiplayer server to see other connected survivors and chat with them. Your offline save remains local to this browser.</p>
+<div class="detail-stat" id="mpConnectionStatus" role="status" aria-live="polite">Offline · Multiplayer server not connected</div>
+<label for="mpServerUrl">Server WebSocket URL</label>
+<input id="mpServerUrl" type="url" value="ws://localhost:8080" placeholder="wss://your-game-server.example" autocomplete="url" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<label for="mpPlayerName">Online display name</label>
+<input id="mpPlayerName" type="text" maxlength="24" placeholder="Survivor name" autocomplete="nickname" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<div class="action-grid"><button id="mpConnectButton" onclick="mpConnect()">🔌 Connect</button><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button></div>
+<h3>🧭 Online Survivors <span id="mpPlayerCount">(0)</span></h3><div id="mpPlayerList" class="ground-row">Connect to a server to see other players.</div>
+<h3>💬 World Chat</h3><div id="mpChatLog" class="ground-row" aria-live="polite" style="white-space:pre-wrap;max-height:220px;overflow:auto">World chat will appear here after connecting.</div>
+<form id="mpChatForm" onsubmit="mpSendChat(event)" style="display:flex;gap:8px;margin-top:8px"><input id="mpChatInput" type="text" maxlength="240" placeholder="Message everyone online…" autocomplete="off" style="min-width:0;flex:1;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px" disabled><button id="mpSendButton" type="submit" disabled>Send</button></form>
+<p class="muted">Foundation status: online presence and shared chat are implemented. Player trading, persistent accounts, authoritative movement, and real PvP are not enabled yet. Do not expose a development server directly to the public internet.</p>
+<button class="full-button" onclick="backToWorld()">Back to World</button>
+</section>
+
 <section class="panel hidden" id="collectionsPanel">
 <h2>🏆 Collections & Records</h2>
 <p class="muted">Track achievements, unlocked titles, earned nicknames, aliases, and equipment discovered during your journey.</p>
@@ -423,6 +441,7 @@ input,select{max-width:100%}
       <button onclick="navGo('crafting')">🛠️ Crafting<span>Make equipment and tools</span></button>
       <button onclick="navGo('trade')">🏪 Trade<span>Stores and supplies</span></button>
       <button onclick="navGo('collections')">🏆 Collections<span>Achievements and titles</span></button>
+      <button onclick="navGo('multiplayer')">🌐 Multiplayer<span>Online survivors and world chat</span></button>
     </div>
   </div>
 </div>
@@ -458,6 +477,17 @@ input,select{max-width:100%}
 ========================= */
 
 const SAVE_KEY = "lostRuinAutoSave";
+// Balanced difficulty tuning. These values are intentionally conservative so existing saves remain playable.
+const BALANCE = Object.freeze({
+  hungerPerHour: 1.5,
+  thirstPerHour: 2.25,
+  starvationDamagePerHour: 2,
+  travelEnergyPerDifficulty: 4.5,
+  sleepHungerPerHour: 0.75,
+  sleepThirstPerHour: 1,
+  minimumCombatDamage: 1,
+  maxPlayerHitChance: 95
+});
 const MAX_WEIGHT = 20;
 const MAX_SKILL_LEVEL = 35;
 
@@ -2602,8 +2632,8 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
       profile.ageHours++;
       if(profile.ageHours>=24*365&&profile.age<100){profile.ageHours-=24*365;profile.age++;if(profile.age===100)showMessage("You have reached age 100. Old-age decline begins.");}
       const ageOver80=Math.max(0,profile.age-80),ageMultiplier=1+ageOver80*.025;
-      player.hunger=Math.max(0,player.hunger-2*ageMultiplier);player.thirst=Math.max(0,player.thirst-3*ageMultiplier);
-      if(player.hunger<=0)player.health-=5;if(player.thirst<=0)player.health-=5;player.health=Math.max(0,player.health);
+      player.hunger=Math.max(0,player.hunger-BALANCE.hungerPerHour*ageMultiplier);player.thirst=Math.max(0,player.thirst-BALANCE.thirstPerHour*ageMultiplier);
+      if(player.hunger<=0)player.health-=BALANCE.starvationDamagePerHour;if(player.thirst<=0)player.health-=BALANCE.starvationDamagePerHour;player.health=Math.max(0,player.health);
       Object.values(bonfires).forEach(fire=>{if(fire.fuel>0)fire.fuel=Math.max(0,fire.fuel-1);});
       if(player.base){produceSettlementHour();if(player.hour===0)updatePopulationForNewDay();}
       updateScreen();saveGame();
@@ -2650,7 +2680,7 @@ function calculateTravel(x,y){
   return {
     distance,
     hours:Math.max(1,Math.ceil(difficulty*method.speed)),
-    energy:Math.max(1,Math.ceil(difficulty*5*method.energy)),
+    energy:Math.max(1,Math.ceil(difficulty*BALANCE.travelEnergyPerDifficulty*method.energy)),
     method:method.name
   };
 }
@@ -2716,7 +2746,7 @@ async function confirmTravel(){
     const step=route[i];
     const terrain=generateTerrain(step.x,step.y);
     const method=getTravelModifiers();
-    const tileCost=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*5*method.energy));
+    const tileCost=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*BALANCE.travelEnergyPerDifficulty*method.energy));
     const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed));
     if(player.energy<tileCost){stopped=true;if(progress)progress.textContent="Too exhausted to continue. Stopping at the current tile.";break;}
     player.energy=Math.max(0,player.energy-tileCost);
@@ -3050,8 +3080,8 @@ async function sleep(){
   const recovery=place.kind==="inn"?100:place.kind==="bonfire"?92:place.kind==="settlement"?88:place.kind==="town"?82:70;
   player.energy=Math.min(player.maxEnergy||100,(Number(player.energy)||0)+recovery);
   player.health=Math.min(player.maxHealth||100,(Number(player.health)||0)+(place.kind==="inn"?24:place.kind==="bonfire"?18:place.kind==="settlement"?16:place.kind==="town"?12:8));
-  player.hunger=Math.max(0,(Number(player.hunger)||0)-hours);
-  player.thirst=Math.max(0,(Number(player.thirst)||0)-hours*1.25);
+  player.hunger=Math.max(0,(Number(player.hunger)||0)-hours*BALANCE.sleepHungerPerHour);
+  player.thirst=Math.max(0,(Number(player.thirst)||0)-hours*BALANCE.sleepThirstPerHour);
   updateScreen();saveGame();
   showNarration("You Wake Up", "You slept for "+hours+" hours at "+place.label+". Energy and health recovered; hunger and thirst decreased during sleep.");
 }
@@ -3477,9 +3507,9 @@ function drawMap(){
     const tile=document.createElement("button");tile.className="map-tile";tile.type="button";
     const visible=canSeeTile(x,y),td=getTileData(x,y);
     if(!visible && !td.terrainKnown){
-      tile.classList.add("fog");tile.textContent="🌫️";tile.title="Unexplored tile ("+x+", "+y+") · Tap to travel";tile.onclick=()=>beginTravel(x,y);
+      tile.classList.add("fog");tile.textContent="";tile.title="Unexplored area · Tap to travel";tile.onclick=()=>beginTravel(x,y);
     }else if(visible && !td.terrainKnown && !(x===player.x&&y===player.y)){
-      tile.classList.add("unknown");tile.textContent="❔";tile.title="Unidentified tile ("+x+", "+y+") · Tap to travel";tile.onclick=()=>beginTravel(x,y);
+      tile.classList.add("unknown");tile.textContent="";tile.title="Unexplored area · Tap to travel";tile.onclick=()=>beginTravel(x,y);
     }else{
       const terrain=generateTerrain(x,y),building=buildingAt(x,y),fire=getBonfire(x,y);
       tile.classList.add("terrain-"+terrain);
@@ -3570,13 +3600,14 @@ function navGo(destination){
     case "crafting": openCrafting();setActiveNav("menu");break;
     case "trade": openTrade();setActiveNav("menu");break;
     case "collections": openCollections();setActiveNav("menu");break;
+    case "multiplayer": openMultiplayer();setActiveNav("menu");break;
   }
 }
 
 function hideScreens(){
   [
     "worldMapPanel","locationPanel","skillsPanel","inventoryPanel",
-    "characterPanel","basePanel","economyPanel","craftingPanel","tradePanel","collectionsPanel","battlePanel","navigationPanel"
+    "characterPanel","basePanel","economyPanel","craftingPanel","tradePanel","collectionsPanel","multiplayerPanel","battlePanel","navigationPanel"
   ].forEach(id=>document.getElementById(id)?.classList.add("hidden"));
 }
 
@@ -3621,13 +3652,66 @@ function openBase(){
 }
 
 /* =========================
+   MULTIPLAYER FOUNDATION
+   Guest identity is stored separately from the legacy game save.
+========================= */
+const MP_NAME_KEY = "lostRuinOnlineName";
+const MP_SERVER_KEY = "lostRuinOnlineServer";
+const MP_CLIENT_VERSION = 1;
+let mpSocket = null;
+let mpReconnectRequested = false;
+let mpHeartbeatTimer = null;
+let mpLocationTimer = null;
+let mpPlayers = [];
+let mpChatLines = [];
+let mpClientId = "";
+function mpOpenPanel(){
+  hideScreens();
+  document.getElementById("multiplayerPanel")?.classList.remove("hidden");
+  const nameInput=document.getElementById("mpPlayerName"),urlInput=document.getElementById("mpServerUrl");
+  if(nameInput&&!nameInput.value){try{nameInput.value=localStorage.getItem(MP_NAME_KEY)||player.characterProfile?.name||"Survivor";}catch(e){nameInput.value="Survivor";}}
+  if(urlInput){try{urlInput.value=localStorage.getItem(MP_SERVER_KEY)||urlInput.value;}catch(e){}}
+  mpRenderPlayers();mpSetStatus(mpSocket&&mpSocket.readyState===WebSocket.OPEN?"Connected · syncing presence":"Offline · multiplayer server not connected");
+}
+function openMultiplayer(){mpOpenPanel();}
+function mpSetStatus(message){const el=document.getElementById("mpConnectionStatus");if(el)el.textContent=message;const connected=!!mpSocket&&mpSocket.readyState===WebSocket.OPEN;const connect=document.getElementById("mpConnectButton"),disconnect=document.getElementById("mpDisconnectButton"),input=document.getElementById("mpChatInput"),send=document.getElementById("mpSendButton");if(connect)connect.disabled=connected;if(disconnect)disconnect.disabled=!connected;if(input)input.disabled=!connected;if(send)send.disabled=!connected;}
+function mpSend(payload){if(!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return false;try{mpSocket.send(JSON.stringify(payload));return true;}catch(e){mpSetStatus("Connection error · "+(e.message||"unable to send"));return false;}}
+function mpConnect(){
+  if(mpSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(mpSocket.readyState)){mpSetStatus("Already connected or connecting.");return;}
+  const urlEl=document.getElementById("mpServerUrl"),nameEl=document.getElementById("mpPlayerName");
+  const url=(urlEl?.value||"").trim(),name=(nameEl?.value||"Survivor").trim().replace(/[<>\u0000-\u001f]/g,"").slice(0,24)||"Survivor";
+  if(!/^wss?:\/\//i.test(url)){mpSetStatus("Enter a valid ws:// or wss:// server URL.");return;}
+  try{localStorage.setItem(MP_NAME_KEY,name);localStorage.setItem(MP_SERVER_KEY,url);}catch(e){}
+  mpReconnectRequested=true;mpSetStatus("Connecting to multiplayer server…");
+  let socket;try{socket=new WebSocket(url);}catch(e){mpSetStatus("Could not start connection: "+(e.message||"invalid URL"));return;}mpSocket=socket;
+  socket.addEventListener("open",()=>{if(mpSocket!==socket)return;mpSetStatus("Connected · joining world…");mpSend({type:"join",version:MP_CLIENT_VERSION,name,x:Number(player.x)||0,y:Number(player.y)||0,worldId:"lost-ruin-main"});mpHeartbeatTimer=setInterval(()=>mpSend({type:"ping",at:Date.now()}),25000);mpLocationTimer=setInterval(()=>mpSend({type:"location",x:Number(player.x)||0,y:Number(player.y)||0}),4000);});
+  socket.addEventListener("message",event=>{if(mpSocket!==socket)return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}mpHandleMessage(msg);});
+  socket.addEventListener("error",()=>{if(mpSocket===socket)mpSetStatus("Connection failed · check the server URL and server logs.");});
+  socket.addEventListener("close",event=>{if(mpSocket!==socket)return;mpClearTimers();mpSocket=null;mpClientId="";mpPlayers=[];mpRenderPlayers();mpSetStatus("Disconnected · "+(event.reason||"server connection closed"));});
+}
+function mpClearTimers(){if(mpHeartbeatTimer)clearInterval(mpHeartbeatTimer);if(mpLocationTimer)clearInterval(mpLocationTimer);mpHeartbeatTimer=mpLocationTimer=null;}
+function mpDisconnect(){mpReconnectRequested=false;mpClearTimers();if(mpSocket){const socket=mpSocket;mpSocket=null;try{socket.close(1000,"Player disconnected");}catch(e){}}mpClientId="";mpPlayers=[];mpRenderPlayers();mpSetStatus("Disconnected · your local game is still available.");}
+function mpHandleMessage(msg){
+  if(!msg||typeof msg.type!=="string")return;
+  if(msg.type==="welcome"){mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];mpSetStatus("Connected · online as "+(msg.name||"Survivor"));mpRenderPlayers();mpAddChatLine("System","Connected to Lost Ruin Online.");}
+  else if(msg.type==="players"){mpPlayers=Array.isArray(msg.players)?msg.players:[];mpRenderPlayers();}
+  else if(msg.type==="chat"){mpAddChatLine(msg.name||"Survivor",msg.text||"");}
+  else if(msg.type==="system"){mpAddChatLine("System",msg.text||"");}
+  else if(msg.type==="error"){mpAddChatLine("System",msg.message||"The server reported an error.");}
+  else if(msg.type==="pong"){/* heartbeat acknowledged */}
+}
+function mpRenderPlayers(){const list=document.getElementById("mpPlayerList"),count=document.getElementById("mpPlayerCount");if(count)count.textContent="("+mpPlayers.length+")";if(!list)return;list.textContent="";if(!mpPlayers.length){list.textContent=mpSocket&&mpSocket.readyState===WebSocket.OPEN?"You are connected. No player list received yet.":"Connect to a server to see other players.";return;}mpPlayers.forEach(p=>{const row=document.createElement("div");row.style.padding="5px 0";row.textContent=(p.id===mpClientId?"🟢 You · ":"🟢 ")+(p.name||"Survivor")+" · Tile "+Math.floor(Number(p.x)||0)+", "+Math.floor(Number(p.y)||0);list.appendChild(row);});}
+function mpAddChatLine(name,text){const clean=String(text||"").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"").slice(0,240);mpChatLines.push({name:String(name||"Survivor").slice(0,24),text:clean});if(mpChatLines.length>80)mpChatLines=mpChatLines.slice(-80);const log=document.getElementById("mpChatLog");if(log){log.textContent=mpChatLines.map(line=>line.name+": "+line.text).join("\n");log.scrollTop=log.scrollHeight;}}
+function mpSendChat(event){if(event)event.preventDefault();const input=document.getElementById("mpChatInput"),text=(input?.value||"").trim();if(!text)return;if(!mpSend({type:"chat",text})){mpSetStatus("Not connected · connect to a server before chatting.");return;}mpAddChatLine("You",text);if(input)input.value="";}
+
+/* =========================
    SAVING AND LOADING
 ========================= */
 
 function saveGame(){
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      version:28,player,world,groundLoot,bonfires,tileData
+      version:29,player,world,groundLoot,bonfires,tileData
     }));
   }catch(e){
     console.error("Auto-save failed:",e);
@@ -3841,7 +3925,7 @@ function pvpNegotiationReply(accepted){
  const box=document.getElementById("battleNegotiation");if(!activeBattle)return;
  if(!accepted){box.innerHTML='<div class="battle-card"><p>The survivor declines to talk and raises their weapon.</p><button onclick="startCombat()">Fight</button></div>';return;}
  activeBattle.opponentAgrees=true;
- box.innerHTML='<div class="battle-card"><h3>💬 Survivor Chat</h3><p>Both sides agreed to talk. In the online version, this chat would be shared between players. Here it is a local preview.</p><div id="battleChatLog" class="ground-row">Survivor: We do not need to fight. What do you want?</div><input id="battleChatInput" placeholder="Write a message..."><button onclick="sendBattleChat()">Send Message</button><button onclick="openBattleTrade()">Offer Trade</button><button onclick="startCombat()">End Talks & Fight</button><button onclick="endBattle(\'You and the survivor part ways peacefully.\',false)">Leave Peacefully</button></div>';
+ box.innerHTML='<div class="battle-card"><h3>💬 Survivor Chat</h3><p>Both sides agreed to talk. This is a local preview. Real shared chat, trading, and player encounters will require the multiplayer server.</p><div id="battleChatLog" class="ground-row">Survivor: We do not need to fight. What do you want?</div><input id="battleChatInput" placeholder="Write a message..."><button onclick="sendBattleChat()">Send Message</button><button onclick="openBattleTrade()">Offer Trade</button><button onclick="startCombat()">End Talks & Fight</button><button onclick="endBattle(\'You and the survivor part ways peacefully.\',false)">Leave Peacefully</button></div>';
 }
 function sendBattleChat(){const input=document.getElementById("battleChatInput"),log=document.getElementById("battleChatLog");if(!input||!log||!input.value.trim())return;log.textContent+="\nYou: "+input.value.trim()+"\nSurvivor: I understand. Let us settle this peacefully.";input.value="";}
 function openBattleTrade(){const box=document.getElementById("battleNegotiation");box.innerHTML='<div class="battle-card"><h3>Trade Proposal</h3><p>Local prototype: trade offers are not transferred to another real player yet.</p><button onclick="endBattle(\'You agreed to pause the encounter after discussing trade.\',false)">Confirm Peaceful Trade</button><button onclick="pvpNegotiationReply(true)">Back to Chat</button></div>';}
@@ -3856,9 +3940,10 @@ function battleTurn(stance){
  else if(stance==="defensive"){attack=Math.round(attack*.70);defense+=4;hit+=5;}
  else{attack=Math.round(attack*1.05);defense+=1;}
  let log="Turn "+(++b.turn)+" — "+stance.toUpperCase()+". ";
- if(Math.random()*100<hit){let damage=Math.max(1,Math.round(attack-b.enemy.defense*(stance==="offensive"?.65:1)));if(Math.random()*100<stats.crit){damage=Math.round(damage*1.5);log+="Critical hit! ";}b.hp=Math.max(0,b.hp-damage);log+="You deal "+damage+" damage. ";}else log+="Your attack misses. ";
+ hit=Math.max(5,Math.min(BALANCE.maxPlayerHitChance,hit));
+ if(Math.random()*100<hit){let damage=Math.max(BALANCE.minimumCombatDamage,Math.round(attack-b.enemy.defense*(stance==="offensive"?.65:1)));if(Math.random()*100<stats.crit){damage=Math.round(damage*1.5);log+="Critical hit! ";}b.hp=Math.max(0,b.hp-damage);log+="You deal "+damage+" damage. ";}else log+="Your attack misses. ";
  if(b.hp<=0){document.getElementById("battleLog").textContent=log+"\nYou win the fight!";gainXP(b.type==="wildlife"?"hunting":"survival",12);endBattle(log+"You win the fight and gain combat experience.",true);return;}
- const enemyHit=Math.random()*100<(b.enemy.accuracy||72);if(enemyHit){let incoming=Math.max(1,Math.round(b.enemy.attack-defense));if(stance==="defensive")incoming=Math.max(1,Math.round(incoming*.45));else if(stance==="offensive")incoming=Math.round(incoming*1.2);if(stance==="balanced")incoming=Math.round(incoming*.8);player.health=Math.max(0,player.health-incoming);log+="Opponent hits you for "+incoming+" damage.";}else log+="Opponent misses.";
+ const enemyHit=Math.random()*100<(b.enemy.accuracy||72);if(enemyHit){let incoming=Math.max(1,Math.round(b.enemy.attack-defense));if(stance==="defensive")incoming=Math.max(1,Math.round(incoming*.45));else if(stance==="offensive")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*1.2));if(stance==="balanced")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*.8));player.health=Math.max(0,player.health-incoming);log+="Opponent hits you for "+incoming+" damage.";}else log+="Opponent misses.";
  document.getElementById("battleLog").textContent=log;renderBattleStats();
  if(player.health<=0){player.dead=true;endBattle("You were defeated. Your journey ends here.",false);return;}
  updateScreen();saveGame();
