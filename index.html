@@ -152,6 +152,29 @@ input,select{max-width:100%}
 .menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .menu-grid button{text-align:left;min-height:52px;background:#303030;border:1px solid #444}
 .menu-grid button span{display:block;font-size:11px;color:#bbb;margin-top:4px}
+/* Character progression and clickable attribute cards */
+.attribute-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0}
+.attribute-card{background:#202820;border:1px solid #536553;border-radius:8px;padding:10px;text-align:left;color:#f4f4f4;min-height:72px}
+.attribute-card strong{display:block;font-size:14px;margin-bottom:4px}.attribute-card small{color:#c3c9c3;font-size:11px}
+.attribute-card .attribute-value{float:right;color:#d9eaa5;font-weight:bold}
+.stat-modal{display:none;position:fixed;inset:0;z-index:12000;background:#000b;align-items:center;justify-content:center;padding:18px}.stat-modal.open{display:flex}.stat-modal-card{width:100%;max-width:390px;background:#202820;border:1px solid #6b8268;border-radius:12px;padding:16px;max-height:85vh;overflow:auto}
+.stat-modal-card p{line-height:1.5;color:#ddd}.stat-modal-actions{display:flex;gap:8px;align-items:center;margin-top:12px}.stat-modal-actions button{flex:1}
+/* Pull-up community chat sits directly above the bottom navigation. */
+#quickChat{position:fixed;z-index:7900;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));width:100%;max-width:600px;margin:0 auto;color:#eee;pointer-events:none}
+#quickChat *{box-sizing:border-box}
+#quickChatToggle{pointer-events:auto;display:flex;align-items:center;justify-content:space-between;width:auto;min-width:112px;margin-left:auto;margin-right:8px;padding:8px 13px;border:1px solid #57735c;border-bottom:0;border-radius:10px 10px 0 0;background:#26352a;color:#fff;font-weight:bold;box-shadow:0 -3px 14px #0008}
+#quickChatPanel{pointer-events:auto;display:none;background:#171b18;border:1px solid #526354;border-bottom:0;border-radius:12px 12px 0 0;box-shadow:0 -5px 20px #0009;padding:8px;max-height:min(48vh,390px);overflow:hidden}
+#quickChat.open #quickChatPanel{display:block}#quickChat.open #quickChatToggle{display:none}
+#quickChatHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-weight:bold}
+#quickChatClose{padding:4px 9px;background:#303630;border:1px solid #555}
+#quickChatTabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:7px}
+.quick-chat-tab{flex:1;min-width:max-content;padding:7px 9px;font-size:12px;background:#282d29;border:1px solid #4b514b;color:#ddd}
+.quick-chat-tab.active{background:#31583a;border-color:#6e9b76;color:white}
+.quick-chat-tab:disabled{display:none}
+#quickChatLog{height:clamp(105px,22vh,220px);overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#0c0f0d;border:1px solid #343a34;border-radius:6px;padding:8px;font-size:12px;line-height:1.4;margin-bottom:7px}
+#quickChatStatus{font-size:11px;color:#c4c9c4;min-height:16px;margin:0 0 6px}
+#quickChatForm{display:flex;gap:6px}#quickChatInput{flex:1;min-width:0;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px}#quickChatSend{padding:8px 12px}
+@media(min-width:700px){#quickChat{left:calc((100vw - 600px)/2);right:auto}}
 @media(min-width:700px){#topNav{padding-left:calc((100vw - 600px)/2);padding-right:calc((100vw - 600px)/2)}#bottomNav{padding-left:calc((100vw - 600px)/2);padding-right:calc((100vw - 600px)/2)}}
 
 .item-description-button{cursor:pointer;text-align:left;background:transparent!important;color:inherit!important;border:0!important;padding:6px 4px!important;flex:1;min-width:0;font:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}.item-description-button:focus{outline:2px solid #d5b66b;border-radius:5px}
@@ -229,7 +252,7 @@ input,select{max-width:100%}
 <h2>⚔️ Skills & Masteries</h2>
 <p class="muted">Skills improve as you perform related actions.</p>
 <div id="skillsList"></div>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 <section class="panel hidden" id="inventoryPanel">
@@ -237,7 +260,7 @@ input,select{max-width:100%}
 <div id="inventory"></div>
 <p id="weightText">Weight: 0 / 20 kg</p>
 <p class="muted">Dropped items remain at your current location.</p>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 <!-- CHARACTER PROFILE: all details inside one profile card -->
@@ -256,6 +279,11 @@ input,select{max-width:100%}
     <div class="profile-field"><strong>Combat Statistics</strong><div id="profileCombatStats">Attack 5 · Defense 0 · Speed 5</div></div>
     <div class="profile-field"><strong>Profession Bonuses</strong><div id="profileProfessionBonus">Survivalist: balanced general skills</div></div>
   </div>
+  <h3>⭐ Character Progression</h3>
+  <div class="detail-stat" id="characterLevelSummary">Level 1 · 0 / 100 XP · 0 stat points</div>
+  <p class="profile-note">Each level grants 3 stat points. Tap a stat to read what it does; use + to spend points.</p>
+  <div id="characterAttributes" class="attribute-grid"></div>
+  <div id="manaProgression" class="profile-field hidden"></div>
   <h3>🧍 Equipment & Appearance</h3>
   <p class="profile-note">Tap any equipment slot to inspect its stats and description, equip an item from your bag, or unequip what you are wearing.</p>
   <div class="character-showcase">
@@ -287,8 +315,10 @@ input,select{max-width:100%}
   </div>
   <button class="profile-button" onclick="openProfileEditor()">✎ Edit Profile</button>
 </div>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
+
+<div id="attributeModal" class="stat-modal" onclick="if(event.target===this)closeAttributeModal()"><div class="stat-modal-card"><h2 id="attributeModalTitle">Attribute</h2><p id="attributeModalDescription"></p><div id="attributeModalEffect" class="detail-stat"></div><div class="stat-modal-actions"><button id="attributeSpendButton" onclick="spendAttributePoint()">+1 Stat Point</button><button onclick="closeAttributeModal()">Close</button></div></div></div>
 
 <div id="equipmentInspectOverlay" class="profile-overlay" onclick="if(event.target===this)closeEquipmentInspect()">
   <div class="profile-modal">
@@ -347,7 +377,7 @@ input,select{max-width:100%}
 <button class="full-button upgrade-button" id="upgradeBaseButton" onclick="upgradeBase()">Upgrade Shelter</button>
 <button class="full-button" id="retireButton" onclick="retireAtShelter()" style="background:#356447">🏡 Retire Here & Raise an Heir</button>
 <button class="full-button" onclick="destroyBase()" style="background:#8b3434">🧨 Destroy Shelter / Move Base</button>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 
@@ -356,7 +386,7 @@ input,select{max-width:100%}
 <p class="muted">Craft weapons, armor, backpacks, and tools. Water containers are obtained through trade.</p>
 <div class="detail-stat" id="craftingStatus"></div>
 <h3>Crafting Bench</h3><div id="craftingList"></div>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 <section class="panel hidden" id="tradePanel">
@@ -369,12 +399,12 @@ input,select{max-width:100%}
 <h3>🏪 Basic Store</h3><div id="storeUI"></div>
 <h3>💧 Water Containers</h3><p class="muted">Buy bottles, canteens, and water jugs from the store. Fill them at rivers or lakes, then drink stored water while traveling.</p><div id="waterContainerList"></div><div class="action-grid"><button onclick="fillWaterContainers()">💧 Fill containers at river/lake</button><button onclick="drinkStoredWater()">🥤 Drink stored water</button></div>
 <h3>⛲ Plaza Stall</h3><p class="muted">Build a Plaza to open your local stall. Trading with other real players requires an online multiplayer server.</p><div id="stallUI"></div>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 <section class="panel hidden" id="multiplayerPanel">
 <h2>🌐 Lost Ruin Online</h2>
-<p class="muted">Connect to a Lost Ruin multiplayer server to see other connected survivors and chat with them. Your offline save remains local to this browser.</p>
+<p class="muted">Create an account or log in first. Your character, world, survivors, and multiplayer features remain hidden until the server confirms your account.</p>
 <div class="detail-stat" id="mpConnectionStatus" role="status" aria-live="polite">Offline · Multiplayer server not connected</div>
 <h3>🔐 Multiplayer Account</h3>
 <p class="muted">Create an account once, then log in from any device. Your multiplayer character name and race are permanent for this account.</p>
@@ -389,7 +419,7 @@ input,select{max-width:100%}
 <label for="mpRace">Race (permanent)</label><select id="mpRace" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
 <option value="human">🧑 Human</option><option value="orc">👹 Orc</option><option value="goblin">👺 Goblin</option><option value="elf">🧝 Elf</option><option value="dragonkin">🐉 Dragonkin</option><option value="dwarf">⛏️ Dwarf</option>
 </select></div>
-<div class="action-grid"><button id="mpRegisterButton" onclick="mpSetAuthMode('register');mpConnect()">📝 Create Account</button><button id="mpLoginButton" onclick="mpSetAuthMode('login');mpConnect()">🔑 Log In</button></div>
+<button id="mpRegisterButton" class="full-button" onclick="mpConnect()">📝 Create Account</button><p id="mpAuthSwitchText" style="text-align:center;margin:12px 0 4px">Already have an account?</p><button id="mpLoginButton" class="full-button" onclick="mpSetAuthMode('login')">🔑 Login</button>
 <div class="action-grid"><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button><button onclick="mpDisconnect();backToWorld()">Back to Game</button></div>
 <h3>🧭 Online Survivors <span id="mpPlayerCount">(0)</span></h3><div id="mpPlayerList" class="ground-row">Connect to a server to see other players.</div>
 <h3>💬 World Chat</h3><div id="mpChatLog" class="ground-row" aria-live="polite" style="white-space:pre-wrap;max-height:220px;overflow:auto">World chat will appear here after connecting.</div>
@@ -401,7 +431,7 @@ input,select{max-width:100%}
 <button class="full-button" onclick="mpCreateTrade()">📨 Send Trade Offer</button>
 <h3>📬 Trade Offers</h3><div id="mpTradeOffers" class="ground-row">Trade offers will appear here when connected.</div>
 <p class="muted">Prototype note: account authentication and offers are handled by the server, but full inventory anti-cheat and persistent world simulation need further server-authoritative work before a public competitive launch.</p>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 <section class="panel hidden" id="collectionsPanel">
@@ -413,7 +443,7 @@ input,select{max-width:100%}
 <h3>🛡️ Armor Collection</h3><div id="collectionArmor"></div>
 <h3>⚔️ Weapons Collection</h3><div id="collectionWeapons"></div>
 <h3>🛠️ Tools Collection</h3><div id="collectionTools"></div>
-<button class="full-button" onclick="backToWorld()">Back to World</button>
+<button class="full-button" onclick="returnHome()">🏠 Back to Home</button>
 </section>
 
 <section class="panel hidden" id="battlePanel">
@@ -444,6 +474,21 @@ input,select{max-width:100%}
 <div id="message" role="status" aria-live="polite"></div>
 </main>
 
+<section id="quickChat" aria-label="Player chat">
+  <button id="quickChatToggle" type="button" onclick="toggleQuickChat()"><span>💬 Chat</span><span>▲</span></button>
+  <div id="quickChatPanel">
+    <div id="quickChatHead"><span>💬 Survivor Channels <small id="quickChatLevel" style="font-weight:normal;color:#b9c5b9"></small></span><button id="quickChatClose" type="button" onclick="toggleQuickChat(false)">Hide ▼</button></div>
+    <div id="quickChatTabs" role="tablist" aria-label="Chat channels">
+      <button class="quick-chat-tab" data-chat-channel="world" onclick="selectQuickChatChannel('world')">🌐 World · Lv.51+</button>
+      <button class="quick-chat-tab" data-chat-channel="region" onclick="selectQuickChatChannel('region')">🧭 Region · Lv.20+</button>
+      <button class="quick-chat-tab" data-chat-channel="area" onclick="selectQuickChatChannel('area')">📍 Area · Lv.1+</button>
+      <button class="quick-chat-tab active" data-chat-channel="tile" onclick="selectQuickChatChannel('tile')">🗺️ Tile · Lv.0+</button>
+    </div>
+    <div id="quickChatLog" role="log" aria-live="polite">Tile chat · connect to multiplayer to chat with other survivors.</div>
+    <p id="quickChatStatus">Tile chat: one message every 3 seconds.</p>
+    <form id="quickChatForm" onsubmit="sendQuickChat(event)"><input id="quickChatInput" maxlength="240" autocomplete="off" placeholder="Message this tile…"><button id="quickChatSend" type="submit">Send</button></form>
+  </div>
+</section>
 <nav id="bottomNav" aria-label="Bottom navigation">
   <div class="bottom-nav-inner">
     <button class="bottom-nav-btn active" data-nav="map" onclick="navGo('map')"><span>🗺️</span>Map</button>
@@ -465,7 +510,7 @@ input,select{max-width:100%}
       <button onclick="navGo('crafting')">🛠️ Crafting<span>Make equipment and tools</span></button>
       <button onclick="navGo('trade')">🏪 Trade<span>Stores and supplies</span></button>
       <button onclick="navGo('collections')">🏆 Collections<span>Achievements and titles</span></button>
-      <button onclick="navGo('multiplayer')">🌐 Multiplayer<span>Online survivors and world chat</span></button>
+      <button onclick="returnHome()">🏠 Home<span>Return to Single Player / Multiplayer selection</span></button>
     </div>
   </div>
 </div>
@@ -599,6 +644,9 @@ function newSkills(){
 }
 
 let player = {
+  level:1,characterXP:0,statPoints:0,
+  attributes:{strength:1,agility:1,vitality:1,charisma:1,intelligence:1,endurance:1,perception:1,luck:1,magic:0},
+  manaUnlocked:false,mana:0,maxMana:0,manaDiscovery:{teacher:false,location:false},
   reputation:0,factionReputation:{},settlementFamiliarity:{},npcTrades:0,racialKills:0,negotiations:0,
   health:100,maxHealth:100,
   energy:100,maxEnergy:100,
@@ -642,6 +690,7 @@ let activeBattle = null;
 
 const items = {
   fruit:{name:"Fruit",icon:"🍎",type:"food",effect:15,weight:.5},
+  manaBerry:{name:"Luminous Mana Berry",icon:"🫐",type:"food",effect:10,hungerEffect:10,manaEffect:12,weight:.3,description:"A rare berry glowing with faint blue light. Eating it awakens your awareness of mana."},
   water:{name:"Water",icon:"💧",type:"water",effect:25,weight:1},
   herb:{name:"Herb",icon:"🌿",type:"medicine",effect:20,weight:.2},
   wood:{name:"Wood",icon:"🪵",type:"material",effect:0,weight:2},
@@ -1190,6 +1239,7 @@ function updateCharacter(){
   const stats=getCombatStats();
   document.getElementById("profileCombatStats").textContent="Attack "+stats.attack+" · Defense "+stats.defense+" · Speed "+stats.speed+" · Accuracy "+stats.accuracy+"% · Max Health "+stats.maxHealth;
   document.getElementById("profileProfessionBonus").textContent=professionBonusText(p.mainProfession);
+  syncAttributeDerivedStats();renderCharacterAttributes();
 }
 
 function openProfileEditor(){
@@ -1420,6 +1470,7 @@ function showDeathScreen(){
   }while(Math.abs(dx)+Math.abs(dy)<100);
   const spawnX=oldX+dx, spawnY=oldY+dy;
   player={
+    level:1,characterXP:0,statPoints:0,attributes:{strength:1,agility:1,vitality:1,charisma:1,intelligence:1,endurance:1,perception:1,luck:1,magic:0},manaUnlocked:false,mana:0,maxMana:0,manaDiscovery:{teacher:false,location:false},
     health:100,maxHealth:100,energy:100,maxEnergy:100,hunger:100,maxHunger:100,thirst:100,maxThirst:100,
     day:1,hour:8,x:spawnX,y:spawnY,dead:false,inventory:[],
     equipment:{head:null,torso:null,arms:null,pants:null,boots:null,backpack:null,mainWeapon:null,subWeapon:null,pickaxe:null,axe:null,fishingRod:null},
@@ -1642,6 +1693,54 @@ function encounterOnArrival(x,y){
   return '';
 }
 
+const ATTRIBUTE_INFO={
+ strength:{name:"💪 Strength",description:"Raw physical power. Each point above 1 adds 2 base attack damage and improves carrying strength.",effect:a=>"Base attack: +"+Math.max(0,a-1)*2+" · Carry capacity bonus: +"+Math.max(0,a-1)*0.25+" kg"},
+ agility:{name:"🏃 Agility",description:"Movement, reflexes, and precision. Agility increases speed and critical chance.",effect:a=>"Speed: +"+Math.max(0,a-1)+" · Critical chance: +"+Math.max(0,a-1)+"%"},
+ vitality:{name:"❤️ Vitality",description:"Hardiness and the ability to survive injuries. Each point above 1 adds 10 maximum health and a small amount of defense.",effect:a=>"Maximum health: +"+Math.max(0,a-1)*10+" · Defense: +"+Math.floor(Math.max(0,a-1)*0.5)},
+ charisma:{name:"🗣️ Charisma",description:"Social influence. Improves negotiations, reputation gains, and trading with NPCs. It does not force other players to agree with you.",effect:a=>"Negotiation bonus: +"+Math.max(0,a-1)*2+"% · NPC trade bonus: +"+Math.max(0,a-1)+"%"},
+ intelligence:{name:"🧠 Intelligence",description:"Learning and problem-solving. Improves skill learning and crafting efficiency as those systems are expanded.",effect:a=>"Learning bonus: +"+Math.max(0,a-1)+"%"},
+ endurance:{name:"⚡ Endurance",description:"Stamina for travel, combat, and work. Each point above 1 adds 8 maximum energy.",effect:a=>"Maximum energy: +"+Math.max(0,a-1)*8},
+ perception:{name:"👁️ Perception",description:"Awareness and accuracy. Improves hit accuracy and helps notice discoveries.",effect:a=>"Accuracy: +"+Math.max(0,a-1)+"% · Discovery bonus: +"+Math.max(0,a-1)+"%"},
+ luck:{name:"🍀 Luck",description:"A little more fortune when searching, finding rare loot, and landing critical hits.",effect:a=>"Critical chance: +"+Math.max(0,a-1)*0.5+"% · Rare-find bonus: +"+Math.max(0,a-1)+"%"},
+ magic:{name:"✨ Magic",description:"Magical aptitude. This attribute is hidden until you discover mana through a teacher, a mana-rich location, magical food, or a mana-granting item.",effect:a=>"Maximum mana: +"+Math.max(0,a)*10+" · Magical power increases with Magic."}
+};
+let selectedAttribute="strength";
+function ensureAttributes(){
+ if(!player.attributes||typeof player.attributes!=="object")player.attributes={};
+ ["strength","agility","vitality","charisma","intelligence","endurance","perception","luck"].forEach(k=>player.attributes[k]=Math.max(1,Math.floor(Number(player.attributes[k])||1)));
+ if(player.manaUnlocked)player.attributes.magic=Math.max(1,Math.floor(Number(player.attributes.magic)||1));
+ else player.attributes.magic=0;
+ player.level=Math.max(1,Math.floor(Number(player.level)||1));player.characterXP=Math.max(0,Number(player.characterXP)||0);player.statPoints=Math.max(0,Math.floor(Number(player.statPoints)||0));
+ player.mana=Math.max(0,Number(player.mana)||0);player.maxMana=player.manaUnlocked?Math.max(10,(Number(player.attributes.magic)||1)*10):0;
+}
+function characterXPNeeded(level){return Math.max(100,level*100);}
+function gainCharacterXP(amount){
+ ensureAttributes();const learningBonus=1+Math.max(0,player.attributes.intelligence-1)*0.01;player.characterXP+=Math.max(0,Number(amount)||0)*learningBonus;let gained=0;
+ while(player.characterXP>=characterXPNeeded(player.level)){player.characterXP-=characterXPNeeded(player.level);player.level++;player.statPoints+=3;gained++;}
+ if(gained){syncAttributeDerivedStats();showMessage("Level up! Level "+player.level+" · +"+(gained*3)+" stat points.");}
+}
+function syncAttributeDerivedStats(){
+ ensureAttributes();const oldMaxHealth=Number(player.maxHealth)||100,oldMaxEnergy=Number(player.maxEnergy)||100;
+ const ratioH=oldMaxHealth>0?(Number(player.health)||0)/oldMaxHealth:1,ratioE=oldMaxEnergy>0?(Number(player.energy)||0)/oldMaxEnergy:1;
+ const combat=getCombatStats();player.maxHealth=combat.maxHealth;player.maxEnergy=100+Math.max(0,player.attributes.endurance-1)*8;
+ player.health=Math.min(player.maxHealth,Math.max(0,Math.round(ratioH*player.maxHealth)));player.energy=Math.min(player.maxEnergy,Math.max(0,Math.round(ratioE*player.maxEnergy)));
+ if(player.manaUnlocked){player.maxMana=Math.max(10,player.attributes.magic*10);player.mana=Math.min(player.maxMana,player.mana);}
+}
+function openAttributeModal(id){ensureAttributes();if(id==="magic"&&!player.manaUnlocked)return;selectedAttribute=id;const d=ATTRIBUTE_INFO[id],value=Number(player.attributes[id])||0;document.getElementById("attributeModalTitle").textContent=d.name+" · "+value;document.getElementById("attributeModalDescription").textContent=d.description;document.getElementById("attributeModalEffect").textContent=d.effect(value);const b=document.getElementById("attributeSpendButton");b.disabled=player.statPoints<1;b.textContent="+1 Stat Point ("+player.statPoints+" available)";document.getElementById("attributeModal").classList.add("open");}
+function closeAttributeModal(){document.getElementById("attributeModal")?.classList.remove("open");}
+function spendAttributePoint(){if(player.statPoints<1){showMessage("You have no unspent stat points.");return;}if(selectedAttribute==="magic"&&!player.manaUnlocked){showMessage("Discover mana before investing in Magic.");return;}player.statPoints--;player.attributes[selectedAttribute]=(Number(player.attributes[selectedAttribute])||0)+1;syncAttributeDerivedStats();saveGame();renderCharacterAttributes();openAttributeModal(selectedAttribute);updateScreen();}
+function renderCharacterAttributes(){
+ ensureAttributes();const box=document.getElementById("characterAttributes");if(!box)return;box.innerHTML="";
+ const keys=["strength","agility","vitality","charisma","intelligence","endurance","perception","luck"];
+ if(player.manaUnlocked)keys.push("magic");
+ keys.forEach(k=>{const d=ATTRIBUTE_INFO[k],v=Number(player.attributes[k])||0,b=document.createElement("button");b.className="attribute-card";b.innerHTML="<strong>"+d.name+" <span class=\"attribute-value\">"+v+"</span></strong><small>"+d.effect(v)+"</small>";b.onclick=()=>openAttributeModal(k);box.appendChild(b);});
+ const need=characterXPNeeded(player.level);document.getElementById("characterLevelSummary").textContent="Level "+player.level+" · "+Math.floor(player.characterXP)+" / "+need+" XP · "+player.statPoints+" stat points";
+ const mana=document.getElementById("manaProgression");if(mana){mana.classList.toggle("hidden",!player.manaUnlocked);if(player.manaUnlocked){mana.innerHTML="<strong>✨ Mana: "+Math.floor(player.mana)+" / "+player.maxMana+" · Magic "+player.attributes.magic+"</strong><p class=\"profile-note\">Study with a teacher or at a mana-rich location to improve your control.</p><button class=\"profile-button\" onclick=\"trainMana()\">Study / Train Mana (10 Energy)</button>";}}
+}
+function unlockMana(source){
+ ensureAttributes();if(player.manaUnlocked)return false;player.manaUnlocked=true;player.manaDiscovery=player.manaDiscovery||{teacher:false,location:false};if(source==="teacher")player.manaDiscovery.teacher=true;if(source==="location")player.manaDiscovery.location=true;player.attributes.magic=1;player.maxMana=10;player.mana=5;syncAttributeDerivedStats();renderCharacterAttributes();saveGame();showNarration("Mana Discovered","You have discovered mana through "+source+". The Magic attribute and mana resource are now unlocked. You can improve Magic with stat points.");return true;
+}
+function trainMana(){if(!player.manaUnlocked){showMessage("You have not discovered mana yet.");return;}if(player.energy<10){showMessage("You need at least 10 energy to study mana.");return;}player.energy-=10;player.mana=Math.min(player.maxMana,player.mana+Math.max(2,Math.floor(player.attributes.intelligence/2)+2));saveGame();renderCharacterAttributes();updateScreen();showMessage("You focus your mind and recover some mana control.");}
 function xpNeeded(level){return level*100}
 function skillLevel(id){return player.skills?.[id]?.level || 1}
 
@@ -1658,6 +1757,7 @@ function skillBonus(id){
 }
 
 function gainXP(id,amount){
+  gainCharacterXP(Math.max(0,Number(amount)||0));
   if(!player.skills[id]) player.skills[id]={xp:0,level:1};
   const s = player.skills[id];
   if(s.level >= MAX_SKILL_LEVEL) return "";
@@ -2040,8 +2140,9 @@ function useItem(id){
   if(data.type==="food")player.hunger=Math.min(100,player.hunger+(Number(data.hungerEffect)||Number(data.effect)||0));
   else if(data.type==="water")player.thirst=Math.min(100,player.thirst+(Number(data.thirstEffect)||Number(data.effect)||0));
   else if(data.type==="medicine"){const medBonus=(player.characterProfile?.mainProfession==="medic"?1.25:player.characterProfile?.subProfession==="medic"?1.12:1);player.health=Math.min(player.maxHealth||100,player.health+Math.round((Number(data.healthEffect)||Number(data.effect)||0)*medBonus));}
-  if(data.healthEffect && data.type!=="medicine")player.health=Math.min(100,player.health+data.healthEffect);
+  if(data.healthEffect && data.type!=="medicine")player.health=Math.min(player.maxHealth||100,player.health+data.healthEffect);
   if(data.energyEffect)player.energy=Math.min(player.maxEnergy||100,player.energy+data.energyEffect);
+  if(data.manaEffect){if(!player.manaUnlocked)unlockMana("magical food");player.mana=Math.min(player.maxMana||10,(Number(player.mana)||0)+Number(data.manaEffect));}
   if(data.hungerEffect && data.type!=="food")player.hunger=Math.min(100,player.hunger+data.hungerEffect);
   if(data.thirstEffect && data.type!=="water")player.thirst=Math.min(100,player.thirst+data.thirstEffect);
 
@@ -2205,7 +2306,7 @@ function updateBonfireUI(x,y){
   const restBtn = document.createElement("button");
   restBtn.className = "rest-button";
   restBtn.innerHTML = "<strong>🪑 Rest by Fire</strong><small>Recover energy</small>";
-  restBtn.disabled = player.dead || player.energy>=100;
+  restBtn.disabled = player.dead || player.energy>=(player.maxEnergy||100);
   restBtn.onclick = rest;
   actions.appendChild(restBtn);
 }
@@ -3122,6 +3223,7 @@ async function explore(){
   const info = terrainInfo[terrain];
   const tile = getTileData(player.x,player.y);
   markTileVisited(player.x,player.y);
+  if(!player.manaUnlocked&&Math.random()<0.012){const source=Math.random()<0.5?"teacher":"location";unlockMana(source);}
   if(terrain==="forest"&&!tile.pondFound&&Math.random()<0.12){tile.pondFound=true;showMessage("You discovered a small pond hidden among the trees. You can collect water here with a container.");}
   const progress = addTileExploration(player.x,player.y,25);
   updateMissionEvent("investigate",{x:player.x,y:player.y});
@@ -3154,6 +3256,9 @@ async function explore(){
     showNarration("Rare Discovery",storeFoundLoot("herb",1)+bonus);
     return;
   }
+
+  // Rare magical food can awaken a survivor's dormant mana sense.
+  if(Math.random()<0.012){showNarration("Luminous Discovery",storeFoundLoot("manaBerry",1)+"\nA faint blue glow pulses inside the berry.");return;}
 
   // Searching a city tile can uncover equipment as well as basic supplies.
   if(terrain==="city" && Math.random()<.45){
@@ -3413,7 +3518,7 @@ function openLocation(x,y){
     restBtn.className = "rest-button";
     restBtn.style.gridColumn = "1 / -1";
     restBtn.innerHTML = "<strong>🪑 Rest for 1 Hour</strong><small>Recover energy</small>";
-    restBtn.disabled = player.dead || player.energy>=100;
+    restBtn.disabled = player.dead || player.energy>=(player.maxEnergy||100);
     restBtn.onclick = rest;
     container.appendChild(restBtn);
 
@@ -3422,7 +3527,7 @@ function openLocation(x,y){
       sleepBtn.className = "sleep-button";
       sleepBtn.style.gridColumn = "1 / -1";
       sleepBtn.innerHTML = "<strong>🛌 Sleep at Settlement</strong><small>Sleep for 8 hours</small>";
-      sleepBtn.disabled = player.dead || player.energy>=100;
+      sleepBtn.disabled = player.dead || player.energy>=(player.maxEnergy||100);
       sleepBtn.onclick = sleep;
       container.appendChild(sleepBtn);
 
@@ -3450,7 +3555,7 @@ function openLocation(x,y){
     restBtn.className = "rest-button";
     restBtn.style.gridColumn = "1 / -1";
     restBtn.innerHTML = "<strong>🪑 Rest for 1 Hour</strong><small>Recover energy</small>";
-    restBtn.disabled = player.dead || player.energy>=100;
+    restBtn.disabled = player.dead || player.energy>=(player.maxEnergy||100);
     restBtn.onclick = rest;
     container.appendChild(restBtn);
 
@@ -3679,6 +3784,61 @@ function openBase(){
 }
 
 /* =========================
+   QUICK CHANNEL CHAT
+   Character level is derived from total profession XP unless a saved player.level exists.
+========================= */
+const QUICK_CHAT_CHANNELS={
+  world:{label:"World",minLevel:51,cooldown:60000,description:"World chat: one message every 60 seconds."},
+  region:{label:"Region",minLevel:20,cooldown:30000,description:"Region chat: one message every 30 seconds."},
+  area:{label:"Area",minLevel:1,cooldown:10000,description:"Area chat: one message every 10 seconds."},
+  tile:{label:"Tile",minLevel:0,cooldown:3000,description:"Tile chat: one message every 3 seconds."}
+};
+let quickChatOpen=false,quickChatChannel="tile",quickChatLines=[],quickChatNextSend={};
+function getOverallPlayerLevel(){return Math.max(0,Math.floor(Number(player.level)||0));}
+function toggleQuickChat(force){
+  quickChatOpen=typeof force==="boolean"?force:!quickChatOpen;
+  const root=document.getElementById("quickChat");if(root)root.classList.toggle("open",quickChatOpen);
+  if(quickChatOpen){refreshQuickChatAccess();renderQuickChat();setTimeout(()=>document.getElementById("quickChatInput")?.focus(),0);}
+}
+function refreshQuickChatAccess(){
+  const level=getOverallPlayerLevel(),levelLabel=document.getElementById("quickChatLevel");if(levelLabel)levelLabel.textContent="· Lv."+level;
+  document.querySelectorAll(".quick-chat-tab").forEach(btn=>{const key=btn.dataset.chatChannel,def=QUICK_CHAT_CHANNELS[key],allowed=level>=def.minLevel;btn.disabled=!allowed;btn.style.display=allowed?"":"none";});
+  if(level<QUICK_CHAT_CHANNELS[quickChatChannel].minLevel){quickChatChannel=level>=20?"region":level>=1?"area":"tile";}
+  document.querySelectorAll(".quick-chat-tab").forEach(btn=>btn.classList.toggle("active",btn.dataset.chatChannel===quickChatChannel));
+  const status=document.getElementById("quickChatStatus");if(status){const def=QUICK_CHAT_CHANNELS[quickChatChannel],remaining=Math.max(0,(quickChatNextSend[quickChatChannel]||0)-Date.now());status.textContent=def.description+(remaining>0?" Available in "+Math.ceil(remaining/1000)+"s.":"");}
+  const input=document.getElementById("quickChatInput"),send=document.getElementById("quickChatSend");if(input)input.placeholder="Message "+QUICK_CHAT_CHANNELS[quickChatChannel].label.toLowerCase()+" chat…";
+  if(send)send.disabled=Date.now()<(quickChatNextSend[quickChatChannel]||0);
+}
+function selectQuickChatChannel(channel){
+  const def=QUICK_CHAT_CHANNELS[channel];if(!def)return;
+  if(getOverallPlayerLevel()<def.minLevel){showMessage("Reach Level "+def.minLevel+" to unlock "+def.label+" chat.");return;}
+  quickChatChannel=channel;refreshQuickChatAccess();renderQuickChat();
+}
+function renderQuickChat(){
+  const log=document.getElementById("quickChatLog");if(!log)return;
+  const lines=quickChatLines.filter(line=>line.channel===quickChatChannel).slice(-60);
+  log.textContent=lines.length?lines.map(line=>"["+line.time+"] "+line.name+": "+line.text).join("\n"):QUICK_CHAT_CHANNELS[quickChatChannel].label+" chat · no messages yet.";
+  log.scrollTop=log.scrollHeight;refreshQuickChatAccess();
+}
+function addQuickChatLine(channel,name,text){
+  if(!QUICK_CHAT_CHANNELS[channel])channel="area";
+  quickChatLines.push({channel,name:String(name||"Survivor").slice(0,24),text:String(text||"").slice(0,240),time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})});
+  if(quickChatLines.length>300)quickChatLines=quickChatLines.slice(-300);
+  if(channel===quickChatChannel)renderQuickChat();
+}
+function sendQuickChat(event){
+  if(event)event.preventDefault();
+  const input=document.getElementById("quickChatInput"),text=(input?.value||"").trim(),channel=quickChatChannel,def=QUICK_CHAT_CHANNELS[channel];
+  if(!text)return;
+  if(getOverallPlayerLevel()<def.minLevel){showMessage("This channel is locked until Level "+def.minLevel+".");refreshQuickChatAccess();return;}
+  const remaining=(quickChatNextSend[channel]||0)-Date.now();if(remaining>0){if(document.getElementById("quickChatStatus"))document.getElementById("quickChatStatus").textContent="Please wait "+Math.ceil(remaining/1000)+" seconds before sending again.";return;}
+  if(!mpClientId||!mpSocket||mpSocket.readyState!==WebSocket.OPEN){if(document.getElementById("quickChatStatus"))document.getElementById("quickChatStatus").textContent="Connect to multiplayer to send messages. Your draft is kept.";return;}
+  if(!mpSend({type:"chat",channel,text,x:Number(player.x)||0,y:Number(player.y)||0,level:getOverallPlayerLevel()})){return;}
+  quickChatNextSend[channel]=Date.now()+def.cooldown;addQuickChatLine(channel,"You",text);if(input)input.value="";refreshQuickChatAccess();
+  const legacyInput=document.getElementById("mpChatInput");if(legacyInput)legacyInput.value="";
+}
+
+/* =========================
    MULTIPLAYER FOUNDATION
    Guest identity is stored separately from the legacy game save.
 ========================= */
@@ -3695,15 +3855,39 @@ let mpLocationTimer = null;
 let mpPlayers = [];
 let mpChatLines = [];
 let mpClientId = "";
-function startSinglePlayer(){document.getElementById("startMenuOverlay")?.classList.add("hidden");try{localStorage.setItem("lostRuinPlayMode","single");}catch(e){}}
-function startMultiplayer(){document.getElementById("startMenuOverlay")?.classList.add("hidden");try{localStorage.setItem("lostRuinPlayMode","multi");}catch(e){}mpOpenPanel();}
-function mpSetAuthMode(mode){mpAuthMode=mode==="login"?"login":"register";const fields=document.getElementById("mpRegisterFields");if(fields)fields.classList.toggle("hidden",mpAuthMode==="login");const pw=document.getElementById("mpPassword");if(pw)pw.autocomplete=mpAuthMode==="login"?"current-password":"new-password";}
-function mpOpenPanel(){
-  hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");
-  mpRenderPlayers();mpRenderTradeUI();
-  mpSetStatus(mpSocket&&mpSocket.readyState===WebSocket.OPEN?"Connected · online account active":"Offline · choose a server and log in");
+function startSinglePlayer(){
+  document.getElementById("startMenuOverlay")?.classList.add("hidden");
+  document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");
+  try{localStorage.setItem("lostRuinPlayMode","single");}catch(e){}
+  hideScreens();document.getElementById("worldMapPanel")?.classList.remove("hidden");document.getElementById("navigationPanel")?.classList.remove("hidden");updateScreen();requestAnimationFrame(()=>drawMap());
 }
-function openMultiplayer(){mpOpenPanel();}
+function startMultiplayer(){
+  try{localStorage.setItem("lostRuinPlayMode","multi");}catch(e){}
+  document.getElementById("startMenuOverlay")?.classList.add("hidden");
+  document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");
+  hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");
+  mpSetAuthMode("register");mpSetStatus("Create an account or choose Login. Your character and world stay hidden until authentication succeeds.");
+}
+function returnHome(){
+  if(mpSocket)mpDisconnect();
+  hideScreens();document.getElementById("startMenuOverlay")?.classList.remove("hidden");
+  document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");document.getElementById("quickChat")?.classList.add("hidden");
+  const card=document.querySelector("#startMenuOverlay .start-card");if(card)card.innerHTML='<h1>🧭 LOST RUIN</h1><p>Choose how you want to survive.</p><button onclick="startSinglePlayer()">🎮 Single Player <small>Local save on this device</small></button><button onclick="startMultiplayer()">🌐 Multiplayer <small>Account, other survivors and trading</small></button><p class="muted">Multiplayer requires an available online server.</p>';
+}
+function mpSetAuthMode(mode){
+  mpAuthMode=mode==="login"?"login":"register";
+  const fields=document.getElementById("mpRegisterFields"),registerButton=document.getElementById("mpRegisterButton"),loginButton=document.getElementById("mpLoginButton"),switchText=document.getElementById("mpAuthSwitchText"),pw=document.getElementById("mpPassword");
+  if(fields)fields.classList.toggle("hidden",mpAuthMode==="login");
+  if(registerButton)registerButton.classList.toggle("hidden",mpAuthMode==="login");
+  if(loginButton){loginButton.textContent=mpAuthMode==="login"?"🔑 Login":"🔑 Login";loginButton.onclick=mpAuthMode==="login"?mpConnect:()=>mpSetAuthMode("login");}
+  if(switchText)switchText.textContent=mpAuthMode==="login"?"Need a new account?":"Already have an account?";
+  if(pw)pw.autocomplete=mpAuthMode==="login"?"current-password":"new-password";
+  if(mpAuthMode==="login"&&registerButton){registerButton.classList.remove("hidden");registerButton.textContent="📝 Create Account Instead";registerButton.onclick=()=>mpSetAuthMode("register");}
+  else if(registerButton){registerButton.textContent="📝 Create Account";registerButton.onclick=mpConnect;}
+}
+function mpOpenPanel(){startMultiplayer();}
+function openMultiplayer(){returnHome();}
+
 function mpSetStatus(message){const el=document.getElementById("mpConnectionStatus");if(el)el.textContent=message;const connected=!!mpSocket&&mpSocket.readyState===WebSocket.OPEN;const disconnect=document.getElementById("mpDisconnectButton"),input=document.getElementById("mpChatInput"),send=document.getElementById("mpSendButton");if(disconnect)disconnect.disabled=!connected;if(input)input.disabled=!connected;if(send)send.disabled=!connected;}
 function mpSend(payload){if(!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return false;try{mpSocket.send(JSON.stringify(payload));return true;}catch(e){mpSetStatus("Connection error · "+(e.message||"unable to send"));return false;}}
 function mpConnect(){
@@ -3737,9 +3921,9 @@ function mpHandleMessage(msg){
     mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];
     if(msg.account){try{localStorage.setItem("lostRuinMpAccount",JSON.stringify({username:msg.account.username,characterName:msg.account.characterName,race:msg.account.race}));}catch(e){}
       player.characterProfile=player.characterProfile||{};player.characterProfile.name=msg.account.characterName;player.characterProfile.nameLocked=true;player.characterProfile.race=msg.account.race;player.characterProfile.raceLocked=true;saveGame();updateCharacter();}
-    mpSetStatus("Connected · "+(msg.name||"Survivor")+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");
+    mpSetStatus("Connected · "+(msg.name||"Survivor")+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");document.getElementById("multiplayerPanel")?.classList.add("hidden");document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");document.getElementById("quickChat")?.classList.remove("hidden");backToWorld();
   }else if(msg.type==="players"){mpPlayers=Array.isArray(msg.players)?msg.players:[];mpRenderPlayers();drawMap();}
-  else if(msg.type==="chat"){mpAddChatLine(msg.name||"Survivor",msg.text||"");}
+  else if(msg.type==="chat"){mpAddChatLine(msg.name||"Survivor",msg.text||"");addQuickChatLine(msg.channel||"area",msg.name||"Survivor",msg.text||"");}
   else if(msg.type==="system"){mpAddChatLine("System",msg.text||"");}
   else if(msg.type==="tradeOffer"){mpTradeOffers.push(msg.offer);mpRenderTradeUI();mpAddChatLine("Trade","Incoming offer from "+msg.offer.fromName+".");}
   else if(msg.type==="tradeUpdate"){mpTradeOffers=mpTradeOffers.filter(o=>o.id!==msg.offerId);mpRenderTradeUI();mpAddChatLine("Trade",msg.text||"Trade updated.");}
@@ -3774,7 +3958,7 @@ function mpApplyTrade(msg){
 function mpRemoveItemById(id,qty){let left=qty;for(let i=(player.inventory||[]).length-1;i>=0&&left>0;i--){const it=player.inventory[i];if((it.id||it.itemId||it.name)===id){const n=Number(it.amount||it.quantity)||1;if(n<=left){left-=n;player.inventory.splice(i,1);}else{if("amount" in it)it.amount=n-left;else it.quantity=n-left;left=0;}}}}
 function mpAddTradedItem(id,name,qty){if(items[id]){if(!addItem(id,qty))showMessage("Trade received, but inventory capacity needs attention for "+name+".");return;}let it=(player.inventory||[]).find(v=>(v.id||v.itemId||v.name)===id);if(it){if("amount" in it)it.amount=(Number(it.amount)||1)+qty;else it.quantity=(Number(it.quantity)||1)+qty;}else player.inventory.push({id,name,amount:qty});}
 function mpAddChatLine(name,text){const clean=String(text||"").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"").slice(0,240);mpChatLines.push({name:String(name||"Survivor").slice(0,24),text:clean});if(mpChatLines.length>80)mpChatLines=mpChatLines.slice(-80);const log=document.getElementById("mpChatLog");if(log){log.textContent=mpChatLines.map(line=>line.name+": "+line.text).join("\n");log.scrollTop=log.scrollHeight;}}
-function mpSendChat(event){if(event)event.preventDefault();const input=document.getElementById("mpChatInput"),text=(input?.value||"").trim();if(!text)return;if(!mpSend({type:"chat",text})){mpSetStatus("Not connected · connect to a server before chatting.");return;}mpAddChatLine("You",text);if(input)input.value="";}
+function mpSendChat(event){if(event)event.preventDefault();const input=document.getElementById("mpChatInput"),text=(input?.value||"").trim();if(!text)return;if(!mpSend({type:"chat",channel:"area",text,level:getOverallPlayerLevel(),x:Number(player.x)||0,y:Number(player.y)||0})){mpSetStatus("Not connected · connect to a server before chatting.");return;}mpAddChatLine("You",text);addQuickChatLine("area","You",text);if(input)input.value="";}
 
 /* =========================
    SAVING AND LOADING
@@ -3783,7 +3967,7 @@ function mpSendChat(event){if(event)event.preventDefault();const input=document.
 function saveGame(){
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      version:29,player,world,groundLoot,bonfires,tileData
+      version:30,player,world,groundLoot,bonfires,tileData
     }));
   }catch(e){
     console.error("Auto-save failed:",e);
@@ -3805,11 +3989,13 @@ function loadGame(){
     if(!Array.isArray(saved.inventory))return false;
 
     player = {...player,...saved};
+    ensureAttributes();
     if(player.characterProfile)player.characterProfile.raceLocked=true;
     ensureCharacterProfile();
     ensureEquipment();
 
-    player.maxHealth=player.maxEnergy=player.maxHunger=player.maxThirst=100;
+    player.maxHunger=player.maxThirst=100;
+    syncAttributeDerivedStats();
 
     ["health","energy","hunger","thirst"].forEach(f=>{
       player[f]=clamp(Number(player[f])||0,0,100);
@@ -3929,7 +4115,8 @@ function professionBonusText(id){
 }
 function getCombatStats(){
  ensureEquipment();
- let attack=5,defense=0,speed=5,accuracy=70,crit=5,healthBonus=0;
+ ensureAttributes();
+ let attack=5+Math.max(0,player.attributes.strength-1)*2,defense=Math.floor(Math.max(0,player.attributes.vitality-1)*0.5),speed=5+Math.max(0,player.attributes.agility-1),accuracy=70+Math.max(0,player.attributes.perception-1),crit=5+Math.max(0,player.attributes.agility-1)+Math.floor(Math.max(0,player.attributes.luck-1)*0.5),healthBonus=Math.max(0,player.attributes.vitality-1)*10;
  Object.values(player.equipment||{}).forEach(id=>{const it=items[id];if(!it)return;attack+=Number(it.damage)||0;defense+=Number(it.defense)||0;speed+=Number(it.speedBonus)||0;accuracy+=Number(it.accuracy)||0;crit+=Number(it.crit)||0;healthBonus+=Number(it.healthBonus)||0;});
  const prof=player.characterProfile?.mainProfession;
  if(prof==="soldier"){healthBonus+=25;defense+=3;}
@@ -4373,5 +4560,9 @@ if(loaded){
 </script>
 <div id="actionClockOverlay" aria-live="polite"><div id="actionClockCard"><span id="actionClockIcon">⌛</span><div id="actionClockTitle">Working...</div><div id="actionClockDetail">One in-game hour takes 5 real seconds.</div><div id="actionClockTrack"><div id="actionClockFill"></div></div></div></div>
 <div id="settlementOverlay" role="dialog" aria-modal="true"><div id="settlementCard"></div></div>
+<script>
+// Refresh level-gated channel visibility once the game UI has been parsed.
+document.addEventListener("DOMContentLoaded",()=>{refreshQuickChatAccess();});
+</script>
 </body>
 </html>
