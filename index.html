@@ -167,10 +167,18 @@ input,select{max-width:100%}
 #settlementCard{width:100%;max-width:430px;max-height:85vh;overflow:auto;background:#202020;border:1px solid #68745f;border-radius:12px;padding:18px}
 #settlementCard button{width:100%;margin-top:8px;text-align:left}
 #settlementCard .settlement-score{padding:10px;background:#303830;border-radius:8px;font-size:13px;white-space:pre-line;margin:10px 0}
+
+.start-overlay{position:fixed;inset:0;z-index:20000;background:radial-gradient(ellipse at center,#263a2a,#080a08 75%);display:flex;align-items:center;justify-content:center;padding:18px}.start-card{width:100%;max-width:420px;background:#1b1f1b;border:1px solid #526650;border-radius:16px;padding:24px;text-align:center;box-shadow:0 15px 50px #000b}.start-card h1{letter-spacing:2px}.start-card button{display:block;width:100%;margin:12px 0;padding:16px;text-align:left;background:#304936;border:1px solid #57775b;font-size:16px}.start-card button small{display:block;color:#c8d5c8;font-size:11px;margin-top:5px}.start-card button+button{background:#303c4d;border-color:#586e8c}
 </style>
 </head>
 
 <body>
+<div id="startMenuOverlay" class="start-overlay">
+ <div class="start-card"><h1>🧭 LOST RUIN</h1><p>Choose how you want to survive.</p>
+ <button onclick="startSinglePlayer()">🎮 Single Player <small>Local save on this device</small></button>
+ <button onclick="startMultiplayer()">🌐 Multiplayer <small>Account, other survivors and trading</small></button>
+ <p class="muted">Multiplayer requires an available online server.</p></div>
+</div>
 <main id="game">
 <header id="topNav" aria-label="Top navigation">
   <div class="nav-inner">
@@ -368,15 +376,31 @@ input,select{max-width:100%}
 <h2>🌐 Lost Ruin Online</h2>
 <p class="muted">Connect to a Lost Ruin multiplayer server to see other connected survivors and chat with them. Your offline save remains local to this browser.</p>
 <div class="detail-stat" id="mpConnectionStatus" role="status" aria-live="polite">Offline · Multiplayer server not connected</div>
-<label for="mpServerUrl">Server WebSocket URL</label>
-<input id="mpServerUrl" type="url" value="wss://lost-ruins-1.onrender.com" placeholder="wss://your-game-server.example" autocomplete="url" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
-<label for="mpPlayerName">Online display name</label>
-<input id="mpPlayerName" type="text" maxlength="24" placeholder="Survivor name" autocomplete="nickname" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
-<div class="action-grid"><button id="mpConnectButton" onclick="mpConnect()">🔌 Connect</button><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button></div>
+<h3>🔐 Multiplayer Account</h3>
+<p class="muted">Create an account once, then log in from any device. Your multiplayer character name and race are permanent for this account.</p>
+<label for="mpServerSelect">Choose a server</label>
+<select id="mpServerSelect" style="width:100%;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<option value="wss://lost-ruins-1.onrender.com">Lost Ruin · Main Survival (Online)</option>
+</select>
+<label for="mpUsername">Account username</label><input id="mpUsername" maxlength="24" autocomplete="username" placeholder="3–24 letters, numbers, underscore" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<label for="mpPassword">Password</label><input id="mpPassword" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="At least 8 characters" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<div id="mpRegisterFields">
+<label for="mpCharacterName">Character name (permanent)</label><input id="mpCharacterName" maxlength="24" placeholder="Name other players will see" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<label for="mpRace">Race (permanent)</label><select id="mpRace" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<option value="human">🧑 Human</option><option value="orc">👹 Orc</option><option value="goblin">👺 Goblin</option><option value="elf">🧝 Elf</option><option value="dragonkin">🐉 Dragonkin</option><option value="dwarf">⛏️ Dwarf</option>
+</select></div>
+<div class="action-grid"><button id="mpRegisterButton" onclick="mpSetAuthMode('register');mpConnect()">📝 Create Account</button><button id="mpLoginButton" onclick="mpSetAuthMode('login');mpConnect()">🔑 Log In</button></div>
+<div class="action-grid"><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button><button onclick="mpDisconnect();backToWorld()">Back to Game</button></div>
 <h3>🧭 Online Survivors <span id="mpPlayerCount">(0)</span></h3><div id="mpPlayerList" class="ground-row">Connect to a server to see other players.</div>
 <h3>💬 World Chat</h3><div id="mpChatLog" class="ground-row" aria-live="polite" style="white-space:pre-wrap;max-height:220px;overflow:auto">World chat will appear here after connecting.</div>
 <form id="mpChatForm" onsubmit="mpSendChat(event)" style="display:flex;gap:8px;margin-top:8px"><input id="mpChatInput" type="text" maxlength="240" placeholder="Message everyone online…" autocomplete="off" style="min-width:0;flex:1;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px" disabled><button id="mpSendButton" type="submit" disabled>Send</button></form>
-<p class="muted">Foundation status: online presence and shared chat are implemented. Player trading, persistent accounts, authoritative movement, and real PvP are not enabled yet. Do not expose a development server directly to the public internet.</p>
+<h3>🤝 Trade With a Player</h3>
+<label for="mpTradeTarget">Nearby / online player</label><select id="mpTradeTarget" style="width:100%;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px;margin:6px 0"><option value="">No other players online</option></select>
+<label for="mpTradeItem">Item from your inventory</label><select id="mpTradeItem" style="width:100%;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px;margin:6px 0"></select>
+<label for="mpTradeQty">Quantity</label><input id="mpTradeQty" type="number" min="1" value="1" style="width:100%;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px;margin:6px 0">
+<button class="full-button" onclick="mpCreateTrade()">📨 Send Trade Offer</button>
+<h3>📬 Trade Offers</h3><div id="mpTradeOffers" class="ground-row">Trade offers will appear here when connected.</div>
+<p class="muted">Prototype note: account authentication and offers are handled by the server, but full inventory anti-cheat and persistent world simulation need further server-authoritative work before a public competitive launch.</p>
 <button class="full-button" onclick="backToWorld()">Back to World</button>
 </section>
 
@@ -2868,6 +2892,7 @@ async function performLocationAction(action){
     return;
   }
   const terrain = generateTerrain(player.x,player.y);
+  if(mpClientId){const actionLabels={explore:"is exploring",rest:"is resting",hunt:"is hunting",forageFood:"is gathering food",captureWildlife:"is trying to capture wildlife",breedLivestock:"is breeding livestock",scavenge:"is scavenging ruins",fish:"is fishing",mine:"is mining",chop:"is chopping wood",build:"is working on a construction project"};mpSend({type:"worldAction",action:actionLabels[action]||("is doing "+String(action).replace(/([A-Z])/g," $1").toLowerCase())});}
   const resourceMap={forageFood:["fruit","herb"],forageWood:["wood"],mine:["stone","ironOre","copperOre"],collectWater:[],fish:["meat"],hunt:["meat","herb"],scavenge:["wood","fruit","herb"],search:["herb","fruit","stone"]};
   const relevant=resourceMap[action.id]||[];
   if(relevant.length && !relevant.some(id=>resourceAvailable(id)>0)){showNarration("Resources Depleted","This tile has no available resources for that action right now. Resources regrow over time.");return;}
@@ -3506,9 +3531,10 @@ function drawMap(){
     const x=mapViewX+col,y=mapViewY+row;
     const tile=document.createElement("button");tile.className="map-tile";tile.type="button";
     const visible=canSeeTile(x,y),td=getTileData(x,y);
-    if(!visible && !td.terrainKnown){
+    const onlineAt=(mpPlayers||[]).filter(p=>p.id!==mpClientId&&Number(p.x)===x&&Number(p.y)===y);
+    if(!onlineAt.length && !visible && !td.terrainKnown){
       tile.classList.add("fog");tile.textContent="";tile.title="Unexplored area · Tap to travel";tile.onclick=()=>beginTravel(x,y);
-    }else if(visible && !td.terrainKnown && !(x===player.x&&y===player.y)){
+    }else if(!onlineAt.length && visible && !td.terrainKnown && !(x===player.x&&y===player.y)){
       tile.classList.add("unknown");tile.textContent="";tile.title="Unexplored area · Tap to travel";tile.onclick=()=>beginTravel(x,y);
     }else{
       const terrain=generateTerrain(x,y),building=buildingAt(x,y),fire=getBonfire(x,y);
@@ -3522,6 +3548,7 @@ function drawMap(){
       if(isHeadquarters(x,y))main="🏕️";
       else if(building)main=buildingTypes[building.type].icon;
       else if(fire)main=fire.fuel>0?"🔥":"♨️";
+      else if((mpPlayers||[]).some(p=>p.id!==mpClientId&&Number(p.x)===x&&Number(p.y)===y)){const online=(mpPlayers||[]).filter(p=>p.id!==mpClientId&&Number(p.x)===x&&Number(p.y)===y);main="👥";detail=online.length>1?String(online.length):"";tile.title+=" · Online: "+online.map(p=>p.name).join(", ");}
       else if(x===player.x&&y===player.y){main="🧍";tile.classList.add("current");}
       else if(town)main="🏘️";
       else if(visible && td.terrainKnown && roamingHostileAt(x,y)){const enemy=roamingHostileAt(x,y);main=enemy.icon;tile.classList.add("hostile-on-map");tile.title+=" · Hostile: "+enemy.label;}
@@ -3657,7 +3684,10 @@ function openBase(){
 ========================= */
 const MP_NAME_KEY = "lostRuinOnlineName";
 const MP_SERVER_KEY = "lostRuinOnlineServer";
-const MP_CLIENT_VERSION = 1;
+const MP_CLIENT_VERSION = 2;
+let mpAuthMode = "register";
+let mpTradeOffers = [];
+const MP_SERVERS = {"main":"wss://lost-ruins-1.onrender.com"};
 let mpSocket = null;
 let mpReconnectRequested = false;
 let mpHeartbeatTimer = null;
@@ -3665,42 +3695,84 @@ let mpLocationTimer = null;
 let mpPlayers = [];
 let mpChatLines = [];
 let mpClientId = "";
+function startSinglePlayer(){document.getElementById("startMenuOverlay")?.classList.add("hidden");try{localStorage.setItem("lostRuinPlayMode","single");}catch(e){}}
+function startMultiplayer(){document.getElementById("startMenuOverlay")?.classList.add("hidden");try{localStorage.setItem("lostRuinPlayMode","multi");}catch(e){}mpOpenPanel();}
+function mpSetAuthMode(mode){mpAuthMode=mode==="login"?"login":"register";const fields=document.getElementById("mpRegisterFields");if(fields)fields.classList.toggle("hidden",mpAuthMode==="login");const pw=document.getElementById("mpPassword");if(pw)pw.autocomplete=mpAuthMode==="login"?"current-password":"new-password";}
 function mpOpenPanel(){
-  hideScreens();
-  document.getElementById("multiplayerPanel")?.classList.remove("hidden");
-  const nameInput=document.getElementById("mpPlayerName"),urlInput=document.getElementById("mpServerUrl");
-  if(nameInput&&!nameInput.value){try{nameInput.value=localStorage.getItem(MP_NAME_KEY)||player.characterProfile?.name||"Survivor";}catch(e){nameInput.value="Survivor";}}
-  if(urlInput){try{const savedServer=localStorage.getItem(MP_SERVER_KEY)||"";urlInput.value=(/^wss?:\/\/(localhost|127\.0\.0\.1)(:|$)/i.test(savedServer)?"":savedServer)||urlInput.value;}catch(e){}}
-  mpRenderPlayers();mpSetStatus(mpSocket&&mpSocket.readyState===WebSocket.OPEN?"Connected · syncing presence":"Offline · multiplayer server not connected");
+  hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");
+  mpRenderPlayers();mpRenderTradeUI();
+  mpSetStatus(mpSocket&&mpSocket.readyState===WebSocket.OPEN?"Connected · online account active":"Offline · choose a server and log in");
 }
 function openMultiplayer(){mpOpenPanel();}
-function mpSetStatus(message){const el=document.getElementById("mpConnectionStatus");if(el)el.textContent=message;const connected=!!mpSocket&&mpSocket.readyState===WebSocket.OPEN;const connect=document.getElementById("mpConnectButton"),disconnect=document.getElementById("mpDisconnectButton"),input=document.getElementById("mpChatInput"),send=document.getElementById("mpSendButton");if(connect)connect.disabled=connected;if(disconnect)disconnect.disabled=!connected;if(input)input.disabled=!connected;if(send)send.disabled=!connected;}
+function mpSetStatus(message){const el=document.getElementById("mpConnectionStatus");if(el)el.textContent=message;const connected=!!mpSocket&&mpSocket.readyState===WebSocket.OPEN;const disconnect=document.getElementById("mpDisconnectButton"),input=document.getElementById("mpChatInput"),send=document.getElementById("mpSendButton");if(disconnect)disconnect.disabled=!connected;if(input)input.disabled=!connected;if(send)send.disabled=!connected;}
 function mpSend(payload){if(!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return false;try{mpSocket.send(JSON.stringify(payload));return true;}catch(e){mpSetStatus("Connection error · "+(e.message||"unable to send"));return false;}}
 function mpConnect(){
   if(mpSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(mpSocket.readyState)){mpSetStatus("Already connected or connecting.");return;}
-  const urlEl=document.getElementById("mpServerUrl"),nameEl=document.getElementById("mpPlayerName");
-  const url=(urlEl?.value||"").trim(),name=(nameEl?.value||"Survivor").trim().replace(/[<>\u0000-\u001f]/g,"").slice(0,24)||"Survivor";
-  if(!/^wss?:\/\//i.test(url)){mpSetStatus("Enter a valid ws:// or wss:// server URL.");return;}
-  try{localStorage.setItem(MP_NAME_KEY,name);localStorage.setItem(MP_SERVER_KEY,url);}catch(e){}
-  mpReconnectRequested=true;mpSetStatus("Connecting to multiplayer server…");
+  const url=document.getElementById("mpServerSelect")?.value||MP_SERVERS.main;
+  const username=(document.getElementById("mpUsername")?.value||"").trim();
+  const password=document.getElementById("mpPassword")?.value||"";
+  const characterName=(document.getElementById("mpCharacterName")?.value||"").trim();
+  const race=document.getElementById("mpRace")?.value||"human";
+  if(!/^[a-zA-Z0-9_]{3,24}$/.test(username)){mpSetStatus("Username must be 3–24 characters: letters, numbers, underscore.");return;}
+  if(password.length<8||password.length>128){mpSetStatus("Password must be 8–128 characters.");return;}
+  if(mpAuthMode==="register"&&!/^[\p{L}0-9 _'-]{2,24}$/u.test(characterName)){mpSetStatus("Character name must be 2–24 characters.");return;}
+  try{localStorage.setItem(MP_SERVER_KEY,url);localStorage.setItem("lostRuinMpUsername",username);}catch(e){}
+  mpSetStatus(mpAuthMode==="register"?"Connecting to create account…":"Connecting to log in…");
   let socket;try{socket=new WebSocket(url);}catch(e){mpSetStatus("Could not start connection: "+(e.message||"invalid URL"));return;}mpSocket=socket;
-  socket.addEventListener("open",()=>{if(mpSocket!==socket)return;mpSetStatus("Connected · joining world…");mpSend({type:"join",version:MP_CLIENT_VERSION,name,x:Number(player.x)||0,y:Number(player.y)||0,worldId:"lost-ruin-main"});mpHeartbeatTimer=setInterval(()=>mpSend({type:"ping",at:Date.now()}),25000);mpLocationTimer=setInterval(()=>mpSend({type:"location",x:Number(player.x)||0,y:Number(player.y)||0}),4000);});
+  socket.addEventListener("open",()=>{
+    if(mpSocket!==socket)return;
+    mpSend({type:"auth",version:MP_CLIENT_VERSION,mode:mpAuthMode,username,password,characterName,race,x:Number(player.x)||0,y:Number(player.y)||0,worldId:"lost-ruin-main"});
+    mpHeartbeatTimer=setInterval(()=>mpSend({type:"ping",at:Date.now()}),25000);
+    mpLocationTimer=setInterval(()=>{if(mpClientId)mpSend({type:"location",x:Number(player.x)||0,y:Number(player.y)||0,day:player.day,hour:player.hour,terrain:generateTerrain(player.x,player.y)});},1800);
+  });
   socket.addEventListener("message",event=>{if(mpSocket!==socket)return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}mpHandleMessage(msg);});
-  socket.addEventListener("error",()=>{if(mpSocket===socket)mpSetStatus("Connection failed · check the server URL and server logs.");});
+  socket.addEventListener("error",()=>{if(mpSocket===socket)mpSetStatus("Connection failed · this server may not be deployed or reachable.");});
   socket.addEventListener("close",event=>{if(mpSocket!==socket)return;mpClearTimers();mpSocket=null;mpClientId="";mpPlayers=[];mpRenderPlayers();mpSetStatus("Disconnected · "+(event.reason||"server connection closed"));});
 }
 function mpClearTimers(){if(mpHeartbeatTimer)clearInterval(mpHeartbeatTimer);if(mpLocationTimer)clearInterval(mpLocationTimer);mpHeartbeatTimer=mpLocationTimer=null;}
 function mpDisconnect(){mpReconnectRequested=false;mpClearTimers();if(mpSocket){const socket=mpSocket;mpSocket=null;try{socket.close(1000,"Player disconnected");}catch(e){}}mpClientId="";mpPlayers=[];mpRenderPlayers();mpSetStatus("Disconnected · your local game is still available.");}
 function mpHandleMessage(msg){
   if(!msg||typeof msg.type!=="string")return;
-  if(msg.type==="welcome"){mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];mpSetStatus("Connected · online as "+(msg.name||"Survivor"));mpRenderPlayers();mpAddChatLine("System","Connected to Lost Ruin Online.");}
-  else if(msg.type==="players"){mpPlayers=Array.isArray(msg.players)?msg.players:[];mpRenderPlayers();}
+  if(msg.type==="welcome"){
+    mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];
+    if(msg.account){try{localStorage.setItem("lostRuinMpAccount",JSON.stringify({username:msg.account.username,characterName:msg.account.characterName,race:msg.account.race}));}catch(e){}
+      player.characterProfile=player.characterProfile||{};player.characterProfile.name=msg.account.characterName;player.characterProfile.nameLocked=true;player.characterProfile.race=msg.account.race;player.characterProfile.raceLocked=true;saveGame();updateCharacter();}
+    mpSetStatus("Connected · "+(msg.name||"Survivor")+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");
+  }else if(msg.type==="players"){mpPlayers=Array.isArray(msg.players)?msg.players:[];mpRenderPlayers();drawMap();}
   else if(msg.type==="chat"){mpAddChatLine(msg.name||"Survivor",msg.text||"");}
   else if(msg.type==="system"){mpAddChatLine("System",msg.text||"");}
-  else if(msg.type==="error"){mpAddChatLine("System",msg.message||"The server reported an error.");}
-  else if(msg.type==="pong"){/* heartbeat acknowledged */}
+  else if(msg.type==="tradeOffer"){mpTradeOffers.push(msg.offer);mpRenderTradeUI();mpAddChatLine("Trade","Incoming offer from "+msg.offer.fromName+".");}
+  else if(msg.type==="tradeUpdate"){mpTradeOffers=mpTradeOffers.filter(o=>o.id!==msg.offerId);mpRenderTradeUI();mpAddChatLine("Trade",msg.text||"Trade updated.");}
+  else if(msg.type==="tradeAccepted"){mpApplyTrade(msg);mpAddChatLine("Trade",msg.text||"Trade accepted.");}
+  else if(msg.type==="worldEvent"){mpAddChatLine("World",msg.text||"The world has changed.");}
+  else if(msg.type==="error"){mpAddChatLine("System",msg.message||"The server reported an error.");mpSetStatus(msg.message||"Server error");if(!mpClientId&&mpSocket&&mpSocket.readyState===WebSocket.OPEN){try{mpSocket.close(4002,"Authentication failed");}catch(e){}}}
+  else if(msg.type==="pong"){}
 }
-function mpRenderPlayers(){const list=document.getElementById("mpPlayerList"),count=document.getElementById("mpPlayerCount");if(count)count.textContent="("+mpPlayers.length+")";if(!list)return;list.textContent="";if(!mpPlayers.length){list.textContent=mpSocket&&mpSocket.readyState===WebSocket.OPEN?"You are connected. No player list received yet.":"Connect to a server to see other players.";return;}mpPlayers.forEach(p=>{const row=document.createElement("div");row.style.padding="5px 0";row.textContent=(p.id===mpClientId?"🟢 You · ":"🟢 ")+(p.name||"Survivor")+" · Tile "+Math.floor(Number(p.x)||0)+", "+Math.floor(Number(p.y)||0);list.appendChild(row);});}
+function mpRenderPlayers(){
+  const list=document.getElementById("mpPlayerList"),count=document.getElementById("mpPlayerCount");if(count)count.textContent="("+mpPlayers.length+")";
+  if(list){list.textContent="";if(!mpPlayers.length){list.textContent=mpSocket&&mpSocket.readyState===WebSocket.OPEN?"Connected. Waiting for survivors…":"Log in to see other players."; }else mpPlayers.forEach(p=>{const row=document.createElement("div");row.style.padding="5px 0";row.textContent=(p.id===mpClientId?"🟢 You · ":"🟢 ")+(p.name||"Survivor")+" · "+(p.race||"Human")+" · Tile "+Math.floor(Number(p.x)||0)+", "+Math.floor(Number(p.y)||0);list.appendChild(row);});}
+  const select=document.getElementById("mpTradeTarget");if(select){const old=select.value;select.textContent="";const others=mpPlayers.filter(p=>p.id!==mpClientId);if(!others.length){const opt=document.createElement("option");opt.value="";opt.textContent="No other players online";select.appendChild(opt);}else others.forEach(p=>{const opt=document.createElement("option");opt.value=p.id;opt.textContent=p.name+" · "+p.x+","+p.y;select.appendChild(opt);});if(others.some(p=>p.id===old))select.value=old;}
+}
+function mpRenderTradeUI(){
+ const itemSel=document.getElementById("mpTradeItem");if(itemSel){const old=itemSel.value;itemSel.textContent="";(player.inventory||[]).forEach((item,i)=>{const opt=document.createElement("option");opt.value=String(i);opt.textContent=(items[item.id]?.icon||"📦")+" "+(items[item.id]?.name||item.name||item.id)+" ×"+(item.amount||item.quantity||1);itemSel.appendChild(opt);});if(!itemSel.options.length){const opt=document.createElement("option");opt.value="";opt.textContent="Inventory is empty";itemSel.appendChild(opt);}else if(old&&Number(old)<itemSel.options.length)itemSel.value=old;}
+ const offers=document.getElementById("mpTradeOffers");if(!offers)return;offers.textContent="";
+ if(!mpTradeOffers.length){offers.textContent="No pending offers.";return;}
+ mpTradeOffers.forEach(o=>{const row=document.createElement("div");row.style.padding="8px 0";row.textContent=o.fromName+" offers "+o.quantity+" × "+o.itemName+".";if(o.toId===mpClientId){const yes=document.createElement("button");yes.textContent="Accept";yes.onclick=()=>{const item=items[o.itemId];if(item&&getInventoryWeight()+item.weight*o.quantity>getMaxWeight()+0.000001){showMessage("Not enough inventory capacity for this trade.");return;}mpSend({type:"tradeRespond",offerId:o.id,accept:true});};const no=document.createElement("button");no.textContent="Reject";no.style.marginLeft="6px";no.onclick=()=>mpSend({type:"tradeRespond",offerId:o.id,accept:false});row.append(" ",yes,no);}offers.appendChild(row);});
+}
+function mpCreateTrade(){
+ const target=document.getElementById("mpTradeTarget")?.value,itemIndex=Number(document.getElementById("mpTradeItem")?.value),quantity=Math.floor(Number(document.getElementById("mpTradeQty")?.value)||0),item=player.inventory?.[itemIndex];
+ if(!mpClientId){showMessage("Log in to multiplayer first.");return;}if(!target){showMessage("Choose another online player.");return;}if(!item||quantity<1||quantity>(Number(item.amount||item.quantity)||1)){showMessage("Choose a valid item quantity.");return;}
+ const itemId=item.id||item.itemId||item.name;mpSend({type:"tradeOffer",toId:target,itemId,itemName:items[itemId]?.name||item.name||itemId,quantity});showMessage("Trade offer sent.");
+}
+function mpApplyTrade(msg){
+ // Client-side inventory mutation is a prototype. Server-authoritative item ownership is the next hardening step.
+ const give=msg.give,receive=msg.receive;
+ if(give&&give.fromId===mpClientId)mpRemoveItemById(give.itemId,give.quantity);
+ if(receive&&receive.toId===mpClientId)mpAddTradedItem(receive.itemId,receive.itemName,receive.quantity);
+ updateInventory();saveGame();mpRenderTradeUI();
+}
+function mpRemoveItemById(id,qty){let left=qty;for(let i=(player.inventory||[]).length-1;i>=0&&left>0;i--){const it=player.inventory[i];if((it.id||it.itemId||it.name)===id){const n=Number(it.amount||it.quantity)||1;if(n<=left){left-=n;player.inventory.splice(i,1);}else{if("amount" in it)it.amount=n-left;else it.quantity=n-left;left=0;}}}}
+function mpAddTradedItem(id,name,qty){if(items[id]){if(!addItem(id,qty))showMessage("Trade received, but inventory capacity needs attention for "+name+".");return;}let it=(player.inventory||[]).find(v=>(v.id||v.itemId||v.name)===id);if(it){if("amount" in it)it.amount=(Number(it.amount)||1)+qty;else it.quantity=(Number(it.quantity)||1)+qty;}else player.inventory.push({id,name,amount:qty});}
 function mpAddChatLine(name,text){const clean=String(text||"").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"").slice(0,240);mpChatLines.push({name:String(name||"Survivor").slice(0,24),text:clean});if(mpChatLines.length>80)mpChatLines=mpChatLines.slice(-80);const log=document.getElementById("mpChatLog");if(log){log.textContent=mpChatLines.map(line=>line.name+": "+line.text).join("\n");log.scrollTop=log.scrollHeight;}}
 function mpSendChat(event){if(event)event.preventDefault();const input=document.getElementById("mpChatInput"),text=(input?.value||"").trim();if(!text)return;if(!mpSend({type:"chat",text})){mpSetStatus("Not connected · connect to a server before chatting.");return;}mpAddChatLine("You",text);if(input)input.value="";}
 
@@ -4285,6 +4357,7 @@ function renderCollections(){
 ========================= */
 
 const loaded = loadGame();
+try{const mode=localStorage.getItem("lostRuinPlayMode");if(mode==="single")document.getElementById("startMenuOverlay")?.classList.add("hidden");else if(mode==="multi"){document.getElementById("startMenuOverlay")?.classList.add("hidden");setTimeout(()=>mpOpenPanel(),0);}else document.getElementById("startMenuOverlay")?.classList.remove("hidden");}catch(e){document.getElementById("startMenuOverlay")?.classList.remove("hidden");}
 ensureCharacterProfile();
 ensureEconomyData();
 selectedLocation={x:player.x,y:player.y};
