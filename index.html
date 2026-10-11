@@ -2,6 +2,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#111111">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>LOST RUIN</title>
@@ -4785,5 +4790,21 @@ if(loaded){
 // Refresh level-gated channel visibility once the game UI has been parsed.
 document.addEventListener("DOMContentLoaded",()=>{refreshQuickChatAccess();});
 </script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .catch(error => {
+        console.error(
+          "LOST RUIN service worker error:",
+          error
+        );
+      });
+  });
+}
+</script>
+
 </body>
 </html>
