@@ -481,6 +481,7 @@ input,select{max-width:100%}
 <h3>🛡️ Armor Collection</h3><div id="collectionArmor"></div>
 <h3>⚔️ Weapons Collection</h3><div id="collectionWeapons"></div>
 <h3>🛠️ Tools Collection</h3><div id="collectionTools"></div>
+<h3>👹 Hostile Enemies Encountered</h3><p class="muted">Enemies are recorded after you encounter them. A first encounter appears as Unknown Hostile; later encounters identify that enemy.</p><div id="collectionEnemies"></div>
 <button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
@@ -2781,7 +2782,9 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
   if(!total)return true;
   timeAdvanceInProgress=true;
   const overlay=document.getElementById("actionClockOverlay"),title=document.getElementById("actionClockTitle"),detail=document.getElementById("actionClockDetail"),fill=document.getElementById("actionClockFill"),icon=document.getElementById("actionClockIcon");
-  if(overlay){overlay.style.display="flex";icon.textContent=actionIcon;title.textContent=actionLabel;}
+  // Travel already has its own hourglass/progress display. Suppress the duplicate full-screen action clock only while traveling.
+  const showActionClock=!String(actionLabel).startsWith("Traveling to next tile");
+  if(showActionClock&&overlay){overlay.style.display="flex";icon.textContent=actionIcon;title.textContent=actionLabel;}
   let alive=true;
   try{
     for(let i=0;i<total;i++){
@@ -2810,7 +2813,7 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
       if(fill)fill.style.width="0%";
     }
   }finally{
-    if(overlay)overlay.style.display="none";if(fill)fill.style.width="0%";timeAdvanceInProgress=false;
+    if(showActionClock&&overlay)overlay.style.display="none";if(fill)fill.style.width="0%";timeAdvanceInProgress=false;
   }
   refreshTileDecay();updateScreen();saveGame();
   if(player.dead){showDeathScreen();return false;}
@@ -4371,12 +4374,18 @@ function beginBattle(type,ambush=false,isPvp=false,raceId="",roaming=false){
  const groupSize=(isPvp?1:enemyGroupSize(type,player.x,player.y));
  const enemies=Array.from({length:groupSize},(_,i)=>({...enemy,name:enemy.name+(groupSize>1?" "+(i+1):""),unitHp:enemy.hp}));
  const totalHp=enemies.reduce((sum,e)=>sum+e.hp,0);
- activeBattle={type,ambush,isPvp,roaming,enemy, enemies,groupSize,hp:totalHp,maxHp:totalHp,combat:false,turn:0,log:[],ended:false,opponentAgrees:false,partyStrategy:"balanced"};
+ if(!player.encounteredEnemies||typeof player.encounteredEnemies!=="object")player.encounteredEnemies={};
+ const enemyId=[type,enemy.race||"",enemy.name].join("|").toLowerCase();
+ const enemyWasKnown=!!player.encounteredEnemies[enemyId];
+ if(!enemyWasKnown)player.encounteredEnemies[enemyId]={id:enemyId,name:enemy.name,type,race:enemy.race||"",faction:enemy.faction||"",firstDay:player.day||1,encounters:1};
+ else player.encounteredEnemies[enemyId].encounters=(Number(player.encounteredEnemies[enemyId].encounters)||1)+1;
+ const enemyDisplayName=enemyWasKnown?enemy.name:"Unknown Hostile";
+ activeBattle={type,ambush,isPvp,roaming,enemy,enemyId,enemyWasKnown,enemyDisplayName,enemies,groupSize,hp:totalHp,maxHp:totalHp,combat:false,turn:0,log:[],ended:false,opponentAgrees:false,partyStrategy:"balanced"};
  hideScreens();document.getElementById("battlePanel").classList.remove("hidden");document.getElementById("navigationPanel").classList.add("hidden");startPartyStrategyDecision();
  document.getElementById("battlePreFight").classList.toggle("hidden",ambush);
  document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleLeaveButton").classList.add("hidden");
- document.getElementById("battleIntro").textContent=ambush?"AMBUSH! You were caught off guard. You can still attempt a risky escape.":(roaming?"ENEMY DISCOVERED: A roaming hostile has crossed your path.":type==="pvp"?"A nearby survivor approaches. This offline build uses a local simulation; real player-versus-player encounters require an online server.":type==="faction"?"WARNING: You have entered territory watched by "+race.faction+". A "+race.name+" patrol confronts you.":"WARNING: A hostile presence blocks your way. Decide how to respond.");
- document.getElementById("battleOpponentName").textContent=(type==="wildlife"?"🐺 ":type==="dragon"?"🐉 ":type==="faction"?race.icon+" ":type==="npc"?"🗡️ ":"🧍 ")+enemy.name+(groupSize>1?" × "+groupSize:"")+(enemy.faction?" · "+enemy.faction:"");
+ document.getElementById("battleIntro").textContent=!enemyWasKnown?(roaming?"UNKNOWN HOSTILE: An unfamiliar hostile was on your travel route and stopped your journey. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+".":"UNKNOWN HOSTILE: You have encountered an unfamiliar enemy. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+"."):ambush?"AMBUSH! You were caught off guard. You can still attempt a risky escape.":(roaming?"ENEMY DISCOVERED: A roaming hostile has crossed your path.":type==="pvp"?"A nearby survivor approaches. This offline build uses a local simulation; real player-versus-player encounters require an online server.":type==="faction"?"WARNING: You have entered territory watched by "+race.faction+". A "+race.name+" patrol confronts you.":"WARNING: A hostile presence blocks your way. Decide how to respond.");
+ document.getElementById("battleOpponentName").textContent=(enemyWasKnown?(type==="wildlife"?"🐺 ":type==="dragon"?"🐉 ":type==="faction"?race.icon+" ":type==="npc"||type==="bandit"?"🗡️ ":"🧍 ")+enemy.name:"❔ Unknown Hostile")+(groupSize>1?" × "+groupSize:"")+(enemyWasKnown&&enemy.faction?" · "+enemy.faction:"");
  document.getElementById("battleOpponentStats").textContent="Group health: "+totalHp+" · Attack per enemy: "+enemy.attack+" · Defense: "+enemy.defense+" · Speed: "+enemy.speed+(groupSize>1?" · Group size: "+groupSize:"");
  if(ambush){activeBattle.combat=true;document.getElementById("battleCombat").classList.remove("hidden");document.getElementById("battleLog").textContent="You are ambushed! The enemy gets the first strike.";renderBattleStats();enemyStrike(true);}
  updateScreen();saveGame();
@@ -4436,8 +4445,8 @@ function battleTurn(stance){
  if(player.health<=0){player.dead=true;endBattle("You were defeated. Your journey ends here.",false);return;}
  updateScreen();saveGame();
 }
-function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle,stats=getCombatStats();const groupCount=Math.max(1,b.enemies?.length||1);const damage=Math.max(1,Math.round(b.enemy.attack*Math.min(2.2,1+(groupCount-1)*.15))-stats.defense+Math.floor(Math.random()*3));player.health=Math.max(0,player.health-damage);document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+b.enemy.name+" hits first for "+damage+" damage.";renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
-function renderBattleStats(){if(!activeBattle)return;const s=getCombatStats(),b=activeBattle;document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=b.enemy.name+(b.groupSize>1?" × "+(b.enemies?.length||0):"");document.getElementById("battleEnemyNumbers").textContent=b.hp+" / "+b.maxHp+" HP · ATK "+b.enemy.attack+" · DEF "+b.enemy.defense;document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
+function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle,stats=getCombatStats();const groupCount=Math.max(1,b.enemies?.length||1);const damage=Math.max(1,Math.round(b.enemy.attack*Math.min(2.2,1+(groupCount-1)*.15))-stats.defense+Math.floor(Math.random()*3));player.health=Math.max(0,player.health-damage);document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+b.enemyDisplayName+" hits first for "+damage+" damage.";renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
+function renderBattleStats(){if(!activeBattle)return;const s=getCombatStats(),b=activeBattle;document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=b.enemyDisplayName+(b.groupSize>1?" × "+(b.enemies?.length||0):"");document.getElementById("battleEnemyNumbers").textContent=b.hp+" / "+b.maxHp+" HP · ATK "+b.enemy.attack+" · DEF "+b.enemy.defense;document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
 function endBattle(message,won){if(!activeBattle)return;if(partyStrategyTimer){clearInterval(partyStrategyTimer);partyStrategyTimer=null;}document.getElementById("partyStrategyDecision")?.classList.add("hidden");const finished=activeBattle;finished.ended=true;if(won)updateMissionEvent("kill",{type:finished.type,enemy:finished.enemy});if(won&&finished.roaming){const td=getTileData(player.x,player.y);td.roamingEnemyDefeated=true;td.roamingEncounter=null;}document.getElementById("battlePreFight").classList.add("hidden");document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleIntro").textContent=message;document.getElementById("battleLeaveButton").classList.remove("hidden");if(won){if(finished.type==="dragon"){showMessage("The dragon has been defeated!");}else if(finished.type==="wildlife"){
  const animal=finished.enemy.name;
  const drops={"Wild Rabbit":[["meat",1,.85],["leather",1,.35]],"Forest Deer":[["meat",2,.95],["leather",2,.8]],"Wild Chicken":[["meat",1,.9],["feather",2,.75]],"Mountain Goat":[["meat",2,.85],["leather",2,.7],["wool",1,.35]],"Wild Boar":[["meat",3,.95],["leather",1,.75]],"Feral Dog":[["meat",1,.55],["leather",1,.4]],"Ruin Wolf":[["meat",2,.75],["leather",2,.8]],"Dire Bear":[["meat",4,1],["leather",4,.95]]};
@@ -4766,6 +4775,8 @@ function renderCollections(){
  const groups={collectionArmor:[],collectionWeapons:[],collectionTools:[]};
  gear.forEach(([id,it])=>{let key;if(["head","torso","arms","pants","boots","backpack"].includes(it.slot))key="collectionArmor";else if(["mainWeapon","subWeapon"].includes(it.slot))key="collectionWeapons";else key="collectionTools";groups[key].push({id,it});});
  Object.entries(groups).forEach(([elementId,list])=>{const el=document.getElementById(elementId);el.innerHTML="";const discovered=list.filter(({id})=>owned.has(id));if(!discovered.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No items discovered in this collection yet.";el.appendChild(note);return;}discovered.forEach(({id,it})=>{const row=document.createElement("div");row.className="ground-row";row.textContent="✅ FOUND · "+it.icon+" "+it.name+" · Tier "+it.tier+(it.defense?" · Defense "+it.defense:"")+(it.damage?" · Damage "+it.damage:"")+(it.capacity?" · Capacity +"+it.capacity+" kg":"");el.appendChild(row);});});
+ const enemyList=document.getElementById("collectionEnemies");
+ if(enemyList){enemyList.innerHTML="";const enemies=Object.values(player.encounteredEnemies||{}).sort((a,b)=>(String(a.type).localeCompare(String(b.type))||String(a.name).localeCompare(String(b.name))));if(!enemies.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No hostile enemies encountered yet. Travel and explore to discover hostile creatures, raiders, and faction patrols.";enemyList.appendChild(note);}else enemies.forEach(e=>{const row=document.createElement("div");row.className="ground-row";const group=e.type==="wildlife"?"Wildlife":e.type==="faction"?"Faction patrol":e.type==="dragon"?"Dragon":e.type==="bandit"?"Bandits":e.type==="npc"?"Hostile survivors":e.type==="pvp"?"Survivor encounter":String(e.type||"Hostile");row.textContent="👹 "+e.name+" · "+group+(e.faction?" · "+e.faction:"")+" · First encountered Day "+(e.firstDay||1)+" · Encounters: "+(e.encounters||1);enemyList.appendChild(row);});}
 }
 
 /* =========================
