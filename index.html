@@ -369,7 +369,7 @@ input,select{max-width:100%}
 <p class="muted">Connect to a Lost Ruin multiplayer server to see other connected survivors and chat with them. Your offline save remains local to this browser.</p>
 <div class="detail-stat" id="mpConnectionStatus" role="status" aria-live="polite">Offline · Multiplayer server not connected</div>
 <label for="mpServerUrl">Server WebSocket URL</label>
-<input id="mpServerUrl" type="url" value="ws://localhost:8080" placeholder="wss://your-game-server.example" autocomplete="url" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
+<input id="mpServerUrl" type="url" value="wss://lost-ruins-1.onrender.com" placeholder="wss://your-game-server.example" autocomplete="url" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
 <label for="mpPlayerName">Online display name</label>
 <input id="mpPlayerName" type="text" maxlength="24" placeholder="Survivor name" autocomplete="nickname" style="width:100%;box-sizing:border-box;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
 <div class="action-grid"><button id="mpConnectButton" onclick="mpConnect()">🔌 Connect</button><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button></div>
@@ -3670,7 +3670,7 @@ function mpOpenPanel(){
   document.getElementById("multiplayerPanel")?.classList.remove("hidden");
   const nameInput=document.getElementById("mpPlayerName"),urlInput=document.getElementById("mpServerUrl");
   if(nameInput&&!nameInput.value){try{nameInput.value=localStorage.getItem(MP_NAME_KEY)||player.characterProfile?.name||"Survivor";}catch(e){nameInput.value="Survivor";}}
-  if(urlInput){try{urlInput.value=localStorage.getItem(MP_SERVER_KEY)||urlInput.value;}catch(e){}}
+  if(urlInput){try{const savedServer=localStorage.getItem(MP_SERVER_KEY)||"";urlInput.value=(/^wss?:\/\/(localhost|127\.0\.0\.1)(:|$)/i.test(savedServer)?"":savedServer)||urlInput.value;}catch(e){}}
   mpRenderPlayers();mpSetStatus(mpSocket&&mpSocket.readyState===WebSocket.OPEN?"Connected · syncing presence":"Offline · multiplayer server not connected");
 }
 function openMultiplayer(){mpOpenPanel();}
