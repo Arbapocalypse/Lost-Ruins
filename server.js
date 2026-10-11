@@ -6,7 +6,9 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { WebSocketServer, WebSocket } = require('ws');
 
-const HOST = process.env.HOST || '127.0.0.1';
+// Render and most container hosts require binding to all interfaces.
+// For local development, you can explicitly set HOST=127.0.0.1.
+const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT || 8080);
 const MAX_CLIENTS = Number(process.env.MAX_CLIENTS || 100);
 const MAX_MESSAGE_BYTES = 8 * 1024;
@@ -118,7 +120,7 @@ server.listen(PORT, HOST, () => {
   console.log(`Lost Ruin multiplayer server listening on http://${HOST}:${PORT}`);
   console.log(`WebSocket URL: ws://${HOST}:${PORT}`);
   console.log(`Health check: http://${HOST}:${PORT}/health`);
-  if (HOST === '127.0.0.1') console.log('Local development only. Set HOST=0.0.0.0 only when you understand your network/firewall setup.');
+  if (HOST === '0.0.0.0') console.log('Bound to all network interfaces (required by many hosting platforms).');
 });
 
 function shutdown() {
