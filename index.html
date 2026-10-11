@@ -2,11 +2,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#111111">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>LOST RUIN</title>
@@ -437,7 +432,6 @@ input,select{max-width:100%}
 <h3>🏪 Basic Store</h3><div id="storeUI"></div>
 <h3>💧 Water Containers</h3><p class="muted">Buy bottles, canteens, and water jugs from the store. Fill them at rivers or lakes, then drink stored water while traveling.</p><div id="waterContainerList"></div><div class="action-grid"><button onclick="fillWaterContainers()">💧 Fill containers at river/lake</button><button onclick="drinkStoredWater()">🥤 Drink stored water</button></div>
 <h3>⛲ Plaza Stall</h3><p class="muted">Build a Plaza to open your local stall. Trading with other real players requires an online multiplayer server.</p><div id="stallUI"></div>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 <section class="panel hidden" id="guildPanel">
@@ -472,10 +466,10 @@ input,select{max-width:100%}
 <option value="human">🧑 Human</option><option value="orc">👹 Orc</option><option value="goblin">👺 Goblin</option><option value="elf">🧝 Elf</option><option value="dragonkin">🐉 Dragonkin</option><option value="dwarf">⛏️ Dwarf</option>
 </select></div>
 <button id="mpRegisterButton" class="full-button" onclick="mpConnect()">📝 Create Account</button><p id="mpAuthSwitchText" style="text-align:center;margin:12px 0 4px">Already have an account?</p><button id="mpLoginButton" class="full-button" onclick="mpSetAuthMode('login')">🔑 Login</button>
-<div class="action-grid"><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button><button onclick="backToWorld()">Back to Game</button></div><button class="full-button" onclick="mpSwitchAccount()">Switch Account / Log Out</button>
+<div class="action-grid"><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button><button onclick="returnHome()">Back to Main Menu</button></div><button class="full-button" onclick="mpSwitchAccount()">Switch Account / Log Out</button>
 <h3>🧭 Online Survivors <span id="mpPlayerCount">(0)</span></h3><p class="muted">Players on your exact tile can be inspected, privately messaged, or traded with.</p><div id="mpPlayerList" class="ground-row">Connect to a server to see other players.</div><div id="mpPrivateChatPanel" class="detail-stat hidden"><h3 id="mpPrivateChatTitle">Private Chat</h3><div id="mpPrivateChatLog" class="ground-row" style="white-space:pre-wrap;min-height:60px"></div><form onsubmit="mpSendPrivateChat(event)"><input id="mpPrivateChatInput" maxlength="240" placeholder="Message this player" style="width:100%;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px;margin:6px 0"><button class="full-button" type="submit">Send Private Message</button></form></div>
 <p class="muted">Online world changes are shared through the server when the matching server update is deployed.</p>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
+
 </section>
 
 <section class="panel hidden" id="collectionsPanel">
@@ -3799,13 +3793,18 @@ function hideScreens(){
 }
 
 function backToWorld(){
-  document.getElementById("startMenuOverlay")?.classList.add("hidden");if(document.getElementById("startMenuOverlay"))document.getElementById("startMenuOverlay").style.display="none";
-  document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");
+  const home=document.getElementById("startMenuOverlay");
+  if(home){home.classList.add("hidden");home.style.display="none";}
+  const top=document.getElementById("topNav"),bottom=document.getElementById("bottomNav");
+  [top,bottom].forEach(nav=>{if(nav){nav.classList.remove("hidden");nav.style.removeProperty("display");nav.style.removeProperty("visibility");}});
+  document.getElementById("quickChat")?.classList.remove("hidden");
   mapViewX=player.x;mapViewY=player.y;
   hideScreens();
-  document.getElementById("worldMapPanel").classList.remove("hidden");
-  document.getElementById("navigationPanel").classList.remove("hidden");
-  updateScreen();requestAnimationFrame(()=>drawMap());
+  const map=document.getElementById("worldMapPanel"),navigation=document.getElementById("navigationPanel");
+  if(map)map.classList.remove("hidden");
+  if(navigation)navigation.classList.remove("hidden");
+  updateScreen();
+  requestAnimationFrame(()=>{drawMap();[top,bottom].forEach(nav=>{if(nav)nav.classList.remove("hidden");});});
 }
 
 function toggleInventory(){
@@ -3902,6 +3901,7 @@ const MP_NAME_KEY = "lostRuinOnlineName";
 const MP_SERVER_KEY = "lostRuinOnlineServer";
 const MP_CLIENT_VERSION = 2;
 let mpAuthMode = "register";
+let mpPendingAuthMode = "register";
 let mpTradeOffers = [];
 const MP_SERVERS = {"main":"wss://lost-ruins-1.onrender.com"};
 let mpSocket = null;
@@ -4032,6 +4032,7 @@ function mpConnect(resumeOnly=false){
   const password=document.getElementById("mpPassword")?.value||"";
   const savedToken=(()=>{try{return localStorage.getItem("lostRuinMpSessionToken")||"";}catch(e){return "";}})();
   const authMode=resumeOnly?"resume":mpAuthMode;
+  mpPendingAuthMode=authMode;
   const characterName=(document.getElementById("mpCharacterName")?.value||"").trim();
   const race=document.getElementById("mpRace")?.value||"human";
   if(!/^[a-zA-Z0-9_]{3,24}$/.test(username)){mpSetStatus("Username must be 3–24 characters: letters, numbers, underscore.");return;}
@@ -4059,11 +4060,14 @@ function mpHandleMessage(msg){
     mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];
     if(msg.account){try{localStorage.setItem("lostRuinMpAccount",JSON.stringify({username:msg.account.username,characterName:msg.account.characterName,race:msg.account.race}));if(msg.sessionToken)localStorage.setItem("lostRuinMpSessionToken",msg.sessionToken);const un=document.getElementById("mpUsername");if(un)un.value=msg.account.username;}catch(e){}
       player.characterProfile=player.characterProfile||{};player.characterProfile.name=msg.account.characterName;player.characterProfile.nameLocked=true;player.characterProfile.race=msg.account.race;player.characterProfile.raceLocked=true;saveGame();updateCharacter();}
-    const wasRegister=mpAuthMode==="register";
-    mpSetStatus("Connected · "+(msg.name||"Survivor")+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");document.getElementById("multiplayerPanel")?.classList.add("hidden");document.getElementById("startMenuOverlay")?.classList.add("hidden");document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");document.getElementById("quickChat")?.classList.remove("hidden");
-    if(wasRegister) alert("Account created successfully! Welcome to LOST RUIN.");
-    showWelcomeToast("Welcome to LOST RUIN, "+(msg.name||"Survivor")+"!");
+    const completedAuthMode=mpPendingAuthMode;
+    const accountName=(msg.account?.characterName||msg.name||"Survivor");
+    mpSetStatus("Connected · "+accountName+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");
+    document.getElementById("multiplayerPanel")?.classList.add("hidden");
     backToWorld();
+    if(completedAuthMode==="register")showWelcomeToast("Account created successfully! Welcome, "+accountName+"!");
+    else if(completedAuthMode==="login")showWelcomeToast("Login successful! Welcome back, "+accountName+"!");
+    else showWelcomeToast("Welcome back, "+accountName+"! Reconnected successfully.");
     if(msg.worldState)mpApplySharedWorld(msg.worldState);else mpRequestSharedWorld();mpSend({type:"guildAction",action:"state"});mpSend({type:"partyAction",action:"state"});
   }else if(msg.type==="players"){mpPlayers=Array.isArray(msg.players)?msg.players:[];mpRenderPlayers();renderTilePlayers(player.x,player.y);renderGuildParty();drawMap();}
   else if(msg.type==="chat"){mpAddChatLine(msg.name||"Survivor",msg.text||"");addQuickChatLine(msg.channel||"area",msg.name||"Survivor",msg.text||"");}
@@ -4118,7 +4122,7 @@ function mpSendChat(event){if(event)event.preventDefault();const input=document.
 ========================= */
 
 function showWelcomeToast(message){
-  let toast=document.getElementById("welcomeToast");if(!toast){toast=document.createElement("div");toast.id="welcomeToast";toast.style.cssText="position:fixed;z-index:99999;top:18px;left:50%;transform:translateX(-50%);max-width:90vw;background:#203d29;color:#fff;border:1px solid #6e9b75;border-radius:10px;padding:12px 18px;box-shadow:0 5px 22px #0009;text-align:center;font-weight:bold;transition:opacity .35s";document.body.appendChild(toast);}toast.textContent=message;toast.style.display="block";toast.style.opacity="1";clearTimeout(window.__lostRuinWelcomeTimer);window.__lostRuinWelcomeTimer=setTimeout(()=>{toast.style.opacity="0";setTimeout(()=>{if(toast)toast.style.display="none";},400);},4000);
+  let toast=document.getElementById("welcomeToast");if(!toast){toast=document.createElement("div");toast.id="welcomeToast";toast.style.cssText="position:fixed;z-index:2147483647;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:92vw;background:#203d29;color:#fff;border:2px solid #8fc79a;border-radius:12px;padding:14px 18px;box-shadow:0 8px 28px #000d;text-align:center;font-weight:bold;font-size:15px;line-height:1.35;pointer-events:none;transition:opacity .35s";document.body.appendChild(toast);}toast.textContent=message;toast.style.display="block";toast.style.opacity="1";clearTimeout(window.__lostRuinWelcomeTimer);window.__lostRuinWelcomeTimer=setTimeout(()=>{toast.style.opacity="0";setTimeout(()=>{if(toast)toast.style.display="none";},400);},4000);
 }
 function mpSharedSnapshot(){
   const structures={};
@@ -4790,21 +4794,5 @@ if(loaded){
 // Refresh level-gated channel visibility once the game UI has been parsed.
 document.addEventListener("DOMContentLoaded",()=>{refreshQuickChatAccess();});
 </script>
-
-<script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("./service-worker.js")
-      .catch(error => {
-        console.error(
-          "LOST RUIN service worker error:",
-          error
-        );
-      });
-  });
-}
-</script>
-
 </body>
 </html>
