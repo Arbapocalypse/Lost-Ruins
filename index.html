@@ -20,7 +20,7 @@ button:active{transform:scale(.98)}
 input,select{max-width:100%}
 .hidden{display:none!important}
 .panel{margin-top:10px;padding:12px;background:#242424;border-radius:10px}
-.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}
+.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}.status-bar span{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}
 .muted{font-size:12px;color:#bbb}
 .good{color:#a5dc91}
 .warning{color:#ffd166}
@@ -3115,6 +3115,18 @@ function contributeShelterMaterials(){
   }else{showShelterProjectPopup();updateScreen();saveGame();}
 }
 
+function getEquippedToolBonus(actionId){
+  const slot=actionId==="forageWood"||actionId==="chop"?"axe":actionId==="mine"?"pickaxe":actionId==="fish"?"fishingRod":null;
+  if(!slot)return {slot:null,tier:0,energyReduction:0,timeReduction:0,extraYieldChance:0,extraYieldAmount:0,label:""};
+  const item=equippedItem(slot);if(!item)return {slot,tier:0,energyReduction:0,timeReduction:0,extraYieldChance:0,extraYieldAmount:0,label:""};
+  const tier=Math.max(1,Math.min(4,Number(item.tier)||1));
+  // Higher-tier tools use less stamina, work faster, and improve the chance/amount of useful output.
+  const scale=tier-1;
+  const bonus={slot,tier,energyReduction:slot==="fishingRod"?scale:scale+1,timeReduction:Math.min(.60,.12*scale+.08),extraYieldChance:Math.min(.45,.12+.10*scale),extraYieldAmount:Math.max(1,Math.floor((tier+1)/2)),label:item.name};
+  if(tier===1){bonus.energyReduction=slot==="fishingRod"?0:1;bonus.timeReduction=.08;bonus.extraYieldChance=.12;bonus.extraYieldAmount=1;}
+  return bonus;
+}
+
 async function performLocationAction(action){
   if(player.dead)return;
   if(selectedLocation.x!==player.x || selectedLocation.y!==player.y){
@@ -3140,18 +3152,18 @@ async function performLocationAction(action){
     showNarration("Materials Needed","Building a settlement requires:\n\n🪵 Wood x3\n🪨 Stone x2");
     return;
   }
-  if(player.energy<action.cost){
-    showNarration("Too Exhausted","You need "+action.cost+" energy. Rest first.");
-    return;
-  }
-
   const actionSkill=skillForAction(action.id);
   const profession=player.characterProfile?.mainProfession;
   const professionMatches=profession===actionSkill || player.characterProfile?.subProfession===actionSkill;
-  const timeReduction=Math.min(.45,Math.max(0,(skillLevel(actionSkill)-1)*.012)+(professionMatches?.10:0));
+  const toolBonus=getEquippedToolBonus(action.id);
+  const skillTimeReduction=Math.min(.45,Math.max(0,(skillLevel(actionSkill)-1)*.012)+(professionMatches ? .10 : 0));
+  const timeReduction=Math.min(.75,skillTimeReduction+toolBonus.timeReduction);
   const baseActionHours=Math.max(0,Number(action.hours)||0);
-  const effectiveHours=baseActionHours===0?0:Math.max(1,Math.round(baseActionHours*(1-timeReduction)));
-  player.energy = Math.max(0,player.energy-action.cost);
+  // Tool-assisted work can take fractional game-hours; this makes faster tools matter even for one-hour actions.
+  const effectiveHours=baseActionHours===0?0:(toolBonus.tier>0?Math.max(.25,Math.round(baseActionHours*(1-timeReduction)*4)/4):Math.max(1,Math.round(baseActionHours*(1-skillTimeReduction))));
+  const effectiveCost=Math.max(0,Math.ceil((Number(action.cost)||0)-toolBonus.energyReduction));
+  if(player.energy<effectiveCost){showNarration("Too Exhausted","You need "+effectiveCost+" energy for this action. Rest first.");return;}
+  player.energy = Math.max(0,player.energy-effectiveCost);
   if(effectiveHours>0&&!await advanceTime(effectiveHours,action.name,action.icon||"⚒️"))return;
 
   let found = null;
@@ -3287,11 +3299,9 @@ async function performLocationAction(action){
       break;
   }
 
-  if(action.id==="mine" && equippedItem("pickaxe") && found==="stone")amount++;
-  if(action.id==="forageWood" && equippedItem("axe") && found==="wood")amount++;
-  if(action.id==="fish" && equippedItem("fishingRod") && found==="meat")amount++;
   const yieldSkill=skillForAction(action.id),yieldLevel=skillLevel(yieldSkill);
-  const yieldBonus=Math.min(.35,Math.max(0,yieldLevel-1)*.01)+(professionMatches?.08:0);
+  const yieldBonus=Math.min(.35,Math.max(0,yieldLevel-1)*.01)+(professionMatches ? .08 : 0);
+  if(found && toolBonus.tier>0 && Math.random()<toolBonus.extraYieldChance)amount+=toolBonus.extraYieldAmount;
   if(found && Math.random()<Math.min(.60,yieldBonus))amount++;
   if(found && yieldLevel>=10 && Math.random()<Math.min(.25,(yieldLevel-9)*.008))amount=Math.max(amount,amount*2);
 
@@ -3314,9 +3324,9 @@ async function performLocationAction(action){
     recordAchievementProgress("scavenger",1);
     recordAchievementProgress("masterScavenger",1);
   }
+  const toolText=toolBonus.tier>0?"\nTool used: "+toolBonus.label+" (Tier "+toolBonus.tier+"). Energy saved: "+toolBonus.energyReduction+"; bonus yield chance: "+Math.round(toolBonus.extraYieldChance*100)+"%; work speed bonus: "+Math.round(toolBonus.timeReduction*100)+"%.":"";
   showNarration(action.name,(result||"You finished the action.")+
-    "\n\nTime spent: "+effectiveHours+" hour(s) (mastery-adjusted from "+action.hours+").\nEnergy used: "+
-    action.cost+"."+xpText);
+    "\n\nTime spent: "+effectiveHours+" game hour(s) (base: "+action.hours+").\nEnergy used: "+effectiveCost+"."+toolText+xpText);
 }
 
 function getRestingPlace(){
@@ -4583,18 +4593,21 @@ function leaveBattle(){activeBattle=null;hideScreens();document.getElementById("
 
 function updateScreen(){
   const combatStatsNow=getCombatStats();player.maxHealth=combatStatsNow.maxHealth;player.health=Math.min(Number(player.health)||0,player.maxHealth);
+  ensureAttributes();player.maxEnergy=100+Math.max(0,(Number(player.attributes.endurance)||1)-1)*8;player.energy=Math.min(Number(player.energy)||0,player.maxEnergy);
+  if(player.manaUnlocked){player.maxMana=Math.max(10,(Number(player.attributes.magic)||1)*10);player.mana=Math.min(Number(player.mana)||0,player.maxMana);}
   if(player.health<=0)player.dead=true;
   refreshTileDecay();
   getTileData(player.x,player.y);
-  document.getElementById("health").textContent=player.health;
-  document.getElementById("energy").textContent=player.energy;
+  const healthEl=document.getElementById("health"),energyEl=document.getElementById("energy");
+  const maxHealthNav=document.getElementById("maxHealthNav"),maxEnergyNav=document.getElementById("maxEnergyNav");
+  if(healthEl)healthEl.textContent=String(Math.floor(Number(player.health)||0));
+  if(energyEl)energyEl.textContent=String(Math.floor(Number(player.energy)||0));
+  if(maxHealthNav)maxHealthNav.textContent=String(Math.floor(Number(player.maxHealth)||100));
+  if(maxEnergyNav)maxEnergyNav.textContent=String(Math.floor(Number(player.maxEnergy)||100));
   document.getElementById("hunger").textContent=Math.floor(player.hunger);
   document.getElementById("thirst").textContent=Math.floor(player.thirst);
-  const maxHealthNav=document.getElementById("maxHealthNav"),maxEnergyNav=document.getElementById("maxEnergyNav");
-  if(maxHealthNav)maxHealthNav.textContent=player.maxHealth||100;
-  if(maxEnergyNav)maxEnergyNav.textContent=player.maxEnergy||100;
   const manaNav=document.getElementById("manaNav");
-  if(manaNav){manaNav.classList.toggle("hidden",!player.manaUnlocked);if(player.manaUnlocked){document.getElementById("mana").textContent=Math.floor(Number(player.mana)||0);document.getElementById("maxManaNav").textContent=Number(player.maxMana)||10;}}
+  if(manaNav){manaNav.classList.toggle("hidden",!player.manaUnlocked);if(player.manaUnlocked){const manaEl=document.getElementById("mana"),maxManaEl=document.getElementById("maxManaNav");if(manaEl)manaEl.textContent=String(Math.floor(Number(player.mana)||0));if(maxManaEl)maxManaEl.textContent=String(Math.floor(Number(player.maxMana)||10));}}
 
   document.getElementById("period").textContent =
     (player.hour>=6 && player.hour<18 ? "☀️ Day " : "🌙 Day ")+player.day;
