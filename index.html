@@ -20,12 +20,13 @@ button:active{transform:scale(.98)}
 input,select{max-width:100%}
 .hidden{display:none!important}
 .panel{margin-top:10px;padding:12px;background:#242424;border-radius:10px}
-.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}.status-bar span,.status-bar .status-pill{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.status-bar .status-pill{padding:5px 7px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:30px}.status-bar .status-pill:active{background:#555}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}
+.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}.status-bar span,.status-bar .status-pill{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.status-bar .status-pill{padding:5px 7px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:30px}.status-bar .status-pill:active{background:#555}.status-bar #seasonEffect{white-space:normal;max-width:100%;padding:4px 7px;border-radius:6px;background:#303a30;color:#d7edc8;border:1px solid #465846;font-size:11px}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}
 .muted{font-size:12px;color:#bbb}
 .good{color:#a5dc91}
 .warning{color:#ffd166}
 #map{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:2px;width:100%;max-width:420px;aspect-ratio:1/1;height:auto;margin:10px auto;padding:3px;background:#101512;border:1px solid #3b493d;border-radius:8px;box-shadow:inset 0 0 18px #0008;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden;overscroll-behavior:contain}
 .map-tile{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:0;overflow:hidden;background:#333;border:1px solid #ffffff12;border-radius:4px;font-size:clamp(14px,4.5vw,25px);isolation:isolate;transition:filter .15s,transform .15s}.map-tile:before{content:"";position:absolute;inset:0;z-index:-1;opacity:.9}.map-tile:active{filter:brightness(1.25)}.tile-main{position:relative;z-index:1;filter:drop-shadow(0 1px 1px #0008)}.tile-detail{position:absolute;right:1px;bottom:0;font-size:clamp(7px,2vw,12px);z-index:2;filter:drop-shadow(0 1px 2px #000)}.map-tile.terrain-forest{background:linear-gradient(145deg,#1b422b,#2d5a35 48%,#153522)}.map-tile.terrain-forest:before{background:radial-gradient(ellipse at 18% 22%,#78a84a55 0 8%,transparent 30%),radial-gradient(ellipse at 80% 75%,#0b251b88 0 12%,transparent 38%)}.map-tile.terrain-plains{background:linear-gradient(150deg,#637b37,#a0a44a 48%,#455e2e)}.map-tile.terrain-plains:before{background:repeating-linear-gradient(115deg,transparent 0 7px,#d8d58b22 8px 9px,transparent 10px 15px)}.map-tile.terrain-mountain{background:linear-gradient(145deg,#4c555a,#777e7b 48%,#343c42)}.map-tile.terrain-mountain:before{background:linear-gradient(135deg,transparent 35%,#d4d9d333 36% 43%,transparent 44%),linear-gradient(35deg,transparent 55%,#151d2477 56% 66%,transparent 67%)}.map-tile.terrain-volcano{background:radial-gradient(ellipse at 50% 32%,#ffb02e 0 7%,#b93619 8% 20%,transparent 21%),linear-gradient(145deg,#282326,#57413c 50%,#201d21)}.map-tile.terrain-volcano:before{background:linear-gradient(130deg,transparent 30%,#f15a24 31% 34%,transparent 35%),linear-gradient(40deg,transparent 55%,#ff9d2e55 56% 61%,transparent 62%)}.map-tile.terrain-lake,.map-tile.terrain-river{background:linear-gradient(145deg,#174f70,#267fa0 52%,#123b60)}.map-tile.terrain-lake:before,.map-tile.terrain-river:before{background:repeating-linear-gradient(165deg,transparent 0 8px,#c0f3ff20 9px 10px,transparent 11px 17px)}.map-tile.terrain-city{background:linear-gradient(145deg,#55545a,#77706b 50%,#393d43)}.map-tile.terrain-city:before{background:linear-gradient(90deg,transparent 0 15%,#25272c66 16% 20%,transparent 21% 60%,#d2c3a522 61% 66%,transparent 67%),linear-gradient(0deg,#22283155 0 14%,transparent 15% 72%,#ddd3c522 73% 78%,transparent 79%)}
+html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-season="summer"] #map{filter:saturate(1.16) brightness(1.03)}html[data-world-season="fall"] #map{filter:saturate(.95) sepia(.10)}html[data-world-season="winter"] #map{filter:saturate(.78) brightness(1.04)}
 .map-tile.current{outline:2px solid #fff2a8;outline-offset:-3px;box-shadow:inset 0 0 0 2px #1118}.tile-terrain-label{position:absolute;left:1px;right:1px;bottom:1px;z-index:4;text-align:center;font-size:clamp(6px,1.65vw,10px);line-height:1.1;color:#fff;background:#000b;border-radius:2px;padding:1px 0;pointer-events:none;text-shadow:0 1px 1px #000}
 .map-tile.selected{border:2px solid #ffd166}
 .map-tile.shared-territory{outline:2px dashed #bd9b4d;outline-offset:-3px}.territory{box-shadow:inset 0 0 0 2px #78c66a}
@@ -266,6 +267,7 @@ input,select{max-width:100%}
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View hunger details">🍖 <b id="hunger">100</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View thirst details">💧 <b id="thirst">100</b></button>
     <span id="period" title="Shared world season and year">🌱 Spring · Year 1</span>
+    <span id="seasonEffect" title="Current seasonal gameplay effects">Season effects loading…</span>
     <span id="worldDate" title="Real-world UTC date">UTC 2026-10-12</span>
     <span id="time" title="Real-world UTC time">00:00 UTC</span>
   </section>
@@ -3046,10 +3048,10 @@ function updateBase(){
 ========================= */
 const WORLD_CALENDAR_EPOCH_UTC = Date.UTC(2026, 9, 12, 0, 0, 0); // 2026-10-12 00:00 UTC
 const WORLD_SEASONS = [
-  {name:"Spring",icon:"🌱",description:"New growth; herbs and flowers thrive."},
-  {name:"Summer",icon:"☀️",description:"Warm weather; water demand may rise."},
-  {name:"Fall",icon:"🍂",description:"Harvest season; fruits and seeds are plentiful."},
-  {name:"Winter",icon:"❄️",description:"Cold weather; freezing conditions may affect suitable biomes."}
+  {name:"Spring",icon:"🌱",description:"Herbs and forest finds are more common; wilderness recovery is normal.",effectText:"Herbs +20% · forest finds +10%"},
+  {name:"Summer",icon:"☀️",description:"Heat increases thirst drain; water is especially important.",effectText:"Thirst drains 50% faster · plains travel is hotter"},
+  {name:"Fall",icon:"🍂",description:"Harvest season improves food finds and settlement farms.",effectText:"Food finds +20% · farm output +25%"},
+  {name:"Winter",icon:"❄️",description:"Cold slows travel through exposed plains and mountains and makes work harder.",effectText:"Plains/mountain travel +25% time · outdoor work +1 energy"}
 ];
 function getWorldCalendar(timestamp=Date.now()){
   const now=new Date(Number(timestamp)||Date.now());
@@ -3075,9 +3077,93 @@ function updateWorldClockDisplay(){
   const period=document.getElementById("period"),date=document.getElementById("worldDate"),time=document.getElementById("time");
   if(period){period.textContent=calendar.seasonIcon+" "+calendar.seasonName+" · Year "+calendar.year;period.title=calendar.season.description+" Season changes at 00:00 UTC.";}
   if(date){date.textContent="UTC "+calendar.utcDate;date.title="Real-world date in Coordinated Universal Time.";}
+  const effect=document.getElementById("seasonEffect");if(effect){effect.textContent=calendar.season.effectText;effect.title=calendar.season.description+" Seasonal effects apply to exploration, travel, survival, and production. Current world time is authoritative UTC calendar time; multiplayer still requires server validation.";}
   if(time){time.textContent=calendar.utcTime+" UTC";time.title="Shared real-world clock shown in UTC.";}
   document.documentElement.dataset.worldSeason=calendar.seasonName.toLowerCase();
   return calendar;
+}
+function getSeasonalModifiers(terrain=generateTerrain(player.x,player.y)){
+  const season=getCurrentSeason().name;
+  return {
+    season,
+    thirstRate:season==="Summer"?1.5:1,
+    travelTime:season==="Winter"&&["plains","mountain"].includes(terrain)?1.25:1,
+    workEnergy:season==="Winter"&&["plains","mountain"].includes(terrain)?1:0,
+    herbYield:season==="Spring"?1.2:1,
+    foodYield:season==="Fall"?1.2:1,
+    farmYield:season==="Fall"?1.25:1,
+    forestFind:season==="Spring"?1.1:1
+  };
+}
+function applyRealWorldElapsedTime(now=Date.now()){
+  if(!player||player.dead)return;
+  const previous=Number(player.worldLastTickAt);
+  if(!previous||!Number.isFinite(previous)){player.worldLastTickAt=now;return;}
+  // Cap catch-up to 24 hours so a long absence cannot unexpectedly erase a character.
+  const elapsed=Math.max(0,Math.min(86400000,now-previous));
+  if(elapsed<60000)return;
+  player.worldLastTickAt=now;
+  const hours=elapsed/3600000;
+  const calendar=getWorldCalendar(now);
+  // Character aging follows the four-day game year, not the action animation clock.
+  ensureCharacterProfile();
+  if(!Number.isFinite(Number(player.worldAgeYear)))player.worldAgeYear=calendar.year;
+  const yearsPassed=Math.max(0,calendar.year-Math.floor(Number(player.worldAgeYear)||calendar.year));
+  if(yearsPassed>0){
+    player.characterProfile.age=Math.min(100,Math.max(1,Number(player.characterProfile.age)||16)+yearsPassed);
+    player.worldAgeYear=calendar.year;
+    if(player.characterProfile.age>=100)showMessage("Your character has reached age 100. Old-age decline rules may apply.");
+  }
+  // Settlement food use and population checks run once per UTC day, not per action animation.
+  if(player.base){
+    if(!player.lastSettlementUTCDate)player.lastSettlementUTCDate=calendar.utcDate;
+    else if(player.lastSettlementUTCDate!==calendar.utcDate){
+      player.day=Math.max(1,Math.floor(Number(player.day)||1)+1);
+      player.lastSettlementUTCDate=calendar.utcDate;
+      updatePopulationForNewDay();
+    }
+  }
+  const mods=getSeasonalModifiers(generateTerrain(player.x,player.y));
+  // Slow real-time survival drain, independent of action animations and device refresh rate.
+  player.hunger=Math.max(0,(Number(player.hunger)||0)-hours*0.5);
+  player.thirst=Math.max(0,(Number(player.thirst)||0)-(hours*(2/3))*mods.thirstRate);
+  if(player.hunger<=0||player.thirst<=0){
+    const damagePerHour=0.75;
+    player.health=Math.max(0,(Number(player.health)||0)-hours*damagePerHour*((player.hunger<=0?1:0)+(player.thirst<=0?1:0)));
+  }
+  // Production accumulates in real hours, not in the short action-animation clock.
+  if(player.base){
+    (player.base.buildings||[]).forEach(building=>{
+      const def=buildingTypes[building.type];
+      if(!building.completed||!def||def.category!=="production"||!building.worker)return;
+      building.storage=building.storage||{};
+      const cap=productionCapacity(building);
+      building.productionRealHours=(Number(building.productionRealHours)||0)+hours;
+      while(building.productionRealHours>=6){
+        building.productionRealHours-=6;
+        const output=def.output;
+        if(output&&(Number(building.storage[output])||0)<cap){
+          const seasonal=getSeasonalModifiers(generateTerrain(player.base.x,player.base.y));
+          const baseAmount=Math.max(1,Number(def.rate)||1);
+          const amount=Math.max(1,Math.round(baseAmount*(building.type==="farm"?seasonal.farmYield:1)));
+          building.storage[output]=Math.min(cap,(Number(building.storage[output])||0)+amount);
+        }
+        if(def.secondaryOutput&&(Number(building.storage[def.secondaryOutput])||0)<cap&&Math.random()<.5){
+          building.storage[def.secondaryOutput]=Math.min(cap,(Number(building.storage[def.secondaryOutput])||0)+1);
+        }
+      }
+    });
+  }
+  if(player.health<=0){player.dead=true;saveGame();showDeathScreen();return;}
+  updateScreen();saveGame();
+}
+function startRealWorldGameplayClock(){
+  const currentCalendar=getWorldCalendar();
+  if(!player.worldLastTickAt)player.worldLastTickAt=Date.now();
+  if(!Number.isFinite(Number(player.worldAgeYear)))player.worldAgeYear=currentCalendar.year;
+  if(player.base&&!player.lastSettlementUTCDate)player.lastSettlementUTCDate=currentCalendar.utcDate;
+  applyRealWorldElapsedTime(Date.now());
+  if(!window.__lostRuinGameplayTick)window.__lostRuinGameplayTick=setInterval(()=>applyRealWorldElapsedTime(Date.now()),60000);
 }
 let timeAdvanceInProgress=false;
 function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
@@ -3105,14 +3191,9 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
       if(!alive)break;
       player.hour++;
       if(player.hour>=24){player.hour=0;player.day++;}
-      ensureCharacterProfile();const profile=player.characterProfile;
-      profile.ageHours++;
-      if(profile.ageHours>=24*365&&profile.age<100){profile.ageHours-=24*365;profile.age++;if(profile.age===100)showMessage("You have reached age 100. Old-age decline begins.");}
-      const ageOver80=Math.max(0,profile.age-80),ageMultiplier=1+ageOver80*.025;
-      player.hunger=Math.max(0,player.hunger-BALANCE.hungerPerHour*ageMultiplier);player.thirst=Math.max(0,player.thirst-BALANCE.thirstPerHour*ageMultiplier);
-      if(player.hunger<=0)player.health-=BALANCE.starvationDamagePerHour;if(player.thirst<=0)player.health-=BALANCE.starvationDamagePerHour;player.health=Math.max(0,player.health);
+      // Action-time hours are only for short action feedback. Calendar aging and survival
+      // are tied to elapsed real-world time, not how many animations the player triggers.
       Object.values(bonfires).forEach(fire=>{if(fire.fuel>0)fire.fuel=Math.max(0,fire.fuel-1);});
-      if(player.base){produceSettlementHour();if(player.hour===0)updatePopulationForNewDay();}
       updateScreen();saveGame();
       if(player.health<=0){player.dead=true;alive=false;break;}
       if(detail)detail.textContent="Hour completed · Day "+player.day+" · "+String(player.hour).padStart(2,"0")+":00";
@@ -3227,7 +3308,8 @@ async function confirmTravel(){
     const tileCost=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*BALANCE.travelEnergyPerDifficulty*method.energy*(1-travelMasteryEnergyReduction)));
     const agilityTravelReduction=Math.min(.30,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.01);
     const masteryTravelReduction=Math.min(.20,Math.max(0,skillLevel("travel")-1)*.005);
-    const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed*(1-agilityTravelReduction)*(1-masteryTravelReduction)));
+    const seasonalTravel=getSeasonalModifiers(terrain).travelTime;
+    const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed*(1-agilityTravelReduction)*(1-masteryTravelReduction)*seasonalTravel));
     if(player.energy<tileCost){stopped=true;if(progress)progress.textContent="Too exhausted to continue. Stopping at the current tile.";break;}
     player.energy=Math.max(0,player.energy-tileCost);
     if(!await advanceTime(tileHours,"Traveling to next tile","🧭")){stopped=true;break;}
@@ -3389,8 +3471,10 @@ async function performLocationAction(action){
   const timeReduction=Math.min(.75,skillTimeReduction+toolBonus.timeReduction);
   const baseActionHours=Math.max(0,Number(action.hours)||0);
   // Tool-assisted work can take fractional game-hours; this makes faster tools matter even for one-hour actions.
-  const effectiveHours=baseActionHours===0?0:(toolBonus.tier>0?Math.max(.25,Math.round(baseActionHours*(1-timeReduction)*4)/4):Math.max(1,Math.round(baseActionHours*(1-skillTimeReduction))));
-  const effectiveCost=Math.max(0,Math.ceil((Number(action.cost)||0)-toolBonus.energyReduction));
+  const seasonMods=getSeasonalModifiers(terrain);
+  const seasonalTime=seasonMods.season==="Winter"&&["plains","mountain"].includes(terrain)?1.15:1;
+  const effectiveHours=baseActionHours===0?0:(toolBonus.tier>0?Math.max(.25,Math.round(baseActionHours*(1-timeReduction)*seasonalTime*4)/4):Math.max(1,Math.round(baseActionHours*(1-skillTimeReduction)*seasonalTime)));
+  const effectiveCost=Math.max(0,Math.ceil((Number(action.cost)||0)-toolBonus.energyReduction+seasonMods.workEnergy));
   if(player.energy<effectiveCost){showNarration("Too Exhausted","You need "+effectiveCost+" energy for this action. Rest first.");return;}
   player.energy = Math.max(0,player.energy-effectiveCost);
   if(effectiveHours>0&&!await advanceTime(effectiveHours,action.name,action.icon||"⚒️"))return;
@@ -3535,6 +3619,14 @@ async function performLocationAction(action){
   if(found && yieldLevel>=10 && Math.random()<Math.min(.25,(yieldLevel-9)*.008))amount=Math.max(amount,amount*2);
 
   if(found){
+    const mods=getSeasonalModifiers(terrain);
+    const isHerb=found==="herb"||/herb|flower|petal/i.test(items[found]?.name||"");
+    const isFood=["fruit","meat","fish","cookedMeat","manaBerry","moonfruit"].includes(found)||/berry|fruit|mushroom|food/i.test(items[found]?.name||"");
+    let seasonalMultiplier=1;
+    if(mods.season==="Spring"&&isHerb)seasonalMultiplier*=mods.herbYield;
+    if(mods.season==="Spring"&&terrain==="forest")seasonalMultiplier*=mods.forestFind;
+    if(mods.season==="Fall"&&isFood)seasonalMultiplier*=mods.foodYield;
+    if(seasonalMultiplier>1&&Math.random()<(seasonalMultiplier-1))amount++;
     const resourceId=found;
     if(resourceAvailable(resourceId)>0)consumeTileResource(resourceId,Math.min(amount,resourceAvailable(resourceId)));
   }
@@ -3585,8 +3677,6 @@ async function sleep(){
   const recovery=place.kind==="inn"?100:place.kind==="bonfire"?92:place.kind==="settlement"?88:place.kind==="town"?82:70;
   player.energy=Math.min(player.maxEnergy||100,(Number(player.energy)||0)+recovery);
   player.health=Math.min(player.maxHealth||100,(Number(player.health)||0)+(place.kind==="inn"?24:place.kind==="bonfire"?18:place.kind==="settlement"?16:place.kind==="town"?12:8));
-  player.hunger=Math.max(0,(Number(player.hunger)||0)-hours*BALANCE.sleepHungerPerHour);
-  player.thirst=Math.max(0,(Number(player.thirst)||0)-hours*BALANCE.sleepThirstPerHour);
   updateScreen();saveGame();
   showNarration("You Wake Up", "You slept for "+hours+" hours at "+place.label+". Energy and health recovered; hunger and thirst decreased during sleep.");
 }
@@ -3664,7 +3754,8 @@ async function explore(){
 
   const table = tables[terrain];
   let id = table[Math.floor(Math.random()*table.length)];
-  const amount = Math.floor(Math.random()*2)+1;
+  let amount = Math.floor(Math.random()*2)+1;
+  const seasonalLoot=getSeasonalModifiers(terrain);
   const resourceKey = itemId => ["apple","banana","mango","orange","coconut","guava","papaya","berries"].includes(itemId)?"fruit":(["cityLoot02","cityLoot13"].includes(itemId)?"water":itemId);
   let resourceId=resourceKey(id);
   if(resourceAvailable(resourceId)<=0){
@@ -3673,6 +3764,10 @@ async function explore(){
     id=available[Math.floor(Math.random()*available.length)];
     resourceId=resourceKey(id);
   }
+  const foundName=(items[id]?.name||id).toLowerCase();
+  const seasonalBonus=(seasonalLoot.season==="Spring"&&(id==="herb"||/herb|flower|petal/.test(foundName)))?0.20:
+    (seasonalLoot.season==="Fall"&&(/fruit|berry|food|mushroom/.test(foundName)||id==="fruit")?0.20:0);
+  if(seasonalBonus>0&&Math.random()<seasonalBonus)amount++;
   consumeTileResource(resourceId,Math.min(amount,resourceAvailable(resourceId)));
   const skill = id==="wood"?"woodcutting":
     ["herb","fruit","apple","banana","mango","orange","coconut","guava","papaya","berries"].includes(id)?"gathering":
@@ -3683,7 +3778,8 @@ async function explore(){
   let lootText=storeFoundLoot(id,amount);
   let bonusLootText="";
   const perceptionDiscoveryBonus=Math.min(.20,Math.max(0,(Number(player.attributes?.perception)||1)-1)*.01);
-  if(Math.random()<Math.min(.90,.70+perceptionDiscoveryBonus)){
+  const seasonalDiscoveryBonus=seasonalLoot.season==="Spring"&&terrain==="forest"?0.08:(seasonalLoot.season==="Fall"&&["plains","forest"].includes(terrain)?0.08:0);
+  if(Math.random()<Math.min(.95,.70+perceptionDiscoveryBonus+seasonalDiscoveryBonus)){
     const bonusId=getTerrainBonusLoot(terrain);
     if(bonusId){
       const bonusAmount=items[bonusId].tier>=3 && Math.random()<0.25?2:1;
@@ -5237,6 +5333,7 @@ ensureEconomyData();
 selectedLocation={x:player.x,y:player.y};
 markTileVisited(player.x,player.y);
 updateScreen();
+updateWorldClockDisplay();
 window.addEventListener("resize",()=>{if(!document.getElementById("worldMapPanel")?.classList.contains("hidden"))drawMap();});
 
 if(loaded){
@@ -5245,7 +5342,7 @@ if(loaded){
   newGameMessage();
 }
 </script>
-<div id="actionClockOverlay" aria-live="polite"><div id="actionClockCard"><span id="actionClockIcon">⌛</span><div id="actionClockTitle">Working...</div><div id="actionClockDetail">One in-game hour takes 5 real seconds.</div><div id="actionClockTrack"><div id="actionClockFill"></div></div></div></div>
+<div id="actionClockOverlay" aria-live="polite"><div id="actionClockCard"><span id="actionClockIcon">⌛</span><div id="actionClockTitle">Working...</div><div id="actionClockDetail">Action animations use short timers; world seasons and survival use real UTC time.</div><div id="actionClockTrack"><div id="actionClockFill"></div></div></div></div>
 <div id="settlementOverlay" role="dialog" aria-modal="true"><div id="settlementCard"></div></div>
 <script>
 // Refresh level-gated channel visibility once the game UI has been parsed.
@@ -5312,6 +5409,7 @@ function feedLivestock(index){if(!baseAtHome()||!hasBuilding('livestockPen')){sh
 function butcherLivestock(index){if(!baseAtHome()||!hasBuilding('livestockPen')){showMessage('Return to the settlement and use the Livestock Pen.');return;}ensureLivestock();const a=player.livestock[index];if(!a)return;if(!confirm('Butcher '+a.name+'? This permanently removes the animal.'))return;player.livestock.splice(index,1);const meat=a.id==='chicken'||a.id==='duck'?1:2;addItem('meat',meat);if(a.id==='cow'||a.id==='goat')addItem('leather',1);if(a.id==='chicken'||a.id==='duck')addItem('feather',1);saveGame();updateScreen();openBuildingService(activeServiceBuildingIndex);showMessage('Butchered '+a.name+'. Received meat x'+meat+((a.id==='cow'||a.id==='goat')?' and leather x1':((a.id==='chicken'||a.id==='duck')?' and feathers x1':'.')));}
 function restAtInn(){if(!hasBuilding('inn')||!baseAtHome())return;if(player.energy>=player.maxEnergy&&player.health>=player.maxHealth){showMessage('You are already well rested.');return;}player.energy=Math.min(player.maxEnergy,player.energy+60);player.health=Math.min(player.maxHealth,player.health+15);advanceTime(8,'Resting at the inn','🛏️').then(()=>{saveGame();updateScreen();showMessage('Inn rest complete. Energy and health restored.');});}
 if(!window.__lostRuinUtcClockTimer)window.__lostRuinUtcClockTimer=setInterval(updateWorldClockDisplay,15000);
+startRealWorldGameplayClock();
 </script>
 
 </body>
