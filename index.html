@@ -26,10 +26,10 @@ input,select{max-width:100%}
 .warning{color:#ffd166}
 #map{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:2px;width:100%;max-width:420px;aspect-ratio:1/1;height:auto;margin:10px auto;padding:3px;background:#101512;border:1px solid #3b493d;border-radius:8px;box-shadow:inset 0 0 18px #0008;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden;overscroll-behavior:contain}
 .map-tile{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:0;overflow:hidden;background:#333;border:1px solid #ffffff12;border-radius:4px;font-size:clamp(14px,4.5vw,25px);isolation:isolate;transition:filter .15s,transform .15s}.map-tile:before{content:"";position:absolute;inset:0;z-index:-1;opacity:.9}.map-tile:active{filter:brightness(1.25)}.tile-main{position:relative;z-index:1;filter:drop-shadow(0 1px 1px #0008)}.tile-detail{position:absolute;right:1px;bottom:0;font-size:clamp(7px,2vw,12px);z-index:2;filter:drop-shadow(0 1px 2px #000)}.map-tile.terrain-forest{background:linear-gradient(145deg,#1b422b,#2d5a35 48%,#153522)}.map-tile.terrain-forest:before{background:radial-gradient(ellipse at 18% 22%,#78a84a55 0 8%,transparent 30%),radial-gradient(ellipse at 80% 75%,#0b251b88 0 12%,transparent 38%)}.map-tile.terrain-plains{background:linear-gradient(150deg,#637b37,#a0a44a 48%,#455e2e)}.map-tile.terrain-plains:before{background:repeating-linear-gradient(115deg,transparent 0 7px,#d8d58b22 8px 9px,transparent 10px 15px)}.map-tile.terrain-mountain{background:linear-gradient(145deg,#4c555a,#777e7b 48%,#343c42)}.map-tile.terrain-mountain:before{background:linear-gradient(135deg,transparent 35%,#d4d9d333 36% 43%,transparent 44%),linear-gradient(35deg,transparent 55%,#151d2477 56% 66%,transparent 67%)}.map-tile.terrain-volcano{background:radial-gradient(ellipse at 50% 32%,#ffb02e 0 7%,#b93619 8% 20%,transparent 21%),linear-gradient(145deg,#282326,#57413c 50%,#201d21)}.map-tile.terrain-volcano:before{background:linear-gradient(130deg,transparent 30%,#f15a24 31% 34%,transparent 35%),linear-gradient(40deg,transparent 55%,#ff9d2e55 56% 61%,transparent 62%)}.map-tile.terrain-lake,.map-tile.terrain-river{background:linear-gradient(145deg,#174f70,#267fa0 52%,#123b60)}.map-tile.terrain-lake:before,.map-tile.terrain-river:before{background:repeating-linear-gradient(165deg,transparent 0 8px,#c0f3ff20 9px 10px,transparent 11px 17px)}.map-tile.terrain-city{background:linear-gradient(145deg,#55545a,#77706b 50%,#393d43)}.map-tile.terrain-city:before{background:linear-gradient(90deg,transparent 0 15%,#25272c66 16% 20%,transparent 21% 60%,#d2c3a522 61% 66%,transparent 67%),linear-gradient(0deg,#22283155 0 14%,transparent 15% 72%,#ddd3c522 73% 78%,transparent 79%)}
-.map-tile.current{background:#555}
+.map-tile.current{outline:2px solid #fff2a8;outline-offset:-3px;box-shadow:inset 0 0 0 2px #1118}.tile-terrain-label{position:absolute;left:1px;right:1px;bottom:1px;z-index:4;text-align:center;font-size:clamp(6px,1.65vw,10px);line-height:1.1;color:#fff;background:#000b;border-radius:2px;padding:1px 0;pointer-events:none;text-shadow:0 1px 1px #000}
 .map-tile.selected{border:2px solid #ffd166}
 .map-tile.shared-territory{outline:2px dashed #bd9b4d;outline-offset:-3px}.territory{box-shadow:inset 0 0 0 2px #78c66a}
-.map-tile.developed{background:#41413a}
+.map-tile.developed{box-shadow:inset 0 0 0 2px #c2a66a}
 .map-tile.fog,.map-tile.unknown{background:#000!important;color:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;outline:0!important}
 .map-tile.fog:before,.map-tile.unknown:before{display:none!important}
 .map-tile.fog .tile-main,.map-tile.unknown .tile-main,.map-tile.fog .tile-detail,.map-tile.unknown .tile-detail{display:none!important}
@@ -899,7 +899,7 @@ const terrainLootPools = {
   lake:["lakeLoot01","lakeLoot02","lakeLoot03","lakeLoot04","lakeLoot09","lakeLoot10","lakeLoot11","lakeLoot15","lakeLoot16","lakeLoot19"],
   city:["cityLoot01","cityLoot02","cityLoot03","cityLoot04","cityLoot05","cityLoot06","cityLoot07","cityLoot08","cityLoot09","cityLoot10","cityLoot11","cityLoot12","cityLoot13","cityLoot14","cityLoot15","cityLoot16","cityLoot17","cityLoot18","cityLoot19","cityLoot20"]
 };
-function rollLootTier(){const r=Math.random();return r<.55?1:r<.83?2:r<.97?3:4;}
+function rollLootTier(){const perception=Math.max(0,(Number(player.attributes?.perception)||1)-1);const shift=Math.min(.12,perception*.005);const r=Math.max(0,Math.random()-shift);return r<.55?1:r<.83?2:r<.97?3:4;}
 function getTerrainBonusLoot(terrain){
   // Loose water is never ground loot. City finds may include sealed drinks/bottles.
   const pool=(terrainLootPools[terrain]||[]).filter(id=>items[id]&&(items[id].type!=="water"||terrain==="city"));
@@ -956,7 +956,7 @@ const terrainInfo = {
     loot:"Water and raw meat.",
     actions:[
       {id:"drinkSource",name:"🥤 Drink from River",detail:"Drink directly from the river to restore thirst; no container needed",cost:1,hours:0},
-      {id:"collectWater",name:"💧 Fill Containers",detail:"Fill reusable bottles, canteens, jugs, or waterskins",cost:3,hours:1},
+      {id:"collectWater",name:"💧 Fill Containers",detail:"Instantly fill reusable bottles, canteens, jugs, or waterskins (energy cost only)",cost:3,hours:0},
       {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
       {id:"fish",name:"🎣 Fish",detail:"Try to catch food",cost:10,hours:2},
       {id:"search",name:"🔎 Search Bank",detail:"Search the riverbank",cost:6,hours:1}
@@ -969,7 +969,7 @@ const terrainInfo = {
     loot:"Water and raw meat.",
     actions:[
       {id:"drinkSource",name:"🥤 Drink from Lake",detail:"Drink directly from the lake to restore thirst; no container needed",cost:1,hours:0},
-      {id:"collectWater",name:"💧 Fill Containers",detail:"Fill reusable bottles, canteens, jugs, or waterskins",cost:3,hours:1},
+      {id:"collectWater",name:"💧 Fill Containers",detail:"Instantly fill reusable bottles, canteens, jugs, or waterskins (energy cost only)",cost:3,hours:0},
       {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
       {id:"fish",name:"🎣 Fish",detail:"Try to catch fish",cost:10,hours:2},
       {id:"search",name:"🔎 Search Shore",detail:"Search for supplies",cost:6,hours:1}
@@ -1751,12 +1751,12 @@ function encounterOnArrival(x,y){
 
 const ATTRIBUTE_INFO={
  strength:{name:"💪 Strength",description:"Raw physical power. Each point above 1 adds 2 base attack damage and improves carrying strength.",effect:a=>"Base attack: +"+Math.max(0,a-1)*2+" · Carry capacity bonus: +"+Math.max(0,a-1)*0.25+" kg"},
- agility:{name:"🏃 Agility",description:"Movement, reflexes, and precision. Agility increases speed and critical chance.",effect:a=>"Speed: +"+Math.max(0,a-1)+" · Critical chance: +"+Math.max(0,a-1)+"%"},
+ agility:{name:"🏃 Agility",description:"Improves combat speed, escape chances, critical hits, and overland travel time.",effect:a=>"Combat speed: +"+Math.max(0,a-1)+" · Critical chance: +"+Math.max(0,a-1)+"% · Travel time: -"+Math.min(30,Math.max(0,a-1))+"% · Enemy hit chance: -"+Math.min(15,Math.max(0,a-1)*0.75).toFixed(1)+"%"},
  vitality:{name:"❤️ Vitality",description:"Hardiness and the ability to survive injuries. Each point above 1 adds 10 maximum health and a small amount of defense.",effect:a=>"Maximum health: +"+Math.max(0,a-1)*10+" · Defense: +"+Math.floor(Math.max(0,a-1)*0.5)},
  charisma:{name:"🗣️ Charisma",description:"Social influence. Improves negotiations, reputation gains, and trading with NPCs. It does not force other players to agree with you.",effect:a=>"Negotiation bonus: +"+Math.max(0,a-1)*2+"% · NPC trade bonus: +"+Math.max(0,a-1)+"%"},
- intelligence:{name:"🧠 Intelligence",description:"Learning and problem-solving. Improves skill learning and crafting efficiency as those systems are expanded.",effect:a=>"Learning bonus: +"+Math.max(0,a-1)+"%"},
+ intelligence:{name:"🧠 Intelligence",description:"Improves character experience, skill mastery experience, and mana recovery when studying.",effect:a=>"Character XP: +"+Math.max(0,a-1)+"% · Skill XP: +"+Math.max(0,a-1)+"% · Study mana recovery scales with Intelligence"},
  endurance:{name:"⚡ Endurance",description:"Stamina for travel, combat, and work. Each point above 1 adds 8 maximum energy.",effect:a=>"Maximum energy: +"+Math.max(0,a-1)*8},
- perception:{name:"👁️ Perception",description:"Awareness and accuracy. Improves hit accuracy and helps notice discoveries.",effect:a=>"Accuracy: +"+Math.max(0,a-1)+"% · Discovery bonus: +"+Math.max(0,a-1)+"%"},
+ perception:{name:"👁️ Perception",description:"Improves combat accuracy and the chance of finding better loot and extra discoveries.",effect:a=>"Combat accuracy: +"+Math.max(0,a-1)+" · Better loot chance: up to +"+Math.min(12,Math.max(0,a-1)*0.5)+" percentage points · Extra discovery chance: +"+Math.min(20,Math.max(0,a-1))+"%"},
  luck:{name:"🍀 Luck",description:"A little more fortune when searching, finding rare loot, and landing critical hits.",effect:a=>"Critical chance: +"+Math.max(0,a-1)*0.5+"% · Rare-find bonus: +"+Math.max(0,a-1)+"%"},
  magic:{name:"✨ Magic",description:"Magical aptitude. This attribute is hidden until you discover mana through a teacher, a mana-rich location, magical food, or a mana-granting item.",effect:a=>"Maximum mana: +"+Math.max(0,a)*10+" · Magical power increases with Magic."}
 };
@@ -1819,7 +1819,8 @@ function gainXP(id,amount){
   const s = player.skills[id];
   if(s.level >= MAX_SKILL_LEVEL) return "";
 
-  s.xp += amount;
+  const learningMultiplier=1+Math.min(.5,Math.max(0,(Number(player.attributes?.intelligence)||1)-1)*.01);
+  s.xp += amount*learningMultiplier;
   let levels = 0;
 
   while(s.level < MAX_SKILL_LEVEL && s.xp >= xpNeeded(s.level)){
@@ -2867,7 +2868,7 @@ function calculateTravel(x,y){
   const method=getTravelModifiers();
   return {
     distance,
-    hours:Math.max(1,Math.ceil(difficulty*method.speed)),
+    hours:Math.max(1,Math.ceil(difficulty*method.speed*(1-Math.min(.30,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.01)))),
     energy:Math.max(1,Math.ceil(difficulty*BALANCE.travelEnergyPerDifficulty*method.energy)),
     method:method.name
   };
@@ -2935,7 +2936,8 @@ async function confirmTravel(){
     const terrain=generateTerrain(step.x,step.y);
     const method=getTravelModifiers();
     const tileCost=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*BALANCE.travelEnergyPerDifficulty*method.energy));
-    const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed));
+    const agilityTravelReduction=Math.min(.30,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.01);
+    const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed*(1-agilityTravelReduction)));
     if(player.energy<tileCost){stopped=true;if(progress)progress.textContent="Too exhausted to continue. Stopping at the current tile.";break;}
     player.energy=Math.max(0,player.energy-tileCost);
     if(!await advanceTime(tileHours,"Traveling to next tile","🧭")){stopped=true;break;}
@@ -3083,9 +3085,10 @@ async function performLocationAction(action){
   const profession=player.characterProfile?.mainProfession;
   const professionMatches=profession===actionSkill || player.characterProfile?.subProfession===actionSkill;
   const timeReduction=Math.min(.45,Math.max(0,(skillLevel(actionSkill)-1)*.012)+(professionMatches?.10:0));
-  const effectiveHours=Math.max(1,Math.round((Number(action.hours)||1)*(1-timeReduction)));
+  const baseActionHours=Math.max(0,Number(action.hours)||0);
+  const effectiveHours=baseActionHours===0?0:Math.max(1,Math.round(baseActionHours*(1-timeReduction)));
   player.energy = Math.max(0,player.energy-action.cost);
-  if(!await advanceTime(effectiveHours,action.name,action.icon||"⚒️"))return;
+  if(effectiveHours>0&&!await advanceTime(effectiveHours,action.name,action.icon||"⚒️"))return;
 
   let found = null;
   let amount = 1;
@@ -3378,7 +3381,8 @@ async function explore(){
   const xp = gainXP(skill,15);
   let lootText=storeFoundLoot(id,amount);
   let bonusLootText="";
-  if(Math.random()<0.70){
+  const perceptionDiscoveryBonus=Math.min(.20,Math.max(0,(Number(player.attributes?.perception)||1)-1)*.01);
+  if(Math.random()<Math.min(.90,.70+perceptionDiscoveryBonus)){
     const bonusId=getTerrainBonusLoot(terrain);
     if(bonusId){
       const bonusAmount=items[bonusId].tier>=3 && Math.random()<0.25?2:1;
@@ -3563,10 +3567,8 @@ function openLocation(x,y){
 
   const container = document.getElementById("locationActions");
   container.innerHTML = "";
-  if(isHere&&building&&building.completed){
-    const serviceBtn=document.createElement("button");serviceBtn.style.gridColumn="1 / -1";serviceBtn.className="build-button";
-    serviceBtn.innerHTML="<strong>"+buildingTypes[building.type].icon+" Open "+buildingTypes[building.type].name+"</strong><small>Use this completed building's services</small>";
-    serviceBtn.onclick=()=>{const i=player.base?.buildings?.findIndex(v=>v===building);if(i>=0)openBuildingService(i);};container.appendChild(serviceBtn);
+  if(isHere&&player.base&&Array.isArray(player.base.buildings)){
+    player.base.buildings.forEach((site,index)=>{if(site.x!==x||site.y!==y||!site.completed)return;const def=buildingTypes[site.type];if(!def)return;const serviceBtn=document.createElement("button");serviceBtn.style.gridColumn="1 / -1";serviceBtn.className="build-button";serviceBtn.innerHTML="<strong>"+def.icon+" Open "+def.name+"</strong><small>Use this completed building's services</small>";serviceBtn.onclick=()=>openBuildingService(index);container.appendChild(serviceBtn);});
   }
   if(isHere&&town){
     const enterBtn=document.createElement("button");enterBtn.style.gridColumn="1 / -1";enterBtn.className="build-button";
@@ -3648,7 +3650,7 @@ function openLocation(x,y){
     const availableActions=[...(info.actions||[])];
     if(terrain==="forest"&&getTileData(x,y).pondFound){
       if(!availableActions.some(a=>a.id==="drinkSource"))availableActions.push({id:"drinkSource",name:"🥤 Drink from Pond",detail:"Drink directly from the discovered pond to restore thirst",cost:1,hours:0});
-      if(!availableActions.some(a=>a.id==="collectWater"))availableActions.push({id:"collectWater",name:"💧 Fill Containers at Pond",detail:"Fill reusable containers",cost:2,hours:1});
+      if(!availableActions.some(a=>a.id==="collectWater"))availableActions.push({id:"collectWater",name:"💧 Fill Containers at Pond",detail:"Instantly fill reusable containers (energy cost only)",cost:2,hours:0});
     }
     availableActions.forEach(action=>{
       const btn = document.createElement("button");
@@ -3745,6 +3747,7 @@ function drawMap(){
         if(deco.length&&hash%3!==0)detail=deco[hash%deco.length];
       }
       const mainSpan=document.createElement("span");mainSpan.className="tile-main";mainSpan.textContent=main;tile.appendChild(mainSpan);
+      if(x===player.x&&y===player.y){const terrainLabel=document.createElement("span");terrainLabel.className="tile-terrain-label";terrainLabel.textContent=terrainInfo[terrain]?.name||terrain;tile.appendChild(terrainLabel);tile.title="You are standing on: "+(terrainInfo[terrain]?.name||terrain)+" · "+x+", "+y;}
       if(detail){const d=document.createElement("span");d.className="tile-detail";d.textContent=detail;tile.appendChild(d);}
       if(td.sharedSettlement)tile.title+=" · Settlement owned by "+(td.sharedSettlement.owner||"another survivor");
       if(td.sharedBuilding)tile.title+=" · Structure owned by "+(td.sharedBuilding.owner||"another survivor");
@@ -4259,8 +4262,7 @@ function loadGame(){
 
       player.base.buildings=player.base.buildings.filter(b=>
         b && Number.isFinite(b.x) && Number.isFinite(b.y) &&
-        buildingTypes[b.type] &&
-        !(b.x===player.base.x && b.y===player.base.y)
+        buildingTypes[b.type]
       ).map(b=>{
         if(typeof b.completed!=="boolean")b.completed=true;
         b.contributed={wood:0,stone:0,ironOre:0,...(b.contributed||{})};
@@ -4496,12 +4498,12 @@ function battleTurn(stance){
  if(Math.random()*100<hit){let damage=Math.max(BALANCE.minimumCombatDamage,Math.round(attack-b.enemy.defense*(stance==="offensive"?.65:1)));if(Math.random()*100<stats.crit){damage=Math.round(damage*1.5);log+="Critical hit! ";}b.hp=Math.max(0,b.hp-damage);let remainingDamage=damage;if(Array.isArray(b.enemies)){while(remainingDamage>0&&b.enemies.length){const target=b.enemies[0];const dealt=Math.min(remainingDamage,target.hp);target.hp-=dealt;remainingDamage-=dealt;if(target.hp<=0)b.enemies.shift();else break;}}log+="You deal "+damage+" damage"+(b.groupSize>1?" to the enemy group":"")+". ";if(b.groupSize>1)log+=(b.enemies?.length||0)+" enemies remain. ";}else log+="Your attack misses. ";
  if(typeof mpPartyState!=="undefined"&&mpPartyState&&Array.isArray(mpPartyState.members)){const allies=mpPlayers.filter(p=>p.id!==mpClientId&&p.partyId===mpPartyState.id&&Number(p.x)===Number(player.x)&&Number(p.y)===Number(player.y));if(allies.length){const guildAlly=allies.some(p=>p.guildId&&p.guildId===mpPlayers.find(q=>q.id===mpClientId)?.guildId);const tactic=b.partyStrategy||partyBattleStrategy||"balanced";const allyDamage=Math.max(1,Math.round(allies.length*(tactic==="offensive"?5:tactic==="defensive"?2:3)*(guildAlly?1.25:1)));b.hp=Math.max(0,b.hp-allyDamage);log+=` Party allies deal ${allyDamage} extra damage (${tactic}).`;if(tactic==="defensive")defense+=Math.min(4,allies.length);}}
  if(b.hp<=0){document.getElementById("battleLog").textContent=log+"\nYou win the fight!";gainXP(b.type==="wildlife"?"hunting":"survival",12+Math.min(18,Math.max(0,(b.groupSize||1)-1)*2));endBattle(log+"You win the fight and gain combat experience.",true);return;}
- const activeEnemies=Array.isArray(b.enemies)?b.enemies.length:1;const enemyAttack=Math.round(b.enemy.attack*Math.min(2.6,1+Math.max(0,activeEnemies-1)*.18));const enemyHit=Math.random()*100<(b.enemy.accuracy||72);if(enemyHit){let incoming=Math.max(1,Math.round(enemyAttack-defense));if(stance==="defensive")incoming=Math.max(1,Math.round(incoming*.45));else if(stance==="offensive")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*1.2));if(stance==="balanced")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*.8));const armorSkills=equippedArmorMasteries();armorSkills.forEach(id=>gainXP(id,2));const offhand=equippedItem("subWeapon");if(offhand&&/shield/i.test((offhand.name||"")+" "+(offhand.armorType||"")))gainXP("shield",2);player.health=Math.max(0,player.health-incoming);log+="Opponent hits you for "+incoming+" damage.";}else log+="Opponent misses.";
+ const activeEnemies=Array.isArray(b.enemies)?b.enemies.length:1;const enemyAttack=Math.round(b.enemy.attack*Math.min(2.6,1+Math.max(0,activeEnemies-1)*.18));const agilityDodge=Math.min(15,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.75);const enemyHit=Math.random()*100<Math.max(20,(b.enemy.accuracy||72)-agilityDodge);if(enemyHit){let incoming=Math.max(1,Math.round(enemyAttack-defense));if(stance==="defensive")incoming=Math.max(1,Math.round(incoming*.45));else if(stance==="offensive")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*1.2));if(stance==="balanced")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*.8));const armorSkills=equippedArmorMasteries();armorSkills.forEach(id=>gainXP(id,2));const offhand=equippedItem("subWeapon");if(offhand&&/shield/i.test((offhand.name||"")+" "+(offhand.armorType||"")))gainXP("shield",2);player.health=Math.max(0,player.health-incoming);log+="Opponent hits you for "+incoming+" damage.";}else log+="Opponent misses.";
  document.getElementById("battleLog").textContent=log;renderBattleStats();
  if(player.health<=0){player.dead=true;endBattle("You were defeated. Your journey ends here.",false);return;}
  updateScreen();saveGame();
 }
-function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle,stats=getCombatStats();const groupCount=Math.max(1,b.enemies?.length||1);const damage=Math.max(1,Math.round(b.enemy.attack*Math.min(2.2,1+(groupCount-1)*.15))-stats.defense+Math.floor(Math.random()*3));player.health=Math.max(0,player.health-damage);document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+b.enemyDisplayName+" hits first for "+damage+" damage.";renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
+function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle,stats=getCombatStats();const agilityDodge=Math.min(15,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.75);if(Math.random()*100<agilityDodge){document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+"Your agility lets you evade "+b.enemyDisplayName+"’s opening attack.";renderBattleStats();updateScreen();saveGame();return;}const groupCount=Math.max(1,b.enemies?.length||1);const damage=Math.max(1,Math.round(b.enemy.attack*Math.min(2.2,1+(groupCount-1)*.15))-stats.defense+Math.floor(Math.random()*3));player.health=Math.max(0,player.health-damage);document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+b.enemyDisplayName+" hits first for "+damage+" damage.";renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
 function renderBattleStats(){if(!activeBattle)return;const s=getCombatStats(),b=activeBattle;document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=b.enemyDisplayName+(b.groupSize>1?" × "+(b.enemies?.length||0):"");document.getElementById("battleEnemyNumbers").textContent=b.hp+" / "+b.maxHp+" HP · ATK "+b.enemy.attack+" · DEF "+b.enemy.defense;document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
 function endBattle(message,won){if(!activeBattle)return;if(partyStrategyTimer){clearInterval(partyStrategyTimer);partyStrategyTimer=null;}document.getElementById("partyStrategyDecision")?.classList.add("hidden");const finished=activeBattle;finished.ended=true;if(won)updateMissionEvent("kill",{type:finished.type,enemy:finished.enemy});if(won&&finished.roaming){const td=getTileData(player.x,player.y);td.roamingEnemyDefeated=true;td.roamingEncounter=null;}document.getElementById("battlePreFight").classList.add("hidden");document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleIntro").textContent="Encounter: "+(finished.enemyWasKnown?finished.enemy.name:("Unknown Hostile — identified as "+finished.enemy.name))+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\nOutcome: "+message;document.getElementById("battleLeaveButton").classList.remove("hidden");if(won){if(finished.type==="dragon"){showMessage("The dragon has been defeated!");}else if(finished.type==="wildlife"){
  const animal=finished.enemy.name;
@@ -4787,10 +4789,10 @@ async function fillWaterContainers(){
  if(player.dead)return;const terrainId=generateTerrain(player.x,player.y);const terrain=terrainInfo[terrainId];const terrainName=(terrain?.name||"").toLowerCase();
  const hasSource=["river","lake","ocean","pond","well"].some(w=>terrainName.includes(w))||(terrainId==="forest"&&getTileData(player.x,player.y).pondFound);
  if(!hasSource){showMessage("You need to be at a river, lake, ocean, well, or a discovered forest pond to fill containers.");return;}
- ensureEconomyData();let filled=0;["bottle","canteen","waterJug","waterskin","woodenBarrel"].forEach(id=>{const count=getItemCount(id),cap=items[id].capacity;if(!count)return;const max=count*cap;const cur=Number(player.containerWater[id])||0;const add=Math.max(0,max-cur);player.containerWater[id]=cur+add;filled+=add;});
- if(filled){if(!await advanceTime(1,"Filling water containers","💧"))return;saveGame();renderEconomy();showMessage("Filled containers with "+filled+" units of water.");}else showMessage("You have no empty capacity. Craft or empty a container first.");
+ ensureEconomyData();if(player.energy<1){showMessage("You need 1 energy to refill containers.");return;}let filled=0;["bottle","canteen","waterJug","waterskin","woodenBarrel"].forEach(id=>{const count=getItemCount(id),cap=items[id].capacity;if(!count)return;const max=count*cap;const cur=Number(player.containerWater[id])||0;const add=Math.max(0,max-cur);player.containerWater[id]=cur+add;filled+=add;});
+ if(filled){player.energy=Math.max(0,player.energy-1);saveGame();updateScreen();renderEconomy();showMessage("Refilled containers instantly: "+filled+" units of water. Cost: 1 energy.");}else showMessage("You have no empty capacity. Craft or empty a container first.");
 }
-function drinkStoredWater(){ensureEconomyData();let id=["waterskin","canteen","waterJug","woodenBarrel","bottle"].find(k=>(Number(player.containerWater[k])||0)>0);if(!id){showMessage("No stored water. Fill a container at a river or lake.");return;}const amount=Math.min(25,player.maxThirst-player.thirst,player.containerWater[id]);if(amount<=0){showMessage("You are not thirsty.");return;}player.containerWater[id]-=amount;player.thirst=Math.min(player.maxThirst,player.thirst+amount);saveGame();updateScreen();renderEconomy();showMessage("Drank stored water. Thirst restored by "+amount+".");}
+function drinkStoredWater(){ensureEconomyData();let id=["waterskin","canteen","waterJug","woodenBarrel","bottle"].find(k=>(Number(player.containerWater[k])||0)>0);if(!id){showMessage("No stored water. Fill a container at a river or lake.");return;}if(player.energy<1){showMessage("You need 1 energy to drink.");return;}const amount=Math.min(25,player.maxThirst-player.thirst,player.containerWater[id]);if(amount<=0){showMessage("You are not thirsty.");return;}player.energy=Math.max(0,player.energy-1);player.containerWater[id]-=amount;player.thirst=Math.min(player.maxThirst,player.thirst+amount);saveGame();updateScreen();renderEconomy();showMessage("Drank stored water instantly. Thirst restored by "+amount+". Cost: 1 energy.");}
 function renderWarehouse(){const el=document.getElementById("warehouseUI");el.innerHTML="";if(!player.base){el.textContent="Establish a base first.";return;}if(!hasBuilding("warehouse")){el.textContent="Build and complete a Warehouse first.";return;}if(!baseAtHome()){el.textContent="Return to your base to access the warehouse.";return;}const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(player.base.warehouse)])];ids.forEach(id=>{if(!items[id])return;const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[id].icon+" "+items[id].name+" · Bag "+getItemCount(id)+" · Stored "+(player.base.warehouse[id]||0);const dep=document.createElement("button");dep.textContent="Deposit 1";dep.disabled=!getItemCount(id);dep.onclick=()=>warehouseMove(id,1,true);const wit=document.createElement("button");wit.textContent="Withdraw 1";wit.disabled=!(player.base.warehouse[id]>0);wit.onclick=()=>warehouseMove(id,1,false);row.append(label,dep,wit);el.appendChild(row);});}
 function warehouseMove(id,n,deposit){ensureEconomyData();if(!baseAtHome()||!hasBuilding("warehouse"))return;if(deposit){if(!removeItems(id,n))return;player.base.warehouse[id]=(player.base.warehouse[id]||0)+n;}else{if((player.base.warehouse[id]||0)<n||!addItem(id,n))return;player.base.warehouse[id]-=n;}saveGame();updateScreen();renderEconomy();}
 function restockStore(){if(!buildingService("generalStore")||!hasBuilding("warehouse")){showMessage("At home, a completed General Store and Warehouse are required.");return;}const stock=player.base.storeStock,wh=player.base.warehouse;let moved=0;["fruit","cookedMeat","bottle","canteen","waterJug","waterskin"].forEach(id=>{const target=id==="fruit"?12:5;const need=Math.max(0,target-(stock[id]||0));const take=Math.min(need,wh[id]||0);if(take){wh[id]-=take;stock[id]=(stock[id]||0)+take;moved+=take;}});if(moved){saveGame();renderEconomy();showMessage("NPC storekeepers restocked "+moved+" items from the warehouse.");}else showMessage("Warehouse has no supplies needed by the store.");}
