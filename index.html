@@ -260,7 +260,7 @@ input,select{max-width:100%}
     <button class="nav-icon-btn" onclick="openGuildPanel()" aria-label="Open guild"><span>🏰</span><small>GUILD</small></button><button class="nav-icon-btn" onclick="openPartyPanel()" aria-label="Open party"><span>👥</span><small>PARTY</small></button>
   </div>
   <section class="status-bar" id="topStatusBar" aria-label="Survival stats">
-    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View health details">❤️ <b id="health">100</b>/<b id="maxHealthNav">100</b></button>
+    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View health details">❤️ <b id="health">100</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View energy details">⚡ <b id="energy">100</b>/<b id="maxEnergyNav">100</b></button>
     <button type="button" class="status-pill hidden" id="manaNav" onclick="openSurvivalStatus()" aria-label="View mana details">✨ <b id="mana">0</b>/<b id="maxManaNav">0</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View hunger details">🍖 <b id="hunger">100</b></button>
@@ -441,6 +441,9 @@ input,select{max-width:100%}
 <div id="populationDetails"></div>
 <h3>📦 Settlement Stockpile</h3>
 <div id="stockpileDetails"></div>
+<h3>🔒 Private Shelter Storage</h3>
+<p class="muted">Only the shelter owner can access these personal belongings. This storage is separate from the shared settlement warehouse.</p>
+<div id="privateStorageUI"></div>
 <h3>🏙️ City Structures & 🏭 Production Buildings</h3>
 <div id="buildingList"></div>
 <button class="full-button upgrade-button" id="upgradeBaseButton" onclick="upgradeBase()">Upgrade Shelter</button>
@@ -2665,7 +2668,7 @@ function makeBase(){
     x:player.x,y:player.y,level:1,shelterType:player.pendingShelterType||"outdoorShelter",buildings:[],
     population:{total:1,food:0,wood:0,mining:0,fishing:0,merchant:0,craft:0,guard:0,idle:1},
     stockpile:{fruit:0,meat:0,wood:0,stone:0,ironOre:0,copperOre:0},
-    lastGrowthDay:player.day,productionHours:0
+    lastGrowthDay:player.day,productionHours:0,privateStorage:{}
   };
 }
 
@@ -2682,25 +2685,34 @@ function housingCapacity(){
 
 function assignVillagers(){
   if(!player.base)return;
-  const p = player.base.population;
-  let available = Math.max(0,p.total||0);
-  const jobs = {food:0,wood:0,mining:0,fishing:0,merchant:0,craft:0,guard:0,idle:0};
-
-  function assign(job,count){
-    const n = Math.min(available,count);
-    jobs[job] += n;
-    available -= n;
-  }
-
-  assign("guard",countBuildings("guardBarracks")*2);
-  assign("food",0);
-  assign("mining",0);
-  assign("fishing",0);
-  assign("wood",0);
-  assign("merchant",countBuildings("generalStore")+countBuildings("inn")+countBuildings("bank")+countBuildings("stable"));
-  assign("craft",countBuildings("blacksmith")+countBuildings("clinic")+countBuildings("adventurersGuild"));
-  jobs.idle = available;
+  const p=player.base.population;
+  const jobs={food:0,wood:0,mining:0,fishing:0,merchant:0,craft:0,guard:0,idle:0};
+  const buildings=player.base.buildings.filter(b=>b.completed);
+  const assigned=buildings.reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
+  jobs.guard=buildings.filter(b=>b.type==="guardBarracks").reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
+  jobs.merchant=buildings.filter(b=>b.type==="generalStore").reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
+  let available=Math.max(0,(Number(p.total)||0)-assigned);
+  const autoMerchant=buildings.filter(b=>["inn","bank","stable"].includes(b.type)).length;
+  jobs.merchant+=Math.min(available,autoMerchant);available-=Math.min(available,autoMerchant);
+  const autoCraft=buildings.filter(b=>["blacksmith","clinic","adventurersGuild"].includes(b.type)).length;
+  jobs.craft=Math.min(available,autoCraft);available-=jobs.craft;
+  jobs.idle=available;
   Object.assign(p,jobs);
+}
+function assignResidents(index,delta){
+  if(!player.base||!baseAtHome()){showMessage("Return to your shelter to assign residents.");return;}
+  const b=player.base.buildings[index];if(!b||!b.completed||!["generalStore","guardBarracks"].includes(b.type))return;
+  const max=b.type==="generalStore"?1:2;
+  const current=Math.max(0,Math.floor(Number(b.staffAssigned)||0));
+  if(delta>0){
+    const assigned=player.base.buildings.filter(x=>x.completed).reduce((n,x)=>n+Math.max(0,Math.floor(Number(x.staffAssigned)||0)),0);
+    const available=Math.max(0,(Number(player.base.population?.total)||0)-assigned);
+    if(available<1){showMessage("No unassigned residents are available. Increase population or unassign someone from another job.");return;}
+    if(current>=max){showMessage("This building has reached its staffing limit.");return;}
+  }
+  b.staffAssigned=Math.max(0,Math.min(max,current+delta));
+  assignVillagers();saveGame();updateBase();
+  showMessage(b.staffAssigned+" resident"+(b.staffAssigned===1?"":"s")+" assigned to "+buildingTypes[b.type].name+".");
 }
 
 function calculateSafety(){
@@ -2881,6 +2893,7 @@ function updateBase(){
     button.disabled = true;
     button.textContent = "Build a settlement first";
     const retire=document.getElementById("retireButton");if(retire)retire.disabled=true;
+    renderPrivateStorage();
     return;
   }
 
@@ -2921,6 +2934,17 @@ function updateBase(){
       const open=document.createElement("button");open.className="build-button full-button";open.style.textAlign="left";open.innerHTML="<strong>"+def.icon+" "+def.name+" — COMPLETE</strong><small>📍 "+item.x+", "+item.y+" · HP "+item.health+"/"+item.maxHealth+" · DEF "+item.defense+"</small><small>Tap to open building services</small>";open.onclick=()=>openBuildingService(index);row.appendChild(open);
     }else row.textContent=def.icon+" "+def.name+" — "+item.x+", "+item.y+" — Construction "+projectProgress(item,def)+"% (materials still needed) · HP "+item.health+"/"+item.maxHealth+" · DEF "+item.defense;
     list.appendChild(row);
+    if(item.completed&&["generalStore","guardBarracks"].includes(item.type)){
+      item.staffAssigned=Math.max(0,Math.floor(Number(item.staffAssigned)||0));
+      const staff=document.createElement("div");staff.className="detail-stat";
+      const maxStaff=item.type==="generalStore"?1:2;
+      staff.textContent=(item.type==="generalStore"?"🧑‍💼 Store clerks: ":"🛡️ Assigned guards: ")+item.staffAssigned+" / "+maxStaff;
+      list.appendChild(staff);
+      const controls=document.createElement("div");controls.className="action-grid";
+      const assign=document.createElement("button");assign.className="build-button";assign.textContent=item.type==="generalStore"?"➕ Assign Store Clerk":"➕ Assign Guard";assign.disabled=player.dead||!atBase()||item.staffAssigned>=maxStaff;assign.onclick=()=>assignResidents(index,1);
+      const remove=document.createElement("button");remove.className="build-button";remove.textContent="➖ Unassign Resident";remove.disabled=player.dead||item.staffAssigned<=0;remove.onclick=()=>assignResidents(index,-1);
+      controls.append(assign,remove);list.appendChild(controls);
+    }
     if(item.completed&&def.category==="production"){
       item.storage=item.storage||{};
       const storage=document.createElement("div");storage.className="detail-stat";
@@ -2952,6 +2976,7 @@ function updateBase(){
       button.disabled = player.dead || !atBase() || player.energy<5;
     }
   }
+  renderPrivateStorage();
 }
 
 /* =========================
@@ -4417,7 +4442,7 @@ function loadGame(){
     player.day=Math.max(1,Math.floor(player.day));
     player.hour=clamp(Math.floor(player.hour),0,23);
     player.dead=saved.dead===true;
-    if(player.base){player.base.level=clamp(Math.floor(Number(player.base.level)||1),1,10);player.base.shelterType=player.base.shelterType||"outdoorShelter";player.base.buildings=Array.isArray(player.base.buildings)?player.base.buildings:[];player.base.buildings.forEach(b=>{if(b.type==="fisherHut")b.type="fishpond";ensureBuildingDurability(b);const d=buildingTypes[b.type];if(d?.category==="production"){b.storage=b.storage||{};b.worker=b.worker||"";b.productionHours=Number(b.productionHours)||0;}});}
+    if(player.base){player.base.level=clamp(Math.floor(Number(player.base.level)||1),1,10);player.base.shelterType=player.base.shelterType||"outdoorShelter";player.base.buildings=Array.isArray(player.base.buildings)?player.base.buildings:[];player.base.privateStorage=player.base.privateStorage||{};player.base.buildings.forEach(b=>{b.staffAssigned=Math.max(0,Math.floor(Number(b.staffAssigned)||0));if(b.type==="fisherHut")b.type="fishpond";ensureBuildingDurability(b);const d=buildingTypes[b.type];if(d?.category==="production"){b.storage=b.storage||{};b.worker=b.worker||"";b.productionHours=Number(b.productionHours)||0;}});}
 
     player.inventory=player.inventory
       .filter(e=>e && items[e.id] && Number.isFinite(e.amount) && e.amount>0)
@@ -5018,6 +5043,23 @@ async function fillWaterContainers(){
  if(filled){player.energy=Math.max(0,player.energy-1);saveGame();updateScreen();renderEconomy();showMessage("Refilled containers instantly: "+filled+" units of water. Cost: 1 energy.");}else showMessage("You have no empty capacity. Craft or empty a container first.");
 }
 function drinkStoredWater(){ensureEconomyData();let id=["waterskin","canteen","waterJug","woodenBarrel","bottle"].find(k=>(Number(player.containerWater[k])||0)>0);if(!id){showMessage("No stored water. Fill a container at a river or lake.");return;}if(player.energy<1){showMessage("You need 1 energy to drink.");return;}const amount=Math.min(25,player.maxThirst-player.thirst,player.containerWater[id]);if(amount<=0){showMessage("You are not thirsty.");return;}player.energy=Math.max(0,player.energy-1);player.containerWater[id]-=amount;player.thirst=Math.min(player.maxThirst,player.thirst+amount);saveGame();updateScreen();renderEconomy();showMessage("Drank stored water instantly. Thirst restored by "+amount+". Cost: 1 energy.");}
+function renderPrivateStorage(){
+ const el=document.getElementById("privateStorageUI");if(!el)return;el.innerHTML="";
+ if(!player.base){el.textContent="Build a shelter to unlock private storage.";return;}
+ if(!baseAtHome()){el.textContent="Return to your shelter to access your private storage.";return;}
+ player.base.privateStorage=player.base.privateStorage||{};
+ const storage=player.base.privateStorage;
+ const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(storage)])].filter(id=>items[id]);
+ if(!ids.length){const note=document.createElement("p");note.className="muted";note.textContent="Your private storage is empty. Items stored here are separate from the shared warehouse.";el.appendChild(note);}
+ ids.forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id].icon||"📦")+" "+items[id].name+" · Bag "+getItemCount(id)+" · Private "+(Number(storage[id])||0);const dep=document.createElement("button");dep.textContent="Store 1";dep.disabled=!getItemCount(id);dep.onclick=()=>movePrivateStorage(id,1,true);const take=document.createElement("button");take.textContent="Take 1";take.disabled=!(Number(storage[id])>0);take.onclick=()=>movePrivateStorage(id,1,false);row.append(label,dep,take);el.appendChild(row);});
+}
+function movePrivateStorage(id,n,deposit){
+ if(!player.base||!baseAtHome()){showMessage("Only the shelter owner can access private storage while at the shelter.");return;}
+ player.base.privateStorage=player.base.privateStorage||{};const st=player.base.privateStorage;
+ if(deposit){if(!removeItems(id,n))return;st[id]=(Number(st[id])||0)+n;}
+ else{if((Number(st[id])||0)<n||!addItem(id,n))return;st[id]-=n;if(st[id]<=0)delete st[id];}
+ saveGame();updateScreen();renderPrivateStorage();showMessage(deposit?"Item stored in your private shelter storage.":"Item withdrawn from your private shelter storage.");
+}
 function renderWarehouse(){const el=document.getElementById("warehouseUI");el.innerHTML="";if(!player.base){el.textContent="Establish a base first.";return;}if(!hasBuilding("warehouse")){el.textContent="Build and complete a Warehouse first.";return;}if(!baseAtHome()){el.textContent="Return to your base to access the warehouse.";return;}const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(player.base.warehouse)])];ids.forEach(id=>{if(!items[id])return;const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[id].icon+" "+items[id].name+" · Bag "+getItemCount(id)+" · Stored "+(player.base.warehouse[id]||0);const dep=document.createElement("button");dep.textContent="Deposit 1";dep.disabled=!getItemCount(id);dep.onclick=()=>warehouseMove(id,1,true);const wit=document.createElement("button");wit.textContent="Withdraw 1";wit.disabled=!(player.base.warehouse[id]>0);wit.onclick=()=>warehouseMove(id,1,false);row.append(label,dep,wit);el.appendChild(row);});}
 function warehouseMove(id,n,deposit){ensureEconomyData();if(!baseAtHome()||!hasBuilding("warehouse"))return;if(deposit){if(!removeItems(id,n))return;player.base.warehouse[id]=(player.base.warehouse[id]||0)+n;}else{if((player.base.warehouse[id]||0)<n||!addItem(id,n))return;player.base.warehouse[id]-=n;}saveGame();updateScreen();renderEconomy();}
 function restockStore(){if(!buildingService("generalStore")||!hasBuilding("warehouse")){showMessage("At home, a completed General Store and Warehouse are required.");return;}const stock=player.base.storeStock,wh=player.base.warehouse;let moved=0;["fruit","cookedMeat","bottle","canteen","waterJug","waterskin"].forEach(id=>{const target=id==="fruit"?12:5;const need=Math.max(0,target-(stock[id]||0));const take=Math.min(need,wh[id]||0);if(take){wh[id]-=take;stock[id]=(stock[id]||0)+take;moved+=take;}});if(moved){saveGame();renderEconomy();showMessage("NPC storekeepers restocked "+moved+" items from the warehouse.");}else showMessage("Warehouse has no supplies needed by the store.");}
@@ -5108,6 +5150,10 @@ function openBuildingService(index){
  if(b.type==='generalStore'){
    if(!requireHome()){addNote('Return to your settlement headquarters to access store stock.');}
    else {const stock=player.base.storeStock||{};Object.keys(tradePrices).filter(id=>items[id]).forEach(id=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(items[id].icon||'📦')+' '+items[id].name+' · Stock '+(stock[id]||0)+' · '+tradePrices[id]+' coins';const buy=serviceButton('Buy 1',()=>{buyStoreItem(id);openBuildingService(index);},(stock[id]||0)<1||(player.coins||0)<tradePrices[id]);buy.className='';const sell=serviceButton('Sell 1',()=>{sellStoreItem(id);openBuildingService(index);},!getItemCount(id));sell.className='';row.append(label,buy,sell);content.appendChild(row);});content.appendChild(serviceButton('📦 Restock from Warehouse',()=>{restockStore();openBuildingService(index);},!hasBuilding('warehouse')));}
+   b.staffAssigned=Math.max(0,Math.floor(Number(b.staffAssigned)||0));
+   addNote('Store clerks assigned: '+b.staffAssigned+' / 1. Assign a resident to staff this store.');
+   content.appendChild(serviceButton('➕ Assign Store Clerk',()=>assignResidents(index,1),b.staffAssigned>=1||!baseAtHome()||player.dead));
+   content.appendChild(serviceButton('➖ Unassign Store Clerk',()=>assignResidents(index,-1),b.staffAssigned<=0||!baseAtHome()));
  }else if(b.type==='livestockPen'){
    ensureLivestock();addNote('Animals in pen: '+player.livestock.length+'/30. Feed animals to keep them healthy; two of the same species can produce offspring. Butchering permanently removes one animal.');
    const counts={};player.livestock.forEach(a=>counts[a.id]=(counts[a.id]||0)+1);
@@ -5127,7 +5173,11 @@ function openBuildingService(index){
  }else if(b.type==='bank'){
    addNote('Wallet balance: '+(player.coins||0)+' coins. Bank services are available here.');
  }else if(b.type==='guardBarracks'){
-   addNote('Guard Barracks improve settlement safety. Current regional safety: '+calculateSafety().label+' ('+calculateSafety().score+'/100).');
+   b.staffAssigned=Math.max(0,Math.floor(Number(b.staffAssigned)||0));
+   addNote('Assigned guards: '+b.staffAssigned+' / 2. Guards reduce regional danger and improve settlement safety.');
+   content.appendChild(serviceButton('➕ Assign Guard',()=>assignResidents(index,1),b.staffAssigned>=2||!baseAtHome()||player.dead));
+   content.appendChild(serviceButton('➖ Unassign Guard',()=>assignResidents(index,-1),b.staffAssigned<=0||!baseAtHome()));
+   addNote('Current regional safety: '+calculateSafety().label+' ('+calculateSafety().score+'/100).');
  }else if(b.type==='plaza'){
    addNote('Operate your public stall from the plaza interface.');content.appendChild(serviceButton('⛲ Open Plaza Stall',()=>{closeBuildingService();hideScreens();document.getElementById('tradePanel')?.classList.remove('hidden');renderTrade();},false));
  }else if(b.type==='farm'||b.type==='mine'||b.type==='fishpond'||b.type==='lumberCamp'){
