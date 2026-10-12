@@ -259,14 +259,15 @@ input,select{max-width:100%}
     <div class="nav-brand">🧭 LOST RUIN</div>
     <button class="nav-icon-btn" onclick="openGuildPanel()" aria-label="Open guild"><span>🏰</span><small>GUILD</small></button><button class="nav-icon-btn" onclick="openPartyPanel()" aria-label="Open party"><span>👥</span><small>PARTY</small></button>
   </div>
-  <section class="status-bar" id="topStatusBar" aria-label="Survival stats">
+  <section class="status-bar" id="topStatusBar" aria-label="Survival stats and UTC world calendar">
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View health details">❤️ <b id="health">100</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View energy details">⚡ <b id="energy">100</b>/<b id="maxEnergyNav">100</b></button>
     <button type="button" class="status-pill hidden" id="manaNav" onclick="openSurvivalStatus()" aria-label="View mana details">✨ <b id="mana">0</b>/<b id="maxManaNav">0</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View hunger details">🍖 <b id="hunger">100</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View thirst details">💧 <b id="thirst">100</b></button>
-    <span id="period">☀️ Day 1</span>
-    <span id="time">08:00</span>
+    <span id="period" title="Shared world season and year">🌱 Spring · Year 1</span>
+    <span id="worldDate" title="Real-world UTC date">UTC 2026-10-12</span>
+    <span id="time" title="Real-world UTC time">00:00 UTC</span>
   </section>
 </header>
 
@@ -3038,9 +3039,46 @@ function updateBase(){
 }
 
 /* =========================
-   TIME, AGE, AND SURVIVAL
+   SHARED UTC CALENDAR
+   One UTC day = one season; four UTC days = one game year.
+   Season 1 starts at the fixed UTC epoch below so every client
+   calculates the same calendar without relying on local time zones.
 ========================= */
-
+const WORLD_CALENDAR_EPOCH_UTC = Date.UTC(2026, 9, 12, 0, 0, 0); // 2026-10-12 00:00 UTC
+const WORLD_SEASONS = [
+  {name:"Spring",icon:"🌱",description:"New growth; herbs and flowers thrive."},
+  {name:"Summer",icon:"☀️",description:"Warm weather; water demand may rise."},
+  {name:"Fall",icon:"🍂",description:"Harvest season; fruits and seeds are plentiful."},
+  {name:"Winter",icon:"❄️",description:"Cold weather; freezing conditions may affect suitable biomes."}
+];
+function getWorldCalendar(timestamp=Date.now()){
+  const now=new Date(Number(timestamp)||Date.now());
+  const utcMidnight=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate());
+  const elapsedDays=Math.max(0,Math.floor((utcMidnight-WORLD_CALENDAR_EPOCH_UTC)/86400000));
+  const seasonIndex=elapsedDays%4;
+  const season=WORLD_SEASONS[seasonIndex];
+  return {
+    timestamp:now.getTime(),
+    utcDate:now.toISOString().slice(0,10),
+    utcTime:String(now.getUTCHours()).padStart(2,"0")+":"+String(now.getUTCMinutes()).padStart(2,"0"),
+    utcDayNumber:elapsedDays+1,
+    year:Math.floor(elapsedDays/4)+1,
+    seasonIndex,season,seasonName:season.name,seasonIcon:season.icon,
+    dayOfSeason:1,
+    nextSeasonAt:utcMidnight+86400000,
+    secondsUntilSeasonChange:Math.max(0,Math.ceil((utcMidnight+86400000-now.getTime())/1000))
+  };
+}
+function getCurrentSeason(){return getWorldCalendar().season;}
+function updateWorldClockDisplay(){
+  const calendar=getWorldCalendar();
+  const period=document.getElementById("period"),date=document.getElementById("worldDate"),time=document.getElementById("time");
+  if(period){period.textContent=calendar.seasonIcon+" "+calendar.seasonName+" · Year "+calendar.year;period.title=calendar.season.description+" Season changes at 00:00 UTC.";}
+  if(date){date.textContent="UTC "+calendar.utcDate;date.title="Real-world date in Coordinated Universal Time.";}
+  if(time){time.textContent=calendar.utcTime+" UTC";time.title="Shared real-world clock shown in UTC.";}
+  document.documentElement.dataset.worldSeason=calendar.seasonName.toLowerCase();
+  return calendar;
+}
 let timeAdvanceInProgress=false;
 function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
@@ -4791,6 +4829,7 @@ function leaveBattle(){activeBattle=null;hideScreens();document.getElementById("
 ========================= */
 
 function updateScreen(){
+  updateWorldClockDisplay();
   const combatStatsNow=getCombatStats();player.maxHealth=combatStatsNow.maxHealth;player.health=Math.min(Number(player.health)||0,player.maxHealth);
   ensureAttributes();player.maxEnergy=100+Math.max(0,(Number(player.attributes.endurance)||1)-1)*8;player.energy=Math.min(Number(player.energy)||0,player.maxEnergy);
   if(player.manaUnlocked){player.maxMana=Math.max(10,(Number(player.attributes.magic)||1)*10);player.mana=Math.min(Number(player.mana)||0,player.maxMana);}
@@ -4808,11 +4847,9 @@ function updateScreen(){
   const manaNav=document.getElementById("manaNav");
   if(manaNav){manaNav.classList.toggle("hidden",!player.manaUnlocked);if(player.manaUnlocked){const manaEl=document.getElementById("mana"),maxManaEl=document.getElementById("maxManaNav");if(manaEl)manaEl.textContent=String(Math.floor(Number(player.mana)||0));if(maxManaEl)maxManaEl.textContent=String(Math.floor(Number(player.maxMana)||10));}}
 
-  document.getElementById("period").textContent =
-    (player.hour>=6 && player.hour<18 ? "☀️ Day " : "🌙 Day ")+player.day;
-
-  document.getElementById("time").textContent =
-    String(player.hour).padStart(2,"0")+":00";
+  // The displayed calendar uses the real UTC clock. Legacy action timers
+  // still use player.day/player.hour internally until their mechanics are migrated.
+  updateWorldClockDisplay();
 
   const currentTerrain=terrainInfo[generateTerrain(player.x,player.y)];
   document.getElementById("locationText").textContent =
@@ -5274,6 +5311,7 @@ function openBuildingService(index){
 function feedLivestock(index){if(!baseAtHome()||!hasBuilding('livestockPen')){showMessage('Return to the settlement and use the Livestock Pen.');return;}ensureLivestock();const a=player.livestock[index];if(!a)return;const food=getItemCount('fruit')>0?'fruit':getItemCount('meat')>0?'meat':null;if(!food){showMessage('You need fruit or meat to feed an animal.');return;}removeItems(food,1);a.fed=true;a.fedDay=player.day;saveGame();updateScreen();openBuildingService(activeServiceBuildingIndex);showMessage(a.name+' has been fed.');}
 function butcherLivestock(index){if(!baseAtHome()||!hasBuilding('livestockPen')){showMessage('Return to the settlement and use the Livestock Pen.');return;}ensureLivestock();const a=player.livestock[index];if(!a)return;if(!confirm('Butcher '+a.name+'? This permanently removes the animal.'))return;player.livestock.splice(index,1);const meat=a.id==='chicken'||a.id==='duck'?1:2;addItem('meat',meat);if(a.id==='cow'||a.id==='goat')addItem('leather',1);if(a.id==='chicken'||a.id==='duck')addItem('feather',1);saveGame();updateScreen();openBuildingService(activeServiceBuildingIndex);showMessage('Butchered '+a.name+'. Received meat x'+meat+((a.id==='cow'||a.id==='goat')?' and leather x1':((a.id==='chicken'||a.id==='duck')?' and feathers x1':'.')));}
 function restAtInn(){if(!hasBuilding('inn')||!baseAtHome())return;if(player.energy>=player.maxEnergy&&player.health>=player.maxHealth){showMessage('You are already well rested.');return;}player.energy=Math.min(player.maxEnergy,player.energy+60);player.health=Math.min(player.maxHealth,player.health+15);advanceTime(8,'Resting at the inn','🛏️').then(()=>{saveGame();updateScreen();showMessage('Inn rest complete. Energy and health restored.');});}
+if(!window.__lostRuinUtcClockTimer)window.__lostRuinUtcClockTimer=setInterval(updateWorldClockDisplay,15000);
 </script>
 
 </body>
