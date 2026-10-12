@@ -271,7 +271,7 @@ input,select{max-width:100%}
 </header>
 
 <section class="panel" id="worldMapPanel" aria-label="World map">
-<div id="map" aria-label="Drag or swipe to explore the world map"></div>
+<div id="mapDangerWarning" class="hidden" style="padding:6px;color:#ffbf69;font-weight:bold"></div><div id="map" aria-label="Drag or swipe to explore the world map"></div>
 <p id="territoryText" class="muted good" style="text-align:center"></p>
 <p id="locationText">Location: 0, 0</p>
 </section>
@@ -799,6 +799,9 @@ let activeBattle = null;
 
 const items = {
   fruit:{name:"Fruit",icon:"🍎",type:"food",effect:15,weight:.5},
+  moonfruit:{name:"Moonfruit",icon:"🌕",type:"food",effect:18,hungerEffect:20,manaEffect:8,weight:.3,tier:4,value:40,description:"A rare luminous fruit from mana-rich soil. Restores hunger and a little mana."},
+  arcaneShard:{name:"Arcane Shard",icon:"🔹",type:"material",tier:4,weight:.2,value:45,description:"A rare crystal fragment that hums with concentrated mana."},
+  moonpetal:{name:"Moonpetal",icon:"🌙",type:"material",tier:4,weight:.1,value:32,description:"A silver-blue flower that only grows where mana pools."},
   manaBerry:{name:"Luminous Mana Berry",icon:"🫐",type:"food",effect:10,hungerEffect:10,manaEffect:12,weight:.3,description:"A rare berry glowing with faint blue light. Eating it awakens your awareness of mana."},
   water:{name:"Water",icon:"💧",type:"water",effect:25,weight:1},
   herb:{name:"Herb",icon:"🌿",type:"medicine",effect:20,weight:.2},
@@ -1152,6 +1155,46 @@ function terrainHash(x,y,salt=0){
   n=Math.imul(n^(n>>>15),2246822519);n=Math.imul(n^(n>>>13),3266489917);return (n^(n>>>16))>>>0;
 }
 function isMagicalForest(x,y){return generateTerrain(x,y)==="forest" && terrainHash(Math.floor(x/5),Math.floor(y/5),91)%100<24;}
+function magicalSiteAt(x,y){
+ const terrain=generateTerrain(x,y),h=terrainHash(x,y,8801);
+ // Very rare, deterministic sites: roughly 0.35% of eligible world tiles.
+ if(Math.abs(h)%1000>=4)return null;
+ const types={city:{id:"arcaneRuin",name:"Arcane Ruin",icon:"🏛️",clue:"broken runes hum beneath the rubble"},lake:{id:"manaLake",name:"Mana Lake",icon:"🌌",clue:"the water reflects stars that are not in the sky"},river:{id:"manaPool",name:"Mana Pool",icon:"💠",clue:"the current glows with blue sparks"},forest:{id:"manaGrove",name:"Magical Forest",icon:"🌳",clue:"leaves shimmer with impossible colors"},mountain:{id:"crystalMountain",name:"Crystal Mountain Shrine",icon:"💎",clue:"crystals pulse deep inside the stone"},plains:{id:"leylinePlain",name:"Leyline Plain",icon:"✨",clue:"grass bends around an invisible circle"},volcano:{id:"emberSanctum",name:"Ember Sanctum",icon:"🔥",clue:"warm runes glow beneath volcanic ash"}};
+ let def=types[terrain]||types.plains;
+ if((terrain==="forest"||terrain==="plains")&&terrainHash(x,y,8802)%7===0)def={id:"manaPond",name:"Magical Pond",icon:"🪷",clue:"still water glows softly beneath the reeds"};
+ return {...def,x,y,seed:h};
+}
+function magicSenseRadius(){return Math.min(5,2+Math.floor(Math.max(0,(Number(player.attributes?.perception)||1)-1)/3)+(player.manaUnlocked?1:0));}
+function detectNearbyMagic(quiet=false){
+ const radius=magicSenseRadius();let nearest=null;
+ for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+  const dist=Math.abs(dx)+Math.abs(dy);if(dist>radius)continue;
+  const site=magicalSiteAt(player.x+dx,player.y+dy);if(!site)continue;
+  if(!nearest||dist<nearest.distance)nearest={...site,distance:dist};
+ }
+ if(!nearest)return null;
+ const key=nearest.id+":"+nearest.x+","+nearest.y;
+ if(!player.magicSensedSites||typeof player.magicSensedSites!=="object")player.magicSensedSites={};
+ const old=player.magicSensedSites[key];
+ if(!old||nearest.distance<old.distance||totalHours()-Number(old.lastNotifiedHour||-999)>=12){
+  player.magicSensedSites[key]={distance:nearest.distance,lastNotifiedHour:totalHours()};
+  if(!quiet){const hint=nearest.distance===0?"The source is beneath your feet.":nearest.distance===1?"The magical presence is extremely close.":"You sense a faint magical pull from somewhere nearby.";showMessage("✨ Magical sensation: "+hint);}
+  saveGame();
+ }
+ return nearest;
+}
+function trainAtMagicSite(){
+ const site=magicalSiteAt(player.x,player.y);if(!site){showMessage("There is no magical source here.");return;}
+ const tile=getTileData(player.x,player.y);tile.magicSiteDiscovered=true;tile.terrainKnown=true;
+ if(!player.manaUnlocked){unlockMana("location");showNarration("Mana Awakening", "The "+site.name+" awakens your dormant mana. The site is now recorded in your discoveries.");return;}
+ if(player.energy<12){showMessage("You need at least 12 energy to train at this source.");return;}
+ player.energy-=12;gainXP("survival",4);gainXP("exploration",4);
+ player.magicTrainingXP=(Number(player.magicTrainingXP)||0)+12;
+ const gain=Math.max(3,Math.floor((Number(player.attributes?.intelligence)||1)/2)+3);
+ player.mana=Math.min(player.maxMana,player.mana+gain);
+ if(player.magicTrainingXP>=100&&player.attributes.magic<35){player.magicTrainingXP-=100;player.attributes.magic++;syncAttributeDerivedStats();showMessage("Your Magic attribute increased through focused training!");}
+ saveGame();updateScreen();showNarration(site.name,"You meditate on the mana flow. Mana restored: "+gain+". Magic training progress: "+(player.magicTrainingXP||0)+" / 100.");
+}
 function isTallMountain(x,y){return generateTerrain(x,y)==="mountain" && terrainHash(Math.floor(x/3),Math.floor(y/3),92)%100<35;}
 function raceForTerrain(x,y,terrain=generateTerrain(x,y)){
   const roll=terrainHash(x,y,17)%100;
@@ -1806,33 +1849,39 @@ function resourceAvailable(id,x=player.x,y=player.y){const r=getTileData(x,y).re
 function consumeTileResource(id,amount,x=player.x,y=player.y){const r=getTileData(x,y).resources[id];if(!r||r.amount<amount)return false;r.amount-=amount;return true}
 
 function roamingHostileAt(x,y){
- const terrain=generateTerrain(x,y),td=getTileData(x,y);
- if(td.roamingEnemyDefeated===true)return null;
- const phase=Math.floor(totalHours()/6);const h=Math.abs((Math.imul(((x+phase)|0),73856093)^Math.imul(((y-phase)|0),19349663)^0x45d9f3b)|0)%100;
- // Sparse, coordinate-stable spawns: animals, human bandits, and racial patrols.
- if((terrain==="volcano"&&h<32)||(isTallMountain(x,y)&&h<8))return {type:"dragon",icon:"🐉",label:"roaming dragon"};
- if(h<5)return {type:"wildlife",icon:"🐺",label:"roaming wild animal"};
- if(h>=5&&h<8)return {type:"bandit",icon:"🗡️",label:"human bandits"};
- if(h>=8&&h<14){const race=raceForTerrain(x,y,terrain);return {type:"faction",race,icon:raceInfo[race]?.icon||"⚔️",label:raceName(race)+" patrol"};}
+ const terrain=generateTerrain(x,y),td=getTileData(x,y),phase=Math.floor(totalHours()/6);
+ const h=Math.abs((Math.imul(((x+phase)|0),73856093)^Math.imul(((y-phase)|0),19349663)^0x45d9f3b)|0)%100;
+ const spawnKey=locationKey(x,y)+"@"+phase;
+ if(td.roamingDefeatedSpawns&&td.roamingDefeatedSpawns[spawnKey])return null;
+ if(td.roamingSpawnCooldowns&&Number(td.roamingSpawnCooldowns[spawnKey])>totalHours())return null;
+ if((terrain==="volcano"&&h<32)||(isTallMountain(x,y)&&h<8))return {type:"dragon",icon:"🐉",label:"roaming dragon",spawnKey,phase,x,y};
+ if(h<5)return {type:"wildlife",icon:"🐺",label:"roaming wild animal",spawnKey,phase,x,y};
+ if(h>=5&&h<8)return {type:"bandit",icon:"🗡️",label:"human bandits",spawnKey,phase,x,y};
+ if(h>=8&&h<14){const race=raceForTerrain(x,y,terrain);return {type:"faction",race,icon:raceInfo[race]?.icon||"⚔️",label:raceName(race)+" patrol",spawnKey,phase,x,y};}
  return null;
 }
 
-function encounterOnArrival(x,y){
-  const t=getTileData(x,y);
-  const roaming=roamingHostileAt(x,y);
-  if(roaming){t.roamingEncounter={type:roaming.type,race:roaming.race||""};return "ROAMING:"+roaming.type+(roaming.race?":"+roaming.race:"");}
-  if(t.encounterResolved || (t.exploration||0)>=100)return '';
-  t.dangerKnown=true;t.encounterResolved=true;
-  const region=territoryAt(x,y),roll=Math.random();
-  const race=region.info.races[Math.floor(Math.random()*region.info.races.length)];
-  t.faction=region.regionalFaction||region.faction||"Freefolk Alliance";t.factionRace=race;
-  if(roll<.10)return 'BATTLE:wildlife';
-  if(roll<.27)return 'BATTLE:faction:'+race;
-  if(roll<.31)return 'BATTLE:npc';
-  if(roll<.335)return 'BATTLE:pvp';
-  if(roll<.43){t.dangerKnown=true;const clue=territoryClue(x,y);return clue.faction?'You discover signs of '+clue.faction+': '+clue.clue+'.':'You find '+clue.clue+'.';}
-  return '';
+function resolveWorldEncounter(x,y,trigger="arrival"){
+ const t=getTileData(x,y),now=totalHours();
+ const roaming=roamingHostileAt(x,y);
+ if(roaming){t.roamingEncounter={type:roaming.type,race:roaming.race||"",spawnKey:roaming.spawnKey,phase:roaming.phase};return "ROAMING:"+roaming.type+(roaming.race?":"+roaming.race:"");}
+ // Prevent duplicate automatic encounter rolls on a tile for six in-game hours.
+ if(t.lastEncounterHour!==undefined && t.lastEncounterHour!==null && now-Number(t.lastEncounterHour)<6)return "";
+ if((t.exploration||0)>=100 || (t.encounterResolved&&trigger!=="forced"))return "";
+ t.lastEncounterHour=now;
+ const chance=trigger==="explore"?.25:.22;
+ if(Math.random()>=chance)return "";
+ t.dangerKnown=true;t.encounterResolved=true;
+ const r=Math.random(),region=territoryAt(x,y),races=region.info?.races||[region.race||"human"],race=races[Math.floor(Math.random()*races.length)];
+ t.faction=region.regionalFaction||region.faction||"Freefolk Alliance";t.factionRace=race;
+ if(r<.10)return "INJURY";
+ if(r<.40)return "BATTLE:wildlife";
+ if(r<.72)return "BATTLE:faction:"+race;
+ if(r<.84)return "BATTLE:npc";
+ if(r<.88)return "BATTLE:pvp";
+ const clue=territoryClue(x,y);return clue&&clue.faction?"You discover signs of "+clue.faction+": "+clue.clue+".":"You discover unusual tracks nearby.";
 }
+function encounterOnArrival(x,y){return resolveWorldEncounter(x,y,"arrival");}
 
 const ATTRIBUTE_INFO={
  strength:{name:"💪 Strength",description:"Raw physical power. Each point above 1 adds 2 base attack damage and improves carrying strength.",effect:a=>"Base attack: +"+Math.max(0,a-1)*2+" · Carry capacity bonus: +"+Math.max(0,a-1)*0.25+" kg"},
@@ -2630,7 +2679,7 @@ function setBuildingWorker(index,value){
   const b=player.base.buildings[index]; if(!b)return;
   const def=buildingTypes[b.type]; if(!def||def.category!=="production")return;
   if(value==="villager"){
-    const assigned=player.base.buildings.filter((x,i)=>i!==index&&buildingTypes[x.type]?.category==="production"&&x.completed&&x.worker==="villager").length;
+    const assigned=countAssignedResidents(index);
     const available=Math.max(0,(player.base.population?.total||0)-assigned);
     if(available<1){showMessage("No unassigned villager is available. Assign the player or free a villager from another building.");updateBase();return;}
   }
@@ -2683,21 +2732,23 @@ function housingCapacity(){
   return cap;
 }
 
+function countAssignedResidents(excludeIndex=-1){
+ if(!player.base)return 0;let total=0;(player.base.buildings||[]).forEach((b,i)=>{if(i===excludeIndex||!b.completed)return;total+=Math.max(0,Math.floor(Number(b.staffAssigned)||0));if(buildingTypes[b.type]?.category==="production"&&b.worker==="villager")total++;});return total;
+}
 function assignVillagers(){
-  if(!player.base)return;
-  const p=player.base.population;
-  const jobs={food:0,wood:0,mining:0,fishing:0,merchant:0,craft:0,guard:0,idle:0};
-  const buildings=player.base.buildings.filter(b=>b.completed);
-  const assigned=buildings.reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
-  jobs.guard=buildings.filter(b=>b.type==="guardBarracks").reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
-  jobs.merchant=buildings.filter(b=>b.type==="generalStore").reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
-  let available=Math.max(0,(Number(p.total)||0)-assigned);
-  const autoMerchant=buildings.filter(b=>["inn","bank","stable"].includes(b.type)).length;
-  jobs.merchant+=Math.min(available,autoMerchant);available-=Math.min(available,autoMerchant);
-  const autoCraft=buildings.filter(b=>["blacksmith","clinic","adventurersGuild"].includes(b.type)).length;
-  jobs.craft=Math.min(available,autoCraft);available-=jobs.craft;
-  jobs.idle=available;
-  Object.assign(p,jobs);
+ if(!player.base)return;const p=player.base.population||(player.base.population={total:1});
+ const jobs={food:0,wood:0,mining:0,fishing:0,merchant:0,craft:0,guard:0,idle:0};
+ const buildings=(player.base.buildings||[]).filter(b=>b.completed);
+ jobs.guard=buildings.filter(b=>b.type==="guardBarracks").reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
+ jobs.merchant=buildings.filter(b=>b.type==="generalStore").reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
+ let assigned=buildings.reduce((n,b)=>n+Math.max(0,Math.floor(Number(b.staffAssigned)||0)),0);
+ buildings.forEach(b=>{if(buildingTypes[b.type]?.category!=="production"||b.worker!=="villager")return;assigned++;const output=buildingTypes[b.type]?.output;if(output==="fruit"||output==="meat")jobs.food++;else if(output==="wood")jobs.wood++;else if(output==="stone"||output==="ironOre"||output==="copperOre")jobs.mining++;else if(output==="fish")jobs.fishing++;});
+ let available=Math.max(0,(Number(p.total)||0)-assigned);
+ const autoMerchant=buildings.filter(b=>["inn","bank","stable"].includes(b.type)).length;
+ const merchantTake=Math.min(available,autoMerchant);jobs.merchant+=merchantTake;available-=merchantTake;
+ const autoCraft=buildings.filter(b=>["blacksmith","clinic","adventurersGuild"].includes(b.type)).length;
+ jobs.craft=Math.min(available,autoCraft);available-=jobs.craft;
+ jobs.idle=available;Object.assign(p,jobs);
 }
 function assignResidents(index,delta){
   if(!player.base||!baseAtHome()){showMessage("Return to your shelter to assign residents.");return;}
@@ -2705,7 +2756,7 @@ function assignResidents(index,delta){
   const max=b.type==="generalStore"?1:2;
   const current=Math.max(0,Math.floor(Number(b.staffAssigned)||0));
   if(delta>0){
-    const assigned=player.base.buildings.filter(x=>x.completed).reduce((n,x)=>n+Math.max(0,Math.floor(Number(x.staffAssigned)||0)),0);
+    const assigned=countAssignedResidents();
     const available=Math.max(0,(Number(player.base.population?.total)||0)-assigned);
     if(available<1){showMessage("No unassigned residents are available. Increase population or unassign someone from another job.");return;}
     if(current>=max){showMessage("This building has reached its staffing limit.");return;}
@@ -3135,7 +3186,7 @@ async function confirmTravel(){
     if(player.energy<tileCost){stopped=true;if(progress)progress.textContent="Too exhausted to continue. Stopping at the current tile.";break;}
     player.energy=Math.max(0,player.energy-tileCost);
     if(!await advanceTime(tileHours,"Traveling to next tile","🧭")){stopped=true;break;}
-    player.x=step.x;player.y=step.y;mapViewX=player.x;mapViewY=player.y;selectedLocation={x:step.x,y:step.y};
+    player.x=step.x;player.y=step.y;mapViewX=player.x;mapViewY=player.y;selectedLocation={x:step.x,y:step.y};detectNearbyMagic(false);
     updateMissionEvent("patrol",{x:step.x,y:step.y});
     gainXP("travel",2);
     markTileVisited(step.x,step.y);addTileExploration(step.x,step.y,10);stepsCompleted++;
@@ -3143,7 +3194,7 @@ async function confirmTravel(){
     const locationText=document.getElementById("locationText");if(locationText)locationText.textContent="Location: "+step.x+", "+step.y+" · "+(terrainInfo[terrain]?.name||"Unknown terrain");
     drawMap();saveGame();
     const roaming=roamingHostileAt(step.x,step.y);
-    if(roaming){midRouteHostile=roaming;getTileData(step.x,step.y).roamingEncounter={type:roaming.type,race:roaming.race||""};break;}
+    if(roaming){midRouteHostile=roaming;player.x=step.x;player.y=step.y;getTileData(step.x,step.y).roamingEncounter={type:roaming.type,race:roaming.race||"",spawnKey:roaming.spawnKey,phase:roaming.phase};break;}
     if(i<route.length-1&&!travelStopRequested)await new Promise(resolve=>setTimeout(resolve,450));
   }
   travelInProgress=false;travelStopRequested=false;
@@ -3159,6 +3210,7 @@ async function confirmTravel(){
     const encounter=encounterOnArrival(dest.x,dest.y);
     if(encounter&&encounter.startsWith("ROAMING:")){const parts=encounter.split(":");const type=parts[1];document.getElementById("narrationPopup").style.display="none";beginBattle(type,false,false,parts[2]||"",true);saveGame();return;}
     if(encounter&&encounter.startsWith("BATTLE:")){const parts=encounter.split(":");const type=parts[1];document.getElementById("narrationPopup").style.display="none";beginBattle(type,Math.random()<(type==="pvp"?.3:.18),type==="pvp",parts[2]);saveGame();return;}
+    if(encounter==="INJURY"){player.health=Math.max(0,player.health-5);if(player.health<=0)player.dead=true;showMessage("The journey leaves you injured (-5 health).");updateScreen();saveGame();}
     openLocation(dest.x,dest.y);
     document.getElementById("popupTitle").textContent="Journey Complete";
     document.getElementById("popupText").textContent="You arrived at "+dest.x+", "+dest.y+" after traveling "+stepsCompleted+" tile(s)."+(encounter?"\n\n"+encounter:"");
@@ -3505,7 +3557,7 @@ async function explore(){
   const info = terrainInfo[terrain];
   const tile = getTileData(player.x,player.y);
   markTileVisited(player.x,player.y);
-  if(!player.manaUnlocked&&Math.random()<0.012){const source=Math.random()<0.5?"teacher":"location";unlockMana(source);}
+  detectNearbyMagic(false);
   if(terrain==="forest"&&!tile.pondFound&&Math.random()<0.12){tile.pondFound=true;showMessage("You discovered a small pond hidden among the trees. You can collect water here with a container.");}
   const progress = addTileExploration(player.x,player.y,25);
   updateMissionEvent("investigate",{x:player.x,y:player.y});
@@ -3519,26 +3571,24 @@ async function explore(){
   recordAchievementProgress("farWalker",1);
   recordAchievementProgress("worldRoamer",1);
 
-  if(!tile.encounterResolved && (tile.exploration||0)<100 && Math.random()<.25){
-    tile.dangerKnown=true;tile.encounterResolved=true;
-    const r = Math.random();
+  // One shared encounter resolver handles roaming threats, random encounters, and cooldowns.
+  const encounter=resolveWorldEncounter(player.x,player.y,"explore");
+  if(encounter&&encounter.startsWith("ROAMING:")){const parts=encounter.split(":");beginBattle(parts[1],false,false,parts[2]||"",true);return;}
+  if(encounter&&encounter.startsWith("BATTLE:")){const parts=encounter.split(":");beginBattle(parts[1],Math.random()<(parts[1]==="pvp"?.3:.18),parts[1]==="pvp",parts[2]||"");return;}
+  if(encounter==="INJURY"){player.health=Math.max(0,player.health-5);if(player.health<=0)player.dead=true;updateScreen();showNarration(player.dead?"You Have Died":"Unexpected Injury",player.dead?"Your injuries were too severe.":"You stumble over debris and lose 5 health.");return;}
+  if(encounter){showNarration("Discovery",encounter);return;}
 
-    if(r<.20){
-      player.health=Math.max(0,player.health-5);
-      if(!player.health)player.dead=true;
-      updateScreen();
-      showNarration(player.dead?"You Have Died":"Unexpected Injury",player.dead?"Your injuries were too severe.":"You stumble over debris and lose 5 health.");
-      return;
-    }
-    if(r<.38){ beginBattle("wildlife",Math.random()<.28,false); return; }
-    if(r<.68){ const reg=territoryAt(player.x,player.y);const race=reg.info.races[Math.floor(Math.random()*reg.info.races.length)];tile.faction=reg.regionalFaction||reg.faction||"Freefolk Alliance";tile.factionRace=race;beginBattle("faction",Math.random()<.22,false,race); return; }
-    if(r<.79){ beginBattle("npc",Math.random()<.20,false); return; }
-    if(r<.84){ beginBattle("pvp",Math.random()<.30,true); return; }
-
-    const bonus = gainXP("gathering",10);
-    showNarration("Rare Discovery",storeFoundLoot("herb",1)+bonus);
-    return;
+  const magicSite=magicalSiteAt(player.x,player.y);
+  if(magicSite){
+    tile.magicSiteDiscovered=true;tile.terrainKnown=true;player.magicSitesFound=player.magicSitesFound||{};player.magicSitesFound[magicSite.id+":"+player.x+","+player.y]=true;
+    if(!player.manaUnlocked){unlockMana("location");tile.magicRewardCollected=true;const rareItem=Math.random()<.55?"arcaneShard":Math.random()<.5?"moonpetal":"moonfruit";const rareLoot=storeFoundLoot(rareItem,1);showNarration("Magical Source Discovered", "You uncover a rare "+magicSite.name+". "+magicSite.clue+". The source awakens mana within you.\n\nRare find: "+rareLoot);}
+    else if(!tile.magicRewardCollected){tile.magicRewardCollected=true;const rareItem=Math.random()<.45?"arcaneShard":Math.random()<.5?"moonpetal":"moonfruit";showNarration("Magical Remnant", "You carefully gather a rare remnant from the source.\n"+storeFoundLoot(rareItem,1));}
+    else{trainAtMagicSite();}
+    saveGame();return;
   }
+  // Rare magical food and a wandering magician can awaken mana, but neither is a common random drop.
+  if(Math.random()<0.0025){showNarration("Luminous Discovery",storeFoundLoot("manaBerry",1)+"\nA rare blue glow pulses inside the berry. Eating it may awaken dormant mana.");return;}
+  if(!player.manaUnlocked&&Math.random()<0.0015){unlockMana("teacher");showNarration("A Wandering Magician", "A wandering magician notices your sensitivity to the unseen currents and teaches you to recognize mana.");return;}
 
   // Rare magical food can awaken a survivor's dormant mana sense.
   if(Math.random()<0.012){showNarration("Luminous Discovery",storeFoundLoot("manaBerry",1)+"\nA faint blue glow pulses inside the berry.");return;}
@@ -3774,6 +3824,8 @@ function openLocation(x,y){
 
   const container = document.getElementById("locationActions");
   container.innerHTML = "";
+  const magicSiteHere=magicalSiteAt(x,y);
+  if(isHere&&magicSiteHere&&getTileData(x,y).magicSiteDiscovered){const magicBtn=document.createElement("button");magicBtn.className="build-button";magicBtn.style.gridColumn="1 / -1";magicBtn.innerHTML="<strong>✨ Train at "+magicSiteHere.name+"</strong><small>Spend energy to study the mana flow and progress Magic.</small>";magicBtn.onclick=trainAtMagicSite;container.appendChild(magicBtn);}
   if(isHere&&player.base&&Array.isArray(player.base.buildings)){
     player.base.buildings.forEach((site,index)=>{if(site.x!==x||site.y!==y||!site.completed)return;const def=buildingTypes[site.type];if(!def)return;const serviceBtn=document.createElement("button");serviceBtn.style.gridColumn="1 / -1";serviceBtn.className="build-button";serviceBtn.innerHTML="<strong>"+def.icon+" Open "+def.name+"</strong><small>Use this completed building's services</small>";serviceBtn.onclick=()=>openBuildingService(index);container.appendChild(serviceBtn);});
   }
@@ -3947,6 +3999,7 @@ function drawMap(){
       else if(x===player.x&&y===player.y){main="🧍";tile.classList.add("current");}
       else if(town)main="🏘️";
       else if(visible && td.terrainKnown && roamingHostileAt(x,y)){const enemy=roamingHostileAt(x,y);main=enemy.icon;tile.classList.add("hostile-on-map");tile.title+=" · Hostile: "+enemy.label;}
+      else if(magicalSiteAt(x,y)&&td.magicSiteDiscovered){main=magicalSiteAt(x,y).icon;tile.classList.add("magic-site-on-map");tile.title+=" · Discovered magical site: "+magicalSiteAt(x,y).name;}
       else{
         main=terrainInfo[terrain].icon;
         const deco={forest:["🍄","🌿","🪵","🌱"],plains:["🌼","🌾","🪻","🌱"],mountain:["🪨","❄️","🌲","⛰️"],volcano:["🔥","🌋","🪨","💨"],lake:["🐟","🌊","🪷","🐚"],river:["🌊","🐟","🪨","🌿"],city:["🏚️","🛣️","🪟","🧱"]}[terrain]||[];
@@ -3966,6 +4019,10 @@ function drawMap(){
     if(x===selectedLocation.x&&y===selectedLocation.y)tile.classList.add("selected");
     map.appendChild(tile);
   }
+  // Nearby danger warning: warns about a threat within two tiles without revealing its exact location.
+  let nearbyThreat=null;for(let dy=-2;dy<=2&&!nearbyThreat;dy++)for(let dx=-2;dx<=2;dx++){if(Math.abs(dx)+Math.abs(dy)===0||Math.abs(dx)+Math.abs(dy)>2)continue;const e=roamingHostileAt(player.x+dx,player.y+dy);if(e){nearbyThreat=e;break;}}
+  const dangerEl=document.getElementById("mapDangerWarning");if(dangerEl){dangerEl.textContent=nearbyThreat?"⚠️ You sense hostile movement nearby.":"";dangerEl.classList.toggle("hidden",!nearbyThreat);}
+  detectNearbyMagic(false);
   const t=document.getElementById("territoryText");if(t)t.textContent="";
 }
 /* =========================
@@ -4636,28 +4693,27 @@ function beginBattle(type,ambush=false,isPvp=false,raceId="",roaming=false){
  elf:[{name:"Elven Border Warden",hp:46,attack:12,defense:5,speed:10},{name:"Verdant Ranger",hp:42,attack:13,defense:3,speed:11},{name:"Moonleaf Spellblade",hp:64,attack:17,defense:5,speed:10},{name:"Ancient Grove Keeper",hp:96,attack:16,defense:12,speed:4}],
  dragonkin:[{name:"Young Dragonkin",hp:82,attack:17,defense:8,speed:5},{name:"Emberclaw Guard",hp:90,attack:18,defense:9,speed:4},{name:"Cinderfang Stalker",hp:76,attack:22,defense:5,speed:9},{name:"Ashscale Warlord",hp:125,attack:24,defense:12,speed:5}],
  dwarf:[{name:"Stonehold Delver",hp:58,attack:11,defense:8,speed:4},{name:"Dwarven Sentinel",hp:65,attack:12,defense:10,speed:3},{name:"Irondeep Prospector",hp:72,attack:16,defense:9,speed:4},{name:"Runeforge Defender",hp:112,attack:17,defense:15,speed:3}],
- human:[{name:"Freefolk Patrol",hp:45,attack:9,defense:4,speed:6},{name:"Freefolk Crossbowman",hp:48,attack:12,defense:3,speed:7},{name:"Rogue Quartermaster",hp:60,attack:11,defense:7,speed:4},{name:"Wasteland Marshal",hp:92,attack:18,defense:9,speed:6}]
-};
+ human:[{name:"Freefolk Patrol",hp:45,attack:9,defense:4,speed:6},{name:"Freefolk Crossbowman",hp:48,attack:12,defense:3,speed:7},{name:"Rogue Quartermaster",hp:60,attack:11,defense:7,speed:4},{name:"Wasteland Marshal",hp:92,attack:18,defense:9,speed:6}]};
  const defs={wildlife:[{name:"Wild Rabbit",hp:18,attack:3,defense:0,speed:11,accuracy:48},{name:"Forest Deer",hp:30,attack:5,defense:1,speed:9,accuracy:58},{name:"Wild Chicken",hp:14,attack:2,defense:0,speed:8,accuracy:42},{name:"Mountain Goat",hp:34,attack:7,defense:3,speed:7,accuracy:60},{name:"Wild Boar",hp:45,attack:9,defense:3,speed:4,accuracy:68},{name:"Feral Dog",hp:34,attack:7,defense:1,speed:7,accuracy:70},{name:"Ruin Wolf",hp:38,attack:10,defense:2,speed:9,accuracy:75},{name:"Dire Bear",hp:76,attack:15,defense:6,speed:3,accuracy:65}],npc:[{name:"Hostile Scavenger",hp:42,attack:8,defense:3,speed:6},{name:"Road Raider",hp:50,attack:10,defense:4,speed:5}],bandit:[{name:"Human Bandit Scout",hp:38,attack:8,defense:2,speed:8},{name:"Roadside Bandit",hp:48,attack:11,defense:3,speed:7},{name:"Bandit Enforcer",hp:65,attack:13,defense:5,speed:5},{name:"Bandit Captain",hp:82,attack:16,defense:7,speed:6}],dragon:[{name:"Young Ash Dragon",hp:145,attack:25,defense:12,speed:8},{name:"Mountain Wyrm",hp:190,attack:31,defense:16,speed:6},{name:"Ancient Volcano Dragon",hp:280,attack:38,defense:22,speed:7}],pvp:[{name:"Nearby Survivor",hp:45,attack:8,defense:3,speed:6}]};
  const choices=type==="faction"?(raceEnemies[raceId]||raceEnemies.human):(defs[type]||defs.wildlife),enemy={...choices[Math.floor(Math.random()*choices.length)]};
  enemy.race=type==="faction"?raceId:"";enemy.faction=type==="faction"?race.faction:"";
  const groupSize=(isPvp?1:enemyGroupSize(type,player.x,player.y));
- const enemies=Array.from({length:groupSize},(_,i)=>({...enemy,name:enemy.name+(groupSize>1?" "+(i+1):""),unitHp:enemy.hp}));
+ const enemies=Array.from({length:groupSize},(_,i)=>({...enemy,name:enemy.name+(groupSize>1?" "+(i+1):""),hp:enemy.hp,maxHp:enemy.hp,unitHp:enemy.hp}));
  const totalHp=enemies.reduce((sum,e)=>sum+e.hp,0);
  if(!player.encounteredEnemies||typeof player.encounteredEnemies!=="object")player.encounteredEnemies={};
- const enemyId=[type,enemy.race||"",enemy.name].join("|").toLowerCase();
- const enemyWasKnown=!!player.encounteredEnemies[enemyId];
- if(!enemyWasKnown)player.encounteredEnemies[enemyId]={id:enemyId,name:enemy.name,type,race:enemy.race||"",faction:enemy.faction||"",firstDay:player.day||1,encounters:1};
- else player.encounteredEnemies[enemyId].encounters=(Number(player.encounteredEnemies[enemyId].encounters)||1)+1;
+ const enemyId=[type,enemy.race||"",enemy.name].join("|").toLowerCase(),enemyWasKnown=!!player.encounteredEnemies[enemyId];
+ if(!enemyWasKnown)player.encounteredEnemies[enemyId]={id:enemyId,name:enemy.name,type,race:enemy.race||"",faction:enemy.faction||"",firstDay:player.day||1,encounters:1,lastEncounterHour:totalHours()};
+ else{const rec=player.encounteredEnemies[enemyId];if(totalHours()-Number(rec.lastEncounterHour||-999)>=6){rec.encounters=(Number(rec.encounters)||1)+1;rec.lastEncounterHour=totalHours();}}
  const enemyDisplayName=enemyWasKnown?enemy.name:"Unknown Hostile";
- activeBattle={type,ambush,isPvp,roaming,enemy,enemyId,enemyWasKnown,enemyDisplayName,enemies,groupSize,hp:totalHp,maxHp:totalHp,combat:false,turn:0,log:[],ended:false,opponentAgrees:false,partyStrategy:"balanced"};
+ const activeSpawnKey=getTileData(player.x,player.y).roamingEncounter?.spawnKey||"";
+ if(roaming&&activeSpawnKey){const td=getTileData(player.x,player.y);td.roamingSpawnCooldowns=td.roamingSpawnCooldowns||{};td.roamingSpawnCooldowns[activeSpawnKey]=totalHours()+6;}
+ activeBattle={type,ambush,isPvp,roaming,spawnKey:activeSpawnKey,enemy,enemyId,enemyWasKnown,enemyDisplayName,enemies,groupSize,hp:totalHp,maxHp:totalHp,combat:false,turn:0,log:[],ended:false,opponentAgrees:false,partyStrategy:"balanced",playerDealtDamage:false,startedHour:totalHours()};
  hideScreens();document.getElementById("battlePanel").classList.remove("hidden");document.getElementById("navigationPanel").classList.add("hidden");startPartyStrategyDecision();
- document.getElementById("battlePreFight").classList.toggle("hidden",ambush);
- document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleLeaveButton").classList.add("hidden");
- document.getElementById("battleIntro").textContent=!enemyWasKnown?(roaming?"UNKNOWN HOSTILE: An unfamiliar hostile was on your travel route and stopped your journey. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+".":"UNKNOWN HOSTILE: You have encountered an unfamiliar enemy. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+"."):ambush?"AMBUSH! You were caught off guard. You can still attempt a risky escape.":(roaming?"ENEMY DISCOVERED: A roaming hostile has crossed your path.":type==="pvp"?"A nearby survivor approaches. This offline build uses a local simulation; real player-versus-player encounters require an online server.":type==="faction"?"WARNING: You have entered territory watched by "+race.faction+". A "+race.name+" patrol confronts you.":"WARNING: A hostile presence blocks your way. Decide how to respond.");
+ document.getElementById("battlePreFight").classList.toggle("hidden",ambush);document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleLeaveButton").classList.add("hidden");
+ document.getElementById("battleIntro").textContent=!enemyWasKnown?(roaming?"UNKNOWN HOSTILE: An unfamiliar hostile interrupted your travel. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+".":"UNKNOWN HOSTILE: You have encountered an unfamiliar enemy. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+"."):ambush?"AMBUSH! You were caught off guard. You can still attempt a risky escape.":(roaming?"ENEMY DISCOVERED: A roaming hostile has crossed your path.":type==="pvp"?"A nearby survivor approaches. Local PvP is simulated; real PvP requires the online server.":type==="faction"?"WARNING: You have entered territory watched by "+race.faction+". A "+race.name+" patrol confronts you.":"WARNING: A hostile presence blocks your way. Decide how to respond.");
  document.getElementById("battleOpponentName").textContent=(enemyWasKnown?(type==="wildlife"?"🐺 ":type==="dragon"?"🐉 ":type==="faction"?race.icon+" ":type==="npc"||type==="bandit"?"🗡️ ":"🧍 ")+enemy.name:"❔ Unknown Hostile")+(groupSize>1?" × "+groupSize:"")+(enemyWasKnown&&enemy.faction?" · "+enemy.faction:"");
- document.getElementById("battleOpponentStats").textContent="Group health: "+totalHp+" · Attack per enemy: "+enemy.attack+" · Defense: "+enemy.defense+" · Speed: "+enemy.speed+(groupSize>1?" · Group size: "+groupSize:"");
- if(ambush){activeBattle.combat=true;document.getElementById("battleCombat").classList.remove("hidden");document.getElementById("battleLog").textContent="You are ambushed! The enemy gets the first strike.";renderBattleStats();enemyStrike(true);}
+ document.getElementById("battleOpponentStats").textContent="Front enemy: "+enemies[0].name+" · "+enemies[0].hp+" HP · Attack "+enemies[0].attack+" · Defense "+enemies[0].defense+(groupSize>1?" · Enemies behind: "+(groupSize-1):"");
+ if(ambush){activeBattle.combat=true;document.getElementById("battleCombat").classList.remove("hidden");document.getElementById("battleLog").textContent="You are ambushed! The enemy group gets the first strike.";renderBattleStats();enemyStrike(true);}
  updateScreen();saveGame();
 }
 function attemptBattleEscape(){
@@ -4700,25 +4756,24 @@ function startCombat(){
  document.getElementById("battlePreFight").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleCombat").classList.remove("hidden");
  document.getElementById("battleLog").textContent="Combat begins. Choose a stance each exchange.";renderBattleStats();
 }
+function syncBattleEnemyHealth(){const b=activeBattle;if(!b)return;b.enemies=(b.enemies||[]).filter(e=>Number(e.hp)>0);b.hp=b.enemies.reduce((sum,e)=>sum+Math.max(0,Number(e.hp)||0),0);if(b.enemies.length){b.enemy=b.enemies[0];} }
+function damageEnemyFront(amount){const b=activeBattle;if(!b||!b.enemies?.length)return {dealt:0,defeated:[]};const front=b.enemies[0],hit=Math.min(Math.max(0,Math.floor(amount)),Math.max(0,front.hp));front.hp-=hit;const defeated=[];if(front.hp<=0){defeated.push(front.name);b.enemies.shift();}syncBattleEnemyHealth();return {dealt:hit,defeated};}
+function enemyGroupAttackPlayer(defense,stance,ambush=false){const b=activeBattle;if(!b)return {total:0,lines:[]};let total=0;const lines=[];const agilityDodge=Math.min(15,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.75);(b.enemies||[]).slice().forEach((e)=>{if(player.health<=0)return;const chance=Math.max(20,(Number(e.accuracy)||72)-agilityDodge);if(Math.random()*100>=chance){lines.push(e.name+" misses.");return;}let damage=Math.max(1,Math.round((Number(e.attack)||1)+Math.random()*2-defense));if(stance==="defensive")damage=Math.max(1,Math.round(damage*.45));else if(stance==="offensive")damage=Math.max(BALANCE.minimumCombatDamage,Math.round(damage*1.2));else if(stance==="balanced")damage=Math.max(BALANCE.minimumCombatDamage,Math.round(damage*.8));player.health=Math.max(0,player.health-damage);total+=damage;lines.push(e.name+" hits for "+damage+" damage.");});return {total,lines};}
 function battleTurn(stance){
- const b=activeBattle;if(!b||!b.combat||b.ended)return;const stats=getCombatStats();battleWeaponSkillXP();let attack=stats.attack,defense=stats.defense,hit=stats.accuracy;
- if(stance==="offensive"){attack=Math.round(attack*1.45);defense=Math.max(0,defense-2);hit-=8;}
- else if(stance==="defensive"){attack=Math.round(attack*.70);defense+=4;hit+=5;}
- else{attack=Math.round(attack*1.05);defense+=1;}
- let log="Turn "+(++b.turn)+" — "+stance.toUpperCase()+". ";
- hit=Math.max(5,Math.min(BALANCE.maxPlayerHitChance,hit));
- if(Math.random()*100<hit){let damage=Math.max(BALANCE.minimumCombatDamage,Math.round(attack-b.enemy.defense*(stance==="offensive"?.65:1)));if(Math.random()*100<stats.crit){damage=Math.round(damage*1.5);log+="Critical hit! ";}b.hp=Math.max(0,b.hp-damage);let remainingDamage=damage;if(Array.isArray(b.enemies)){while(remainingDamage>0&&b.enemies.length){const target=b.enemies[0];const dealt=Math.min(remainingDamage,target.hp);target.hp-=dealt;remainingDamage-=dealt;if(target.hp<=0)b.enemies.shift();else break;}}log+="You deal "+damage+" damage"+(b.groupSize>1?" to the enemy group":"")+". ";if(b.groupSize>1)log+=(b.enemies?.length||0)+" enemies remain. ";}else log+="Your attack misses. ";
- if(typeof mpPartyState!=="undefined"&&mpPartyState&&Array.isArray(mpPartyState.members)){const allies=mpPlayers.filter(p=>p.id!==mpClientId&&p.partyId===mpPartyState.id&&Number(p.x)===Number(player.x)&&Number(p.y)===Number(player.y));if(allies.length){const guildAlly=allies.some(p=>p.guildId&&p.guildId===mpPlayers.find(q=>q.id===mpClientId)?.guildId);const tactic=b.partyStrategy||partyBattleStrategy||"balanced";const allyDamage=Math.max(1,Math.round(allies.length*(tactic==="offensive"?5:tactic==="defensive"?2:3)*(guildAlly?1.25:1)));b.hp=Math.max(0,b.hp-allyDamage);log+=` Party allies deal ${allyDamage} extra damage (${tactic}).`;if(tactic==="defensive")defense+=Math.min(4,allies.length);}}
- if(b.hp<=0){document.getElementById("battleLog").textContent=log+"\nYou win the fight!";gainXP(b.type==="wildlife"?"hunting":"survival",12+Math.min(18,Math.max(0,(b.groupSize||1)-1)*2));endBattle(log+"You win the fight and gain combat experience.",true);return;}
- const activeEnemies=Array.isArray(b.enemies)?b.enemies.length:1;const enemyAttack=Math.round(b.enemy.attack*Math.min(2.6,1+Math.max(0,activeEnemies-1)*.18));const agilityDodge=Math.min(15,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.75);const enemyHit=Math.random()*100<Math.max(20,(b.enemy.accuracy||72)-agilityDodge);if(enemyHit){let incoming=Math.max(1,Math.round(enemyAttack-defense));if(stance==="defensive")incoming=Math.max(1,Math.round(incoming*.45));else if(stance==="offensive")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*1.2));if(stance==="balanced")incoming=Math.max(BALANCE.minimumCombatDamage,Math.round(incoming*.8));const armorSkills=equippedArmorMasteries();armorSkills.forEach(id=>gainXP(id,2));const offhand=equippedItem("subWeapon");if(offhand&&/shield/i.test((offhand.name||"")+" "+(offhand.armorType||"")))gainXP("shield",2);player.health=Math.max(0,player.health-incoming);log+="Opponent hits you for "+incoming+" damage.";}else log+="Opponent misses.";
- document.getElementById("battleLog").textContent=log;renderBattleStats();
- if(player.health<=0){player.dead=true;endBattle("You were defeated. Your journey ends here.",false);return;}
- updateScreen();saveGame();
+ const b=activeBattle;if(!b||!b.combat||b.ended)return;b.identifiedDuringBattle=true;const stats=getCombatStats();battleWeaponSkillXP();let attack=stats.attack,defense=stats.defense,hit=stats.accuracy;
+ if(stance==="offensive"){attack=Math.round(attack*1.45);defense=Math.max(0,defense-2);hit-=8;}else if(stance==="defensive"){attack=Math.round(attack*.70);defense+=4;hit+=5;}else{attack=Math.round(attack*1.05);defense+=1;}
+ let log="Turn "+(++b.turn)+" — "+stance.toUpperCase()+". ";hit=Math.max(5,Math.min(BALANCE.maxPlayerHitChance,hit));
+ if(Math.random()*100<hit&&b.enemies.length){let damage=Math.max(BALANCE.minimumCombatDamage,Math.round(attack-b.enemies[0].defense*(stance==="offensive"?.65:1)));if(Math.random()*100<stats.crit){damage=Math.round(damage*1.5);log+="Critical hit! ";}const result=damageEnemyFront(damage);b.playerDealtDamage=true;log+="You deal "+result.dealt+" damage to the front enemy.";if(result.defeated.length)log+=" Defeated: "+result.defeated.join(", ")+".";if(b.enemies.length)log+=" Front enemy now: "+b.enemies[0].name+" ("+b.enemies[0].hp+" HP).";}else log+="Your attack misses.";
+ if(typeof mpPartyState!=="undefined"&&mpPartyState&&Array.isArray(mpPartyState.members)){const allies=mpPlayers.filter(p=>p.id!==mpClientId&&p.partyId===mpPartyState.id&&Number(p.x)===Number(player.x)&&Number(p.y)===Number(player.y));if(allies.length&&b.enemies.length){const guildAlly=allies.some(p=>p.guildId&&p.guildId===mpPlayers.find(q=>q.id===mpClientId)?.guildId),tactic=b.partyStrategy||partyBattleStrategy||"balanced",allyDamage=Math.max(1,Math.round(allies.length*(tactic==="offensive"?5:tactic==="defensive"?2:3)*(guildAlly?1.25:1))),result=damageEnemyFront(allyDamage);log+=` Party allies deal ${result.dealt} damage to the front enemy (${tactic}).`;if(result.defeated.length)log+=" Defeated: "+result.defeated.join(", ")+".";if(tactic==="defensive")defense+=Math.min(4,allies.length);}}
+ if(b.hp<=0||!b.enemies.length){document.getElementById("battleLog").textContent=log+"\nYou win the fight!";const rewardHistory=player.enemyRewardHistory||{};const lastReward=Number(rewardHistory[b.enemyId]??-999);const rewardCooling=totalHours()-lastReward<6;if(!rewardCooling||b.playerDealtDamage)gainXP(b.type==="wildlife"?"hunting":"survival",12+Math.min(18,Math.max(0,(b.groupSize||1)-1)*2));endBattle(log+(rewardCooling&&!b.playerDealtDamage?" Victory, but recent encounter rewards are on cooldown.":" You win the fight and gain combat experience."),true);return;}
+ const attackResult=enemyGroupAttackPlayer(defense,stance,false);if(attackResult.lines.length)log+=" "+attackResult.lines.join(" ");else log+=" The enemies cannot reach you.";
+ const armorSkills=equippedArmorMasteries();armorSkills.forEach(id=>gainXP(id,2));const offhand=equippedItem("subWeapon");if(offhand&&/shield/i.test((offhand.name||"")+" "+(offhand.armorType||"")))gainXP("shield",2);
+ document.getElementById("battleLog").textContent=log;renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated. Your journey ends here.",false);return;}updateScreen();saveGame();
 }
-function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle,stats=getCombatStats();const agilityDodge=Math.min(15,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.75);if(Math.random()*100<agilityDodge){document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+"Your agility lets you evade "+b.enemyDisplayName+"’s opening attack.";renderBattleStats();updateScreen();saveGame();return;}const groupCount=Math.max(1,b.enemies?.length||1);const damage=Math.max(1,Math.round(b.enemy.attack*Math.min(2.2,1+(groupCount-1)*.15))-stats.defense+Math.floor(Math.random()*3));player.health=Math.max(0,player.health-damage);document.getElementById("battleLog").textContent=(ambush?"Ambush strike! ":"")+b.enemyDisplayName+" hits first for "+damage+" damage.";renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
-function renderBattleStats(){if(!activeBattle)return;const s=getCombatStats(),b=activeBattle;document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=b.enemyDisplayName+(b.groupSize>1?" × "+(b.enemies?.length||0):"");document.getElementById("battleEnemyNumbers").textContent=b.hp+" / "+b.maxHp+" HP · ATK "+b.enemy.attack+" · DEF "+b.enemy.defense;document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
-function endBattle(message,won){if(!activeBattle)return;if(partyStrategyTimer){clearInterval(partyStrategyTimer);partyStrategyTimer=null;}document.getElementById("partyStrategyDecision")?.classList.add("hidden");const finished=activeBattle;finished.ended=true;if(won)updateMissionEvent("kill",{type:finished.type,enemy:finished.enemy});if(won&&finished.roaming){const td=getTileData(player.x,player.y);td.roamingEnemyDefeated=true;td.roamingEncounter=null;}document.getElementById("battlePreFight").classList.add("hidden");document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleIntro").textContent="Encounter: "+(finished.enemyWasKnown?finished.enemy.name:("Unknown Hostile — identified as "+finished.enemy.name))+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\nOutcome: "+message;document.getElementById("battleLeaveButton").classList.remove("hidden");if(won){if(finished.type==="dragon"){showMessage("The dragon has been defeated!");}else if(finished.type==="wildlife"){
- const animal=finished.enemy.name;
+function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle;b.identifiedDuringBattle=true;const stats=getCombatStats(),result=enemyGroupAttackPlayer(stats.defense,"balanced",ambush);document.getElementById("battleLog").textContent=(ambush?"Ambush! ":"")+result.lines.join(" ");renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
+function renderBattleStats(){if(!activeBattle)return;syncBattleEnemyHealth();const s=getCombatStats(),b=activeBattle,front=b.enemies[0];document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=front?((!b.enemyWasKnown&&!b.identifiedDuringBattle)?"Unknown Hostile":front.name)+(b.enemies.length>1?" + "+(b.enemies.length-1)+" behind":""):"Defeated";document.getElementById("battleEnemyNumbers").textContent=front?(front.hp+" / "+front.maxHp+" HP · ATK "+front.attack+" · DEF "+front.defense+" · Group total "+b.hp+" / "+b.maxHp+" HP"):"0 / "+b.maxHp+" HP";document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
+function endBattle(message,won){if(!activeBattle)return;if(partyStrategyTimer){clearInterval(partyStrategyTimer);partyStrategyTimer=null;}document.getElementById("partyStrategyDecision")?.classList.add("hidden");const finished=activeBattle;finished.ended=true;player.enemyRewardHistory=player.enemyRewardHistory||{};const lastReward=Number(player.enemyRewardHistory[finished.enemyId]??-999);finished.rewardSuppressed=!!(won&&totalHours()-lastReward<6&&!finished.playerDealtDamage);if(won&&!finished.rewardSuppressed){player.enemyRewardHistory[finished.enemyId]=totalHours();updateMissionEvent("kill",{type:finished.type,enemy:finished.enemy});}if(won&&finished.roaming){const td=getTileData(player.x,player.y);td.roamingDefeatedSpawns=td.roamingDefeatedSpawns||{};if(finished.spawnKey)td.roamingDefeatedSpawns[finished.spawnKey]=true;td.roamingSpawnCooldowns=td.roamingSpawnCooldowns||{};if(finished.spawnKey)td.roamingSpawnCooldowns[finished.spawnKey]=totalHours()+6;td.roamingEncounter=null;}document.getElementById("battlePreFight").classList.add("hidden");document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleIntro").textContent="Encounter: "+(finished.enemyWasKnown?finished.enemy.name:("Unknown Hostile — identified as "+finished.enemy.name))+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\nOutcome: "+message;document.getElementById("battleLeaveButton").classList.remove("hidden");if(won&&!finished.rewardSuppressed){if(finished.type==="dragon"){showMessage("The dragon has been defeated!");}else if(finished.type==="wildlife"){
+ const animal=finished.enemy.name.replace(/\s+\d+$/,"");
  const drops={"Wild Rabbit":[["meat",1,.85],["leather",1,.35]],"Forest Deer":[["meat",2,.95],["leather",2,.8]],"Wild Chicken":[["meat",1,.9],["feather",2,.75]],"Mountain Goat":[["meat",2,.85],["leather",2,.7],["wool",1,.35]],"Wild Boar":[["meat",3,.95],["leather",1,.75]],"Feral Dog":[["meat",1,.55],["leather",1,.4]],"Ruin Wolf":[["meat",2,.75],["leather",2,.8]],"Dire Bear":[["meat",4,1],["leather",4,.95]]};
  for(let defeated=0;defeated<Math.max(1,finished.groupSize||1);defeated++){(drops[animal]||[["meat",1,.65]]).forEach(([id,amount,chance])=>{if(Math.random()<chance)addGroundLoot(id,amount,player.x,player.y);});}
  adjustReputation(1,"");
@@ -5062,8 +5117,8 @@ function movePrivateStorage(id,n,deposit){
 }
 function renderWarehouse(){const el=document.getElementById("warehouseUI");el.innerHTML="";if(!player.base){el.textContent="Establish a base first.";return;}if(!hasBuilding("warehouse")){el.textContent="Build and complete a Warehouse first.";return;}if(!baseAtHome()){el.textContent="Return to your base to access the warehouse.";return;}const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(player.base.warehouse)])];ids.forEach(id=>{if(!items[id])return;const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[id].icon+" "+items[id].name+" · Bag "+getItemCount(id)+" · Stored "+(player.base.warehouse[id]||0);const dep=document.createElement("button");dep.textContent="Deposit 1";dep.disabled=!getItemCount(id);dep.onclick=()=>warehouseMove(id,1,true);const wit=document.createElement("button");wit.textContent="Withdraw 1";wit.disabled=!(player.base.warehouse[id]>0);wit.onclick=()=>warehouseMove(id,1,false);row.append(label,dep,wit);el.appendChild(row);});}
 function warehouseMove(id,n,deposit){ensureEconomyData();if(!baseAtHome()||!hasBuilding("warehouse"))return;if(deposit){if(!removeItems(id,n))return;player.base.warehouse[id]=(player.base.warehouse[id]||0)+n;}else{if((player.base.warehouse[id]||0)<n||!addItem(id,n))return;player.base.warehouse[id]-=n;}saveGame();updateScreen();renderEconomy();}
-function restockStore(){if(!buildingService("generalStore")||!hasBuilding("warehouse")){showMessage("At home, a completed General Store and Warehouse are required.");return;}const stock=player.base.storeStock,wh=player.base.warehouse;let moved=0;["fruit","cookedMeat","bottle","canteen","waterJug","waterskin"].forEach(id=>{const target=id==="fruit"?12:5;const need=Math.max(0,target-(stock[id]||0));const take=Math.min(need,wh[id]||0);if(take){wh[id]-=take;stock[id]=(stock[id]||0)+take;moved+=take;}});if(moved){saveGame();renderEconomy();showMessage("NPC storekeepers restocked "+moved+" items from the warehouse.");}else showMessage("Warehouse has no supplies needed by the store.");}
-function renderStore(){const el=document.getElementById("storeUI");if(!el)return;el.innerHTML="";if(!player.base||!hasBuilding("generalStore")){el.textContent="Build and complete a General Store at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to use the store.";return;}const stock=player.base.storeStock||{};Object.keys(tradePrices).forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id]?.icon||"")+" "+items[id].name+" · Stock "+(stock[id]||0)+" · "+tradePrices[id]+" coins";const buy=document.createElement("button");buy.textContent="Buy 1";buy.disabled=(stock[id]||0)<1||(player.coins||0)<tradePrices[id];buy.onclick=()=>buyStoreItem(id);const sell=document.createElement("button");sell.textContent="Sell 1";sell.disabled=!getItemCount(id);sell.onclick=()=>sellStoreItem(id);row.append(label,buy,sell);el.appendChild(row);});const restock=document.createElement("button");restock.className="full-button";restock.textContent="📦 NPC Restock from Warehouse";restock.disabled=!hasBuilding("warehouse");restock.onclick=restockStore;el.appendChild(restock);}
+function restockStore(){if(!buildingService("generalStore")||!hasBuilding("warehouse")){showMessage("At home, a completed General Store and Warehouse are required.");return;}const store=player.base.buildings.find(b=>b.type==="generalStore"&&b.completed);if(!store||Number(store.staffAssigned)<1){showMessage("Assign a resident as Store Clerk before the General Store can restock from the warehouse.");return;}const stock=player.base.storeStock,wh=player.base.warehouse;let moved=0;["fruit","cookedMeat","bottle","canteen","waterJug","waterskin"].forEach(id=>{const target=id==="fruit"?12:5;const need=Math.max(0,target-(stock[id]||0));const take=Math.min(need,wh[id]||0);if(take){wh[id]-=take;stock[id]=(stock[id]||0)+take;moved+=take;}});if(moved){saveGame();renderEconomy();showMessage("NPC storekeepers restocked "+moved+" items from the warehouse.");}else showMessage("Warehouse has no supplies needed by the store.");}
+function renderStore(){const el=document.getElementById("storeUI");if(!el)return;el.innerHTML="";if(!player.base||!hasBuilding("generalStore")){el.textContent="Build and complete a General Store at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to use the store.";return;}const stock=player.base.storeStock||{};Object.keys(tradePrices).forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id]?.icon||"")+" "+items[id].name+" · Stock "+(stock[id]||0)+" · "+tradePrices[id]+" coins";const buy=document.createElement("button");buy.textContent="Buy 1";buy.disabled=(stock[id]||0)<1||(player.coins||0)<tradePrices[id];buy.onclick=()=>buyStoreItem(id);const sell=document.createElement("button");sell.textContent="Sell 1";sell.disabled=!getItemCount(id);sell.onclick=()=>sellStoreItem(id);row.append(label,buy,sell);el.appendChild(row);});const restock=document.createElement("button");restock.className="full-button";restock.textContent="📦 NPC Restock from Warehouse";restock.disabled=!hasBuilding("warehouse")||!(player.base.buildings.find(b=>b.type==="generalStore"&&b.completed)?.staffAssigned>0);restock.onclick=restockStore;el.appendChild(restock);}
 function buyStoreItem(id){const b=player.base,price=Math.max(1,Math.round((tradePrices[id]||999)*(player.characterProfile?.mainProfession==="trader" ? 0.9 : 1)*(1-(Number(player.reputation)||0)*.001)));if(!b||!baseAtHome()||!hasBuilding("generalStore")||(b.storeStock[id]||0)<1||(player.coins||0)<price)return;if(!addItem(id,1))return;b.storeStock[id]--;player.coins-=price;saveGame();renderEconomy();showMessage("Bought "+items[id].name+".");}
 function sellStoreItem(id){const b=player.base,price=Math.max(1,Math.floor((tradePrices[id]||2)*.5*(player.characterProfile?.mainProfession==="trader"?1.2:1)*(1+(Number(player.reputation)||0)*.001)));if(!b||!baseAtHome()||!hasBuilding("generalStore")||!removeItems(id,1))return;b.storeStock[id]=(b.storeStock[id]||0)+1;player.coins=(player.coins||0)+price;saveGame();renderEconomy();showMessage("Sold "+items[id].name+" for "+price+" coins.");}
 function renderStall(){const el=document.getElementById("stallUI");el.innerHTML="";if(!player.base||!hasBuilding("plaza")){el.textContent="Build and complete a Plaza at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to manage your stall.";return;}const p=player.base.stall||(player.base.stall={open:false,items:{}});const toggle=document.createElement("button");toggle.textContent=p.open?"Close Stall":"Open Stall";toggle.onclick=()=>{p.open=!p.open;saveGame();renderEconomy();};el.appendChild(toggle);const note=document.createElement("p");note.className="muted";note.textContent=p.open?"Your stall is open in the plaza. Add inventory below to list items for sale. NPC shoppers can purchase listed stock.":"Your stall is closed.";el.appendChild(note);if(p.open){const customer=document.createElement("button");customer.className="full-button";customer.textContent="🧑‍🤝‍🧑 Invite NPC Customer to Buy";customer.disabled=!Object.values(p.items||{}).some(n=>n>0);customer.onclick=npcBuyFromStall;el.appendChild(customer);}player.inventory.forEach(e=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[e.id].name+" x"+e.amount;const btn=document.createElement("button");btn.textContent="List 1";btn.disabled=!p.open;btn.onclick=()=>{if(removeItems(e.id,1)){p.items[e.id]=(p.items[e.id]||0)+1;saveGame();renderEconomy();}};row.append(label,btn);el.appendChild(row);});Object.entries(p.items).forEach(([id,n])=>{const row=document.createElement("div");row.className="ground-row";row.textContent="For sale: "+(items[id]?.name||id)+" x"+n;el.appendChild(row);});}
@@ -5149,7 +5204,7 @@ function openBuildingService(index){
  const requireHome=()=>{if(!baseAtHome()){showMessage('Return to your settlement headquarters to use this service.');return false;}return true;};
  if(b.type==='generalStore'){
    if(!requireHome()){addNote('Return to your settlement headquarters to access store stock.');}
-   else {const stock=player.base.storeStock||{};Object.keys(tradePrices).filter(id=>items[id]).forEach(id=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(items[id].icon||'📦')+' '+items[id].name+' · Stock '+(stock[id]||0)+' · '+tradePrices[id]+' coins';const buy=serviceButton('Buy 1',()=>{buyStoreItem(id);openBuildingService(index);},(stock[id]||0)<1||(player.coins||0)<tradePrices[id]);buy.className='';const sell=serviceButton('Sell 1',()=>{sellStoreItem(id);openBuildingService(index);},!getItemCount(id));sell.className='';row.append(label,buy,sell);content.appendChild(row);});content.appendChild(serviceButton('📦 Restock from Warehouse',()=>{restockStore();openBuildingService(index);},!hasBuilding('warehouse')));}
+   else {const stock=player.base.storeStock||{};Object.keys(tradePrices).filter(id=>items[id]).forEach(id=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(items[id].icon||'📦')+' '+items[id].name+' · Stock '+(stock[id]||0)+' · '+tradePrices[id]+' coins';const buy=serviceButton('Buy 1',()=>{buyStoreItem(id);openBuildingService(index);},(stock[id]||0)<1||(player.coins||0)<tradePrices[id]);buy.className='';const sell=serviceButton('Sell 1',()=>{sellStoreItem(id);openBuildingService(index);},!getItemCount(id));sell.className='';row.append(label,buy,sell);content.appendChild(row);});content.appendChild(serviceButton('📦 Restock from Warehouse',()=>{restockStore();openBuildingService(index);},!hasBuilding('warehouse')||Number(b.staffAssigned)<1));}
    b.staffAssigned=Math.max(0,Math.floor(Number(b.staffAssigned)||0));
    addNote('Store clerks assigned: '+b.staffAssigned+' / 1. Assign a resident to staff this store.');
    content.appendChild(serviceButton('➕ Assign Store Clerk',()=>assignResidents(index,1),b.staffAssigned>=1||!baseAtHome()||player.dead));
