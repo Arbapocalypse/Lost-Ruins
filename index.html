@@ -20,7 +20,7 @@ button:active{transform:scale(.98)}
 input,select{max-width:100%}
 .hidden{display:none!important}
 .panel{margin-top:10px;padding:12px;background:#242424;border-radius:10px}
-.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}.status-bar span{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}
+.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}.status-bar span,.status-bar .status-pill{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.status-bar .status-pill{padding:5px 7px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:30px}.status-bar .status-pill:active{background:#555}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}
 .muted{font-size:12px;color:#bbb}
 .good{color:#a5dc91}
 .warning{color:#ffd166}
@@ -245,6 +245,13 @@ input,select{max-width:100%}
 </div>
 
 <div id="mpInspectOverlay" class="profile-overlay" onclick="if(event.target===this)closeMpInspect()" style="display:none;z-index:12000"><div class="profile-modal" style="max-height:85vh;overflow:auto"><h2 id="mpInspectName">Survivor Profile</h2><div id="mpInspectBody"></div><button class="profile-button secondary" onclick="closeMpInspect()">Close</button></div></div>
+<div id="survivalStatusOverlay" class="profile-overlay" role="dialog" aria-modal="true" aria-labelledby="survivalStatusTitle" onclick="if(event.target===this)closeSurvivalStatus()" style="display:none;z-index:13000">
+  <div class="profile-modal" style="max-width:340px;width:calc(100% - 32px);max-height:75vh;overflow:auto">
+    <h2 id="survivalStatusTitle">Survival Status</h2>
+    <div id="survivalStatusDetails"></div>
+    <button class="profile-button" onclick="closeSurvivalStatus()">Close</button>
+  </div>
+</div>
 <main id="game">
 <header id="topNav" aria-label="Top navigation">
   <div class="nav-inner">
@@ -253,11 +260,11 @@ input,select{max-width:100%}
     <button class="nav-icon-btn" onclick="openGuildPanel()" aria-label="Open guild"><span>🏰</span><small>GUILD</small></button><button class="nav-icon-btn" onclick="openPartyPanel()" aria-label="Open party"><span>👥</span><small>PARTY</small></button>
   </div>
   <section class="status-bar" id="topStatusBar" aria-label="Survival stats">
-    <span>❤️ HP <b id="health">100</b>/<b id="maxHealthNav">100</b></span>
-    <span>⚡ EN <b id="energy">100</b>/<b id="maxEnergyNav">100</b></span>
-    <span id="manaNav" class="hidden">✨ MP <b id="mana">0</b>/<b id="maxManaNav">0</b></span>
-    <span>🍖 <b id="hunger">100</b></span>
-    <span>💧 <b id="thirst">100</b></span>
+    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View health details">❤️ <b id="health">100</b>/<b id="maxHealthNav">100</b></button>
+    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View energy details">⚡ <b id="energy">100</b>/<b id="maxEnergyNav">100</b></button>
+    <button type="button" class="status-pill hidden" id="manaNav" onclick="openSurvivalStatus()" aria-label="View mana details">✨ <b id="mana">0</b>/<b id="maxManaNav">0</b></button>
+    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View hunger details">🍖 <b id="hunger">100</b></button>
+    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View thirst details">💧 <b id="thirst">100</b></button>
     <span id="period">☀️ Day 1</span>
     <span id="time">08:00</span>
   </section>
@@ -293,8 +300,15 @@ input,select{max-width:100%}
 </section>
 
 <section class="panel hidden" id="skillsPanel">
-<h2>⚔️ Skills & Masteries</h2>
-<p class="muted">Skills improve as you perform related actions.</p>
+<h2>Skills & Masteries</h2>
+<p class="muted">Masteries improve through use. Profession skills include passive bonuses and active abilities.</p>
+<div class="profile-tabs skills-tabs" role="tablist" aria-label="Skill categories">
+ <button class="profile-tab-button active" id="skillsTabCombat" role="tab" aria-selected="true" onclick="switchSkillTab('combat')">⚔️ Combat</button>
+ <button class="profile-tab-button" id="skillsTabSurvival" role="tab" aria-selected="false" onclick="switchSkillTab('survival')">🏕️ Survival</button>
+ <button class="profile-tab-button" id="skillsTabSkills" role="tab" aria-selected="false" onclick="switchSkillTab('skills')">✨ Skills</button>
+</div>
+<div id="skillsCategoryDescription" class="muted"></div>
+<div id="professionAbilities"></div>
 <div id="skillsList"></div>
 <button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
@@ -642,9 +656,14 @@ const skillInfo = {
   fishing:{name:"Fishing",icon:"🎣",description:"Catch food from rivers and lakes."},
   scavenging:{name:"Scavenging",icon:"📦",description:"Search abandoned places."},
   survival:{name:"Survival",icon:"🏕️",description:"Travel and survive in the wilderness."},
+  exploration:{name:"Exploration Mastery",icon:"🧭",description:"Exploring reveals discoveries more often and costs less energy at higher levels."},
+  travel:{name:"Travel Mastery",icon:"🥾",description:"Travel consumes less energy and takes less game time at higher levels."},
   cooking:{name:"Cooking",icon:"🍳",description:"Prepare food at a burning bonfire."},
   building:{name:"Building",icon:"🔨",description:"Construct settlements and structures."},
   sword:{name:"Sword Mastery",icon:"⚔️",description:"Sword attacks gain damage, accuracy, and critical chance."},
+  hammer:{name:"Hammer Mastery",icon:"🔨",description:"Hammer attacks gain impact damage and a stronger chance to stagger enemies."},
+  axe:{name:"Axe Mastery",icon:"🪓",description:"Battle-axe attacks gain damage and armor penetration."},
+  pole:{name:"Polearm Mastery",icon:"🪵",description:"Polearm attacks gain reach, accuracy, and defensive control."},
   dagger:{name:"Dagger Mastery",icon:"🗡️",description:"Dagger attacks gain speed, accuracy, and critical chance."},
   bow:{name:"Bow Mastery",icon:"🏹",description:"Bow attacks gain accuracy, damage, and critical chance."},
   spear:{name:"Spear Mastery",icon:"🔱",description:"Spear attacks gain damage and improved hit chance."},
@@ -1919,11 +1938,96 @@ function skillForAction(id){
   })[id] || "survival";
 }
 
+let activeSkillTab="combat";
+const combatMasteryIds=["sword","hammer","axe","dagger","bow","spear","pole","staff","shield","heavyArmor","leatherArmor","clothArmor"];
+const survivalMasteryIds=["survival","woodcutting","gathering","mining","hunting","fishing","scavenging","exploration","travel"];
+const generalSkillIds=["cooking","building"];
+const professionAbilityInfo={
+ woodcutting:{name:"Woodcutter",passive:"Cutting actions cost less energy and take less time; wood yield improves with Woodcutting mastery.",active:"Focused Chop",effect:"Spend 5 energy to gain 2–4 wood instantly."},
+ gathering:{name:"Gatherer",passive:"Find plants more efficiently and improve bonus-yield chances.",active:"Careful Forage",effect:"Spend 4 energy to find fruit or herbs."},
+ mining:{name:"Miner",passive:"Mining uses less energy and improves ore yield.",active:"Vein Sense",effect:"Spend 6 energy to find stone or ore."},
+ hunting:{name:"Hunter",passive:"Hunting improves material yield and helps identify wildlife.",active:"Prepared Hunt",effect:"Spend 6 energy to attempt a hunting reward."},
+ fishing:{name:"Fisher",passive:"Fishing actions are faster and have better catch chances.",active:"Quick Cast",effect:"Spend 4 energy to catch fish when near suitable water."},
+ scavenging:{name:"Scavenger",passive:"Scavenging improves salvage quality and discovery chances.",active:"Search Thoroughly",effect:"Spend 5 energy to find a random useful salvage item."},
+ survival:{name:"Survivalist",passive:"Travel and wilderness actions become more efficient.",active:"Field Rations",effect:"Spend 5 energy to restore 12 energy, limited by your maximum."},
+ cooking:{name:"Cook",passive:"Cooked food restores more energy.",active:"Quick Meal",effect:"Spend 1 fruit or meat to restore 15 energy."},
+ building:{name:"Builder",passive:"Construction progresses more efficiently and uses materials more effectively.",active:"Rapid Repairs",effect:"Spend 5 energy to repair a settlement building."},
+ soldier:{name:"Soldier",passive:"Gain extra defense and health in combat.",active:"Brace",effect:"Spend 5 energy to recover 8 health."},
+ archer:{name:"Archer",passive:"Ranged weapons gain improved accuracy and damage.",active:"Steady Aim",effect:"Spend 5 energy to gain a temporary combat accuracy bonus."},
+ scout:{name:"Scout",passive:"Improved movement and visibility.",active:"Survey",effect:"Spend 4 energy to reveal nearby terrain."},
+ mage:{name:"Mage",passive:"Magic-focused attacks and mana progression improve.",active:"Mana Focus",effect:"Restore 8 mana, up to your maximum."},
+ medic:{name:"Field Medic",passive:"Medicine restores more health.",active:"First Aid",effect:"Spend one herb or medicine to restore health."},
+ trader:{name:"Merchant",passive:"Trade values improve.",active:"Appraise",effect:"Inspect your current location for valuable items."},
+ diplomat:{name:"Diplomat",passive:"Negotiation and familiarity gains improve.",active:"Calm Words",effect:"Spend 4 energy to improve local familiarity."},
+ engineer:{name:"Engineer",passive:"Structures gain improved durability and defense.",active:"Patch Structure",effect:"Spend 5 energy to repair a damaged building."},
+ beastmaster:{name:"Beastmaster",passive:"Wildlife encounters and animal handling improve.",active:"Soothe Beast",effect:"Spend 4 energy to improve wildlife handling."},
+ blacksmith:{name:"Blacksmith",passive:"Metal crafting and equipment salvage improve.",active:"Material Insight",effect:"Inspect equipment materials and salvage options."}
+};
+function switchSkillTab(tab){
+ if(!["combat","survival","skills"].includes(tab))tab="combat";
+ activeSkillTab=tab;
+ ["combat","survival","skills"].forEach(id=>{const b=document.getElementById("skillsTab"+id.charAt(0).toUpperCase()+id.slice(1));if(b){b.classList.toggle("active",id===tab);b.setAttribute("aria-selected",String(id===tab));}});
+ updateSkills();
+}
+function skillCategory(id){
+ if(combatMasteryIds.includes(id))return "combat";
+ if(survivalMasteryIds.includes(id))return "survival";
+ return "skills";
+}
+function openSurvivalStatus(){
+ const overlay=document.getElementById("survivalStatusOverlay"),box=document.getElementById("survivalStatusDetails");
+ if(!overlay||!box)return;
+ const rows=[ ["❤️ Health",Math.floor(Number(player.health)||0),Math.floor(Number(player.maxHealth)||100)], ["⚡ Energy",Math.floor(Number(player.energy)||0),Math.floor(Number(player.maxEnergy)||100)] ];
+ if(player.manaUnlocked)rows.push(["✨ Mana",Math.floor(Number(player.mana)||0),Math.floor(Number(player.maxMana)||10)]);
+ rows.push(["🍖 Hunger",Math.floor(Number(player.hunger)||0),100],["💧 Thirst",Math.floor(Number(player.thirst)||0),100]);
+ box.innerHTML=rows.map(([name,current,max])=>`<div class="detail-stat" style="display:flex;justify-content:space-between;gap:12px"><strong>${name}</strong><span>${current}${max===100&&/Hunger|Thirst/.test(name)?" / 100":" / "+max}</span></div>`).join("");
+ overlay.style.display="flex";
+}
+function closeSurvivalStatus(){const overlay=document.getElementById("survivalStatusOverlay");if(overlay)overlay.style.display="none";}
+function activeProfessionIds(){const p=player.characterProfile||{};return [...new Set([p.mainProfession,p.subProfession].filter(id=>id&&professionAbilityInfo[id]))];}
+function activateProfessionSkill(professionId){
+ if(player.dead)return;
+ const prof=professionAbilityInfo[professionId];if(!prof)return;
+ const energyCost=({woodcutting:5,gathering:4,mining:6,hunting:6,fishing:4,scavenging:5,survival:5,cooking:1,building:5,soldier:5,archer:5,scout:4,mage:0,medic:0,trader:0,diplomat:4,engineer:5,beastmaster:4,blacksmith:0})[professionId]||0;
+ if(player.energy<energyCost){showMessage("Not enough energy to use "+prof.active+".");return;}
+ const add=(id,n)=>{if(items[id])addItem(id,n);};
+ const roll=arr=>arr[Math.floor(Math.random()*arr.length)];
+ player.energy=Math.max(0,player.energy-energyCost);
+ switch(professionId){
+  case "woodcutting":add("wood",2+Math.floor(Math.random()*3));gainXP("woodcutting",3);break;
+  case "gathering":add(roll(["fruit","herb"]),1+Math.floor(Math.random()*2));gainXP("gathering",3);break;
+  case "mining":add(roll(["stone","stone","ironOre","copperOre"]),1);gainXP("mining",3);break;
+  case "hunting":add("meat",1+Math.floor(Math.random()*2));gainXP("hunting",3);break;
+  case "fishing":if(!["river","lake","ocean"].includes(generateTerrain(player.x,player.y))){player.energy+=energyCost;showMessage("Quick Cast requires a river, lake, or ocean tile.");return;}add("meat",1+Math.floor(Math.random()*2));gainXP("fishing",3);break;
+  case "scavenging":add(roll(["cloth","scrapMetal","wood","herb"]),1);gainXP("scavenging",3);break;
+  case "survival":player.energy=Math.min(player.maxEnergy||100,player.energy+12);gainXP("survival",3);break;
+  case "cooking":{const food=getItemCount("fruit")?"fruit":"meat";if(!getItemCount(food)){player.energy+=energyCost;showMessage("You need fruit or meat for a quick meal.");return;}removeItems(food,1);player.energy=Math.min(player.maxEnergy||100,player.energy+15);gainXP("cooking",3);break;}
+  case "soldier":player.health=Math.min(player.maxHealth||100,player.health+8);break;
+  case "archer":player.battleAccuracyBonus=8;player.battleAccuracyBonusUntil=Date.now()+60000;showMessage("Steady Aim: +8 accuracy for the next 60 seconds.");break;
+  case "scout":for(let y=player.y-2;y<=player.y+2;y++)for(let x=player.x-2;x<=player.x+2;x++)if(Math.abs(x-player.x)+Math.abs(y-player.y)<=3){const t=getTileData(x,y);t.terrainKnown=true;}gainXP("survival",3);break;
+  case "mage":if(!player.manaUnlocked){player.energy+=energyCost;showMessage("Mana is not unlocked yet.");return;}player.mana=Math.min(player.maxMana||10,(Number(player.mana)||0)+8);break;
+  case "medic":{const item=getItemCount("medicine")?"medicine":getItemCount("herb")?"herb":null;if(!item){showMessage("You need medicine or an herb.");return;}removeItems(item,1);player.health=Math.min(player.maxHealth||100,player.health+(item==="medicine"?25:10));break;}
+  case "trader":showMessage("Appraisal: check item descriptions and settlement store prices before selling.");break;
+  case "diplomat":{const town=discoveredTownAt(player.x,player.y);if(!town){player.energy+=energyCost;showMessage("Calm Words works when you are at a discovered settlement.");return;}const key=settlementKey(player.x,player.y,town);player.settlementFamiliarity=player.settlementFamiliarity||{};player.settlementFamiliarity[key]=Math.min(100,(Number(player.settlementFamiliarity[key])||0)+5);break;}
+  case "engineer":case "building":{const b=(player.base?.buildings||[]).find(x=>x&&Number(x.health)<Number(x.maxHealth));if(b){b.health=Math.min(Number(b.maxHealth)||100,(Number(b.health)||0)+15);}else{player.energy+=energyCost;showMessage("No damaged settlement building needs repair.");return;}break;}
+  case "beastmaster":player.beastmasterBonusUntil=Date.now()+60000;break;
+  case "trader":hideScreens();document.getElementById("tradePanel")?.classList.remove("hidden");renderTrade();refreshWalletUI();showMessage("Appraisal ready: compare item values in Trade.");return;
+  case "blacksmith":openCrafting();showMessage("Material Insight: review recipes and salvage eligible equipment.");return;
+ }
+ updateScreen();saveGame();showMessage(prof.active+" used. "+prof.effect);
+}
+
 function updateSkills(){
+  if(!player.skills)player.skills={};Object.keys(skillInfo).forEach(id=>{if(!player.skills[id])player.skills[id]={xp:0,level:1};});
   const box = document.getElementById("skillsList");
   box.innerHTML = "";
+  const abilityBox=document.getElementById("professionAbilities");if(abilityBox)abilityBox.innerHTML="";
+  const categoryDescription=document.getElementById("skillsCategoryDescription");
+  if(categoryDescription)categoryDescription.textContent=activeSkillTab==="combat"?"Combat masteries improve weapon handling, accuracy, damage, and defense.":activeSkillTab==="survival"?"Survival masteries improve exploration, travel, resource gathering, and wilderness efficiency.":"Profession abilities are based on your chosen main and subprofession. Active abilities have real costs and effects.";
+  if(activeSkillTab==="skills"&&abilityBox){activeProfessionIds().forEach(pid=>{const info=professionAbilityInfo[pid];const card=document.createElement("div");card.className="skill-card";const level=skillLevel(({woodcutting:"woodcutting",gathering:"gathering",mining:"mining",hunting:"hunting",fishing:"fishing",scavenging:"scavenging",survival:"survival",cooking:"cooking",building:"building"})[pid]||"survival");card.innerHTML=`<strong>${info.name} · ${pid===player.characterProfile?.mainProfession?"Main":"Sub"} Profession</strong><p class="muted"><strong>Passive:</strong> ${info.passive}</p><p class="muted"><strong>${info.active}:</strong> ${info.effect}</p><p class="muted">Related mastery level: ${level}</p><button type="button" class="full-button" onclick="activateProfessionSkill('${pid}')">Use ${info.active}</button>`;abilityBox.appendChild(card);});if(!activeProfessionIds().length)abilityBox.innerHTML='<p class="muted">Choose a main or subprofession in your profile to unlock profession abilities.</p>';}
 
   Object.entries(skillInfo).forEach(([id,info])=>{
+    if(skillCategory(id)!==activeSkillTab)return;
     const s = player.skills[id] || {level:1,xp:0};
     if((Number(s.xp)||0)<=0 && (Number(s.level)||1)<=1)return;
     const needed = s.level >= MAX_SKILL_LEVEL ? 0 : xpNeeded(s.level);
@@ -2998,14 +3102,17 @@ async function confirmTravel(){
     const step=route[i];
     const terrain=generateTerrain(step.x,step.y);
     const method=getTravelModifiers();
-    const tileCost=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*BALANCE.travelEnergyPerDifficulty*method.energy));
+    const travelMasteryEnergyReduction=Math.min(.25,Math.max(0,skillLevel("travel")-1)*.006);
+    const tileCost=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*BALANCE.travelEnergyPerDifficulty*method.energy*(1-travelMasteryEnergyReduction)));
     const agilityTravelReduction=Math.min(.30,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.01);
-    const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed*(1-agilityTravelReduction)));
+    const masteryTravelReduction=Math.min(.20,Math.max(0,skillLevel("travel")-1)*.005);
+    const tileHours=Math.max(1,Math.ceil((travelDifficulty[terrain]||1.5)*method.speed*(1-agilityTravelReduction)*(1-masteryTravelReduction)));
     if(player.energy<tileCost){stopped=true;if(progress)progress.textContent="Too exhausted to continue. Stopping at the current tile.";break;}
     player.energy=Math.max(0,player.energy-tileCost);
     if(!await advanceTime(tileHours,"Traveling to next tile","🧭")){stopped=true;break;}
     player.x=step.x;player.y=step.y;mapViewX=player.x;mapViewY=player.y;selectedLocation={x:step.x,y:step.y};
     updateMissionEvent("patrol",{x:step.x,y:step.y});
+    gainXP("travel",2);
     markTileVisited(step.x,step.y);addTileExploration(step.x,step.y,10);stepsCompleted++;
     if(progress)progress.textContent="⌛ Tile "+stepsCompleted+" of "+route.length+" · "+(terrainInfo[terrain]?.name||"Unknown terrain")+" · Position: "+step.x+", "+step.y+" · H "+Math.round(player.hunger)+" / W "+Math.round(player.thirst);
     const locationText=document.getElementById("locationText");if(locationText)locationText.textContent="Location: "+step.x+", "+step.y+" · "+(terrainInfo[terrain]?.name||"Unknown terrain");
@@ -3156,7 +3263,7 @@ async function performLocationAction(action){
   const profession=player.characterProfile?.mainProfession;
   const professionMatches=profession===actionSkill || player.characterProfile?.subProfession===actionSkill;
   const toolBonus=getEquippedToolBonus(action.id);
-  const skillTimeReduction=Math.min(.45,Math.max(0,(skillLevel(actionSkill)-1)*.012)+(professionMatches ? .10 : 0));
+  const skillTimeReduction=Math.min(.45,Math.max(0,(skillLevel(actionSkill)-1)*.012)+(professionMatches ? .10 : 0)+(action.id==="explore"?Math.min(.15,Math.max(0,skillLevel("exploration")-1)*.004):0));
   const timeReduction=Math.min(.75,skillTimeReduction+toolBonus.timeReduction);
   const baseActionHours=Math.max(0,Number(action.hours)||0);
   // Tool-assisted work can take fractional game-hours; this makes faster tools matter even for one-hour actions.
@@ -3382,6 +3489,7 @@ async function explore(){
   if(!await advanceTime(2,"Exploring","🔎"))return;
 
   gainXP("survival",5);
+  gainXP("exploration",3);
   recordAchievementProgress("firstSteps",1);
   recordAchievementProgress("farWalker",1);
   recordAchievementProgress("worldRoamer",1);
@@ -4423,6 +4531,9 @@ function equippedCombatSkill(){
  if(/bow|crossbow/.test(label))return "bow";
  if(/dagger|knife/.test(label))return "dagger";
  if(/spear|pike|glaive/.test(label))return "spear";
+ if(/polearm|halberd|quarterstaff|long pole/.test(label))return "pole";
+ if(/hammer|mace/.test(label))return "hammer";
+ if(/battle.?axe|war axe/.test(label))return "axe";
  if(/staff|wand/.test(label))return "staff";
  if(/sword|blade|machete|katana/.test(label))return "sword";
  return null;
@@ -4442,7 +4553,9 @@ function getCombatStats(){
  let attack=5+Math.max(0,player.attributes.strength-1)*2,defense=Math.floor(Math.max(0,player.attributes.vitality-1)*0.5),speed=5+Math.max(0,player.attributes.agility-1),accuracy=70+Math.max(0,player.attributes.perception-1),crit=5+Math.max(0,player.attributes.agility-1)+Math.floor(Math.max(0,player.attributes.luck-1)*0.5),healthBonus=Math.max(0,player.attributes.vitality-1)*10;
  Object.values(player.equipment||{}).forEach(id=>{const it=items[id];if(!it)return;attack+=Number(it.damage)||0;defense+=Number(it.defense)||0;speed+=Number(it.speedBonus)||0;accuracy+=Number(it.accuracy)||0;crit+=Number(it.crit)||0;healthBonus+=Number(it.healthBonus)||0;});
  const weaponSkill=equippedCombatSkill();
- if(weaponSkill){const lv=skillLevel(weaponSkill);attack=Math.round(attack*(1+Math.min(.35,Math.max(0,lv-1)*.01)));accuracy+=Math.min(12,Math.max(0,lv-1)*.35);crit+=Math.min(10,Math.max(0,lv-1)*.25);}
+ if(weaponSkill){const lv=skillLevel(weaponSkill);attack=Math.round(attack*(1+Math.min(.35,Math.max(0,lv-1)*.01)));accuracy+=Math.min(12,Math.max(0,lv-1)*.35);crit+=Math.min(10,Math.max(0,lv-1)*.25);if(weaponSkill==="hammer")attack+=Math.floor(Math.max(0,lv-1)*.12);if(weaponSkill==="axe")attack+=Math.floor(Math.max(0,lv-1)*.10);if(weaponSkill==="pole"){accuracy+=Math.min(8,Math.floor(Math.max(0,lv-1)*.25));defense+=Math.floor(Math.max(0,lv-1)*.08);}}
+ if(Number(player.battleAccuracyBonus)>0&&Number(player.battleAccuracyBonusUntil)>Date.now())accuracy+=Number(player.battleAccuracyBonus);else{player.battleAccuracyBonus=0;player.battleAccuracyBonusUntil=0;}
+ if(Number(player.beastmasterBonusUntil)>Date.now()&&activeBattle?.type==="wildlife")attack=Math.round(attack*1.25);
  const armorMasteries=equippedArmorMasteries();
  armorMasteries.forEach(id=>{const lv=skillLevel(id);if(id==="heavyArmor")defense+=Math.floor(Math.max(0,lv-1)*.12);if(id==="leatherArmor"){defense+=Math.floor(Math.max(0,lv-1)*.08);speed+=Math.floor(Math.max(0,lv-1)/12);}if(id==="clothArmor"){accuracy+=Math.min(8,Math.max(0,lv-1)*.2);speed+=Math.floor(Math.max(0,lv-1)/10);}});
  const shield=equippedItem("subWeapon");if(shield&&/shield/i.test((shield.name||"")+" "+(shield.armorType||"")))defense+=Math.floor(Math.max(0,skillLevel("shield")-1)*.15);
