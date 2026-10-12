@@ -130,14 +130,28 @@ input,select{max-width:100%}
 #craftingProgressFill{height:100%;width:0;background:#78c66a;transition:width .12s linear}
 @keyframes craftBounce{from{transform:rotate(-12deg) translateY(2px)}to{transform:rotate(12deg) translateY(-5px)}}
 
+
+/* Clear, responsive settlement management cards and crafting category tabs */
+.management-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 14px}
+.management-card{min-width:0;background:#222922;border:1px solid #485648;border-radius:9px;padding:10px;overflow-wrap:anywhere}
+.management-card h4{font-size:13px;margin:0 0 8px;color:#dcebd7}
+.management-metric{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #3b423b;font-size:12px}
+.management-metric:last-child{border-bottom:0}.management-metric strong{font-variant-numeric:tabular-nums;text-align:right}
+.crafting-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:12px 0}
+.crafting-tab{min-width:0;padding:9px 3px;font-size:11px;background:#292d29;border:1px solid #4b514b;line-height:1.25}
+.crafting-tab.active{background:#31583a;border-color:#7ca782;color:#fff}
+.salvage-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.salvage-row .salvage-info{min-width:0;font-size:12px;overflow-wrap:anywhere}.salvage-row button{min-width:76px}
+@media(max-width:380px){.management-grid{grid-template-columns:1fr}.crafting-tab{font-size:10px;padding:8px 1px}}
+
 /* Responsive fixed navigation */
 :root{--nav-bg:#202020;--nav-line:#414141;--nav-active:#477c55}
 #game{padding-top:112px;padding-bottom:88px}
 #topNav{position:fixed;top:0;left:0;right:0;z-index:8000;background:rgba(25,25,25,.98);border-bottom:1px solid var(--nav-line);padding:6px max(10px,env(safe-area-inset-left)) 7px}
 .nav-inner{width:100%;max-width:600px;margin:auto;display:flex;align-items:center;gap:8px}
-#topStatusBar{width:100%;max-width:600px;margin:5px auto 0;padding:5px 7px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;font-size:10px;line-height:1.2;border-radius:7px;background:#292929}
+#topStatusBar{width:100%;max-width:600px;margin:5px auto 0;padding:5px 7px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;font-size:10px;line-height:1.2;border-radius:7px;background:#292929}
 #topStatusBar span{text-align:center;white-space:nowrap;min-width:0}
-#topStatusBar b{font-size:11px}
+#topStatusBar b{font-size:11px}#topStatusBar span{overflow:hidden;text-overflow:clip}#topStatusBar span.hidden{display:none!important}
 #menuDrawer{top:108px}
 .nav-brand{flex:1;min-width:0;text-align:center;font-weight:bold;letter-spacing:1.5px;font-size:15px}
 .nav-icon-btn{min-width:48px;min-height:44px;padding:6px 8px;background:#303030;border:1px solid #484848;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
@@ -239,8 +253,9 @@ input,select{max-width:100%}
     <button class="nav-icon-btn" onclick="openGuildPanel()" aria-label="Open guild"><span>🏰</span><small>GUILD</small></button><button class="nav-icon-btn" onclick="openPartyPanel()" aria-label="Open party"><span>👥</span><small>PARTY</small></button>
   </div>
   <section class="status-bar" id="topStatusBar" aria-label="Survival stats">
-    <span>❤️ <b id="health">100</b></span>
-    <span>⚡ <b id="energy">100</b></span>
+    <span>❤️ HP <b id="health">100</b>/<b id="maxHealthNav">100</b></span>
+    <span>⚡ EN <b id="energy">100</b>/<b id="maxEnergyNav">100</b></span>
+    <span id="manaNav" class="hidden">✨ MP <b id="mana">0</b>/<b id="maxManaNav">0</b></span>
     <span>🍖 <b id="hunger">100</b></span>
     <span>💧 <b id="thirst">100</b></span>
     <span id="period">☀️ Day 1</span>
@@ -425,7 +440,15 @@ input,select{max-width:100%}
 <h2>🛠️ Crafting Workshop</h2>
 <p class="muted">Craft weapons, armor, backpacks, and tools. Water containers are obtained through trade.</p>
 <div class="detail-stat" id="craftingStatus"></div>
-<h3>Crafting Bench</h3><div id="craftingList"></div>
+<div id="craftingTabs" class="crafting-tabs" role="tablist" aria-label="Crafting categories">
+<button class="crafting-tab active" data-craft-tab="weapons" onclick="setCraftingTab('weapons')">⚔️ Weapons</button>
+<button class="crafting-tab" data-craft-tab="armors" onclick="setCraftingTab('armors')">🛡️ Armors</button>
+<button class="crafting-tab" data-craft-tab="tools" onclick="setCraftingTab('tools')">🛠️ Tools</button>
+<button class="crafting-tab" data-craft-tab="transportation" onclick="setCraftingTab('transportation')">🛒 Transport</button>
+<button class="crafting-tab" data-craft-tab="miscellaneous" onclick="setCraftingTab('miscellaneous')">📦 Misc.</button>
+</div>
+<div id="craftingList"></div>
+<h3>♻️ Salvage Unused Equipment</h3><p class="muted">Salvage equipment for raw materials. Raw materials such as cloth, leather, wood, ore, ingots, and scrap metal cannot be disassembled.</p><div id="salvageList"></div>
 <button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
@@ -2770,15 +2793,15 @@ function updateBase(){
     "\n👥 Population limit: "+housingCapacity()+"\n📍 Headquarters: "+b.x+", "+b.y;
   safetyBox.textContent = "City structures share the headquarters tile. Production buildings operate on fully explored terrain tiles.\nRegional safety: "+safe.label+" ("+safe.score+"/100).";
 
-  popBox.textContent = "Residents: "+p.total+" / "+housingCapacity()+
-    "\n🛡️ Guards: "+p.guard+"\n🌾 Farmers: "+p.food+
-    "\n⛏️ Miners: "+p.mining+"\n🎣 Fishermen: "+p.fishing+
-    "\n🪓 Lumberjacks: "+p.wood+"\n🏪 Merchants: "+p.merchant+
-    "\n⚒️ Craftsmen: "+p.craft+"\n🧍 Unassigned: "+p.idle;
+  popBox.innerHTML = '<div class="management-grid">'+[
+    ['👥 Population', [['Residents',p.total+' / '+housingCapacity()],['Unassigned',p.idle]]],
+    ['🛡️ Security & Work', [['Guards',p.guard],['Farmers',p.food],['Miners',p.mining],['Fishermen',p.fishing],['Lumberjacks',p.wood],['Merchants',p.merchant],['Craftsmen',p.craft]]]
+  ].map(([title,rows])=>'<div class="management-card"><h4>'+title+'</h4>'+rows.map(([label,value])=>'<div class="management-metric"><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>').join('')+'</div>';
 
-  stockBox.textContent = "🍎 Food: "+s.fruit+"\n🥩 Meat: "+s.meat+
-    "\n🪵 Wood: "+s.wood+"\n🪨 Stone: "+s.stone+
-    "\n⛏️ Iron Ore: "+s.ironOre+"\n🟠 Copper Ore: "+s.copperOre;
+  stockBox.innerHTML = '<div class="management-grid">'+[
+    ['🍎 Food & Supplies', [['Fruit',s.fruit],['Meat',s.meat]]],
+    ['⛏️ Construction Materials', [['Wood',s.wood],['Stone',s.stone],['Iron Ore',s.ironOre],['Copper Ore',s.copperOre]]]
+  ].map(([title,rows])=>'<div class="management-card"><h4>'+title+'</h4>'+rows.map(([label,value])=>'<div class="management-metric"><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>').join('')+'</div>';
 
   list.innerHTML = "";
   const baseRow = document.createElement("div");
@@ -4567,6 +4590,11 @@ function updateScreen(){
   document.getElementById("energy").textContent=player.energy;
   document.getElementById("hunger").textContent=Math.floor(player.hunger);
   document.getElementById("thirst").textContent=Math.floor(player.thirst);
+  const maxHealthNav=document.getElementById("maxHealthNav"),maxEnergyNav=document.getElementById("maxEnergyNav");
+  if(maxHealthNav)maxHealthNav.textContent=player.maxHealth||100;
+  if(maxEnergyNav)maxEnergyNav.textContent=player.maxEnergy||100;
+  const manaNav=document.getElementById("manaNav");
+  if(manaNav){manaNav.classList.toggle("hidden",!player.manaUnlocked);if(player.manaUnlocked){document.getElementById("mana").textContent=Math.floor(Number(player.mana)||0);document.getElementById("maxManaNav").textContent=Number(player.maxMana)||10;}}
 
   document.getElementById("period").textContent =
     (player.hour>=6 && player.hour<18 ? "☀️ Day " : "🌙 Day ")+player.day;
@@ -4787,19 +4815,49 @@ function recipeCategory(r){
  if(Object.prototype.hasOwnProperty.call(r.req,"scrapMetal"))return "Scrap Metal & Mixed Materials";
  return "Wood & Basic Tools";
 }
+let activeCraftingTab="weapons";
+function setCraftingTab(tab){activeCraftingTab=tab;document.querySelectorAll(".crafting-tab").forEach(b=>b.classList.toggle("active",b.dataset.craftTab===tab));renderCrafting();}
+function craftCategoryFor(id,r){
+ const d=items[id]||{};const slot=d.slot||"";const name=(d.name||r?.label||id).toLowerCase();
+ if(slot==="mainWeapon"||slot==="subWeapon"||/sword|blade|knife|dagger|bow|spear|staff|club|machete|weapon|shield/.test(name))return "weapons";
+ if(["head","torso","arms","pants","boots","backpack"].includes(slot)||/helmet|armor|armour|jacket|gloves|pants|boots|vest|hood|cap|backpack|pack/.test(name))return "armors";
+ if(slot==="tool"||/axe|pickaxe|pick|fishing rod|fishing kit|crowbar|toolset|rod/.test(name))return "tools";
+ if(slot==="transport"||r?.category==="Travel & Transport"||/horse|cart|wagon|carriage|transport/.test(name))return "transportation";
+ return "miscellaneous";
+}
 function renderCrafting(){
  ensureEconomyData();
- const status=document.getElementById("craftingStatus");if(status)status.textContent="Crafting materials in bag · Carry capacity: "+getInventoryWeight().toFixed(1)+" / "+getMaxWeight()+" kg · Discover ingredients to reveal new recipes.";
- const craft=document.getElementById("craftingList");craft.innerHTML="";
- const found=player.collectionFound||(player.collectionFound={});
- (player.inventory||[]).forEach(e=>{found[e.id]=true;});
- const visibleRecipes=craftRecipes.filter(r=>Object.keys(r.req).every(id=>found[id]===true));
- const categories=[...new Set(visibleRecipes.map(recipeCategory))];
- if(!visibleRecipes.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No recipes discovered yet. Gather or scavenge materials to reveal recipes that use them.";craft.appendChild(note);}
- categories.forEach(category=>{
-   const heading=document.createElement("h3");heading.textContent="📂 "+category;craft.appendChild(heading);
-   visibleRecipes.filter(r=>recipeCategory(r)===category).forEach(r=>{const d=items[r.id];if(!d)return;const row=document.createElement("div");row.className="ground-row";const p=document.createElement("button");p.className="item-name item-description-button";p.textContent=d.icon+" "+r.label+" — Tier "+r.tier+" | Needs: "+reqText(r.req);p.onclick=()=>showItemDescription(r.id);const btn=document.createElement("button");btn.dataset.recipeId=r.id;btn.textContent="Craft";const blacksmith=player.characterProfile?.mainProfession==="blacksmith"||player.characterProfile?.subProfession==="blacksmith";btn.disabled=player.dead||!canPayRecipe(r.req)||(r.tier>=2&&!hasBuilding("blacksmith")&&!blacksmith)||(r.tier>=3&&((!hasBuilding("blacksmith")&&!blacksmith)||!hasBuilding("warehouse")));btn.onclick=()=>craftItem(r.id);row.append(p,btn);craft.appendChild(row);});
- });
+ const status=document.getElementById("craftingStatus");if(status)status.textContent="Materials in bag · Carry capacity: "+getInventoryWeight().toFixed(1)+" / "+getMaxWeight()+" kg · Choose a category above. Recipes appear after you discover their ingredients.";
+ const craft=document.getElementById("craftingList");if(!craft)return;craft.innerHTML="";
+ document.querySelectorAll(".crafting-tab").forEach(b=>b.classList.toggle("active",b.dataset.craftTab===activeCraftingTab));
+ const found=player.collectionFound||(player.collectionFound={});(player.inventory||[]).forEach(e=>{found[e.id]=true;});
+ const visibleRecipes=craftRecipes.filter(r=>items[r.id]&&Object.keys(r.req).every(id=>found[id]===true)&&craftCategoryFor(r.id,r)===activeCraftingTab);
+ if(!visibleRecipes.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No discovered recipes in this category yet. Explore, scavenge, or gather ingredients to reveal recipes.";craft.appendChild(note);}
+ visibleRecipes.forEach(r=>{const d=items[r.id];const row=document.createElement("div");row.className="ground-row";const p=document.createElement("button");p.className="item-name item-description-button";p.textContent=d.icon+" "+r.label+" — Tier "+r.tier+" | Needs: "+reqText(r.req);p.onclick=()=>showItemDescription(r.id);const btn=document.createElement("button");btn.dataset.recipeId=r.id;btn.textContent="Craft";const blacksmith=player.characterProfile?.mainProfession==="blacksmith"||player.characterProfile?.subProfession==="blacksmith";btn.disabled=player.dead||!canPayRecipe(r.req)||(r.tier>=2&&!hasBuilding("blacksmith")&&!blacksmith)||(r.tier>=3&&((!hasBuilding("blacksmith")&&!blacksmith)||!hasBuilding("warehouse")));btn.onclick=()=>craftItem(r.id);row.append(p,btn);craft.appendChild(row);});
+ renderSalvageList();
+}
+function salvageYieldFor(id,d){
+ const slot=d.slot||"",name=(d.name||id).toLowerCase(),tier=Math.max(1,Number(d.tier)||1);const out={};
+ const put=(mat,n)=>{if(items[mat]?.type==="material"&&n>0)out[mat]=(out[mat]||0)+n;};
+ if(["head","torso","arms","pants","boots","backpack"].includes(slot)||/jacket|gloves|pants|boots|helmet|vest|hood|cap|backpack|pack/.test(name)){put("cloth",tier>=3?2:tier>=2?2:1);put("leather",tier>=2?1:0);}
+ else if(slot==="transport"||/horse|cart|wagon|carriage/.test(name)){put("wood",tier>=3?4:tier>=2?3:2);put("scrapMetal",tier>=2?2:1);put("leather",1);}
+ else if(slot==="mainWeapon"||slot==="subWeapon"||/sword|blade|knife|dagger|bow|spear|staff|club|machete|shield/.test(name)){put("scrapMetal",tier>=3?3:tier>=2?2:1);put("wood",/bow|staff|spear|club/.test(name)?1:0);put("leather",tier>=2?1:0);}
+ else {put("scrapMetal",tier>=2?2:1);put("cloth",1);}
+ return out;
+}
+function isEquippedItem(id){return Object.values(player.equipment||{}).some(value=>value===id);}
+function renderSalvageList(){
+ const el=document.getElementById("salvageList");if(!el)return;el.innerHTML="";
+ const candidates=(player.inventory||[]).filter(e=>{const d=items[e.id];return d&&d.type!=="material"&&d.type!=="food"&&d.type!=="medicine"&&d.type!=="water"&&d.type!=="container"&&d.type==="equipment"&&!isEquippedItem(e.id);});
+ if(!candidates.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No unequipped salvageable equipment in your bag. Equipped items and raw materials cannot be salvaged.";el.appendChild(note);return;}
+ candidates.forEach(e=>{const d=items[e.id],yieldMap=salvageYieldFor(e.id,d);const row=document.createElement("div");row.className="ground-row salvage-row";const info=document.createElement("div");info.className="salvage-info";info.textContent=(d.icon||"📦")+" "+d.name+" ×"+e.amount+" · Salvage yields: "+Object.entries(yieldMap).map(([mat,n])=>items[mat].name+" ×"+n).join(", ");const btn=document.createElement("button");btn.textContent="Salvage 1";btn.disabled=player.dead;btn.onclick=()=>salvageItem(e.id);row.append(info,btn);el.appendChild(row);});
+}
+function salvageItem(id){
+ const entry=(player.inventory||[]).find(e=>e.id===id),d=items[id];if(!entry||!d||d.type!=="equipment"||isEquippedItem(id)){showMessage("Only unequipped equipment can be salvaged.");return;}
+ const yieldMap=salvageYieldFor(id,d);const inputWeight=Number(d.weight)||0;const outputWeight=Object.entries(yieldMap).reduce((n,[mat,q])=>n+(Number(items[mat]?.weight)||0)*q,0);const currentWeight=getInventoryWeight();
+ if(currentWeight-inputWeight+outputWeight>getMaxWeight()+.000001){showMessage("Not enough free carrying capacity for the salvaged materials. Make room first.");return;}
+ if(!removeItems(id,1))return;Object.entries(yieldMap).forEach(([mat,q])=>{const existing=player.inventory.find(e=>e.id===mat);if(existing)existing.amount+=q;else player.inventory.push({id:mat,amount:q});if(!player.collectionFound)player.collectionFound={};player.collectionFound[mat]=true;});
+ saveGame();updateScreen();renderCrafting();showMessage("Salvaged "+d.name+" into "+Object.entries(yieldMap).map(([mat,q])=>items[mat].name+" ×"+q).join(", ")+". Raw materials cannot be salvaged further.");
 }
 function renderWaterContainers(){
  const wc=document.getElementById("waterContainerList");if(!wc)return;wc.innerHTML="";
