@@ -101,6 +101,7 @@ input,select{max-width:100%}
 .profile-modal input:disabled{opacity:.5}
 .profile-modal h3{margin-top:22px}
 .profile-note{font-size:12px;color:#aaa;line-height:1.5}
+.profile-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0 14px}.profile-tab-button{padding:10px 5px;background:#303030;border:1px solid #555;font-size:12px}.profile-tab-button.active{background:#477c55;border-color:#8fc79a}.profile-tab-content{min-width:0}
 .visibility-option{display:flex;align-items:center;gap:10px;margin:8px 0;padding:10px;background:#252525;border-radius:6px;font-size:13px}
 .visibility-option input{width:18px;height:18px;flex-shrink:0}
 .battle-card{background:#202020;border:1px solid #555;border-radius:10px;padding:12px;margin:10px 0}
@@ -295,6 +296,12 @@ input,select{max-width:100%}
 <section class="panel hidden" id="characterPanel">
 <h2>👤 Character Profile</h2>
 <div class="profile-card">
+  <div class="profile-tabs" role="tablist" aria-label="Character profile sections">
+    <button class="profile-tab-button active" id="profileTabButtonInfo" role="tab" aria-selected="true" onclick="switchProfileTab('info')">👤 Profile</button>
+    <button class="profile-tab-button" id="profileTabButtonStats" role="tab" aria-selected="false" onclick="switchProfileTab('stats')">⭐ Stats</button>
+    <button class="profile-tab-button" id="profileTabButtonEquipment" role="tab" aria-selected="false" onclick="switchProfileTab('equipment')">🧍 Equipment</button>
+  </div>
+  <div id="profileTabInfo" class="profile-tab-content">
   <div class="profile-info-grid">
     <div class="profile-field"><strong>Character Name</strong><div id="profileName">Unnamed</div></div>
     <div class="profile-field"><strong>Alias · Age</strong><div><span id="profileAlias">None</span> · <span id="profileAge">16</span></div></div>
@@ -307,11 +314,15 @@ input,select{max-width:100%}
     <div class="profile-field"><strong>Combat Statistics</strong><div id="profileCombatStats">Attack 5 · Defense 0 · Speed 5</div></div>
     <div class="profile-field"><strong>Profession Bonuses</strong><div id="profileProfessionBonus">Survivalist: balanced general skills</div></div>
   </div>
+  </div>
+  <div id="profileTabStats" class="profile-tab-content hidden">
   <h3>⭐ Character Progression</h3>
   <div class="detail-stat" id="characterLevelSummary">Level 1 · 0 / 100 XP · 0 stat points</div>
   <p class="profile-note">Each level grants 3 stat points. Tap a stat to read what it does; use + to spend points.</p>
   <div id="characterAttributes" class="attribute-grid"></div>
   <div id="manaProgression" class="profile-field hidden"></div>
+  </div>
+  <div id="profileTabEquipment" class="profile-tab-content hidden">
   <h3>🧍 Equipment & Appearance</h3>
   <p class="profile-note">Tap any equipment slot to inspect its stats and description, equip an item from your bag, or unequip what you are wearing.</p>
   <div class="character-showcase">
@@ -340,6 +351,7 @@ input,select{max-width:100%}
       <button class="gear-slot" onclick="inspectEquipmentSlot('fishingRod')" id="gearFishingRod"><span class="gear-icon">🎣</span>Fishing rod</button>
       <button class="gear-slot" onclick="inspectEquipmentSlot('transport')" id="gearTransport"><span class="gear-icon">🧭</span>Travel method</button>
     </div>
+  </div>
   </div>
   <button class="profile-button" onclick="openProfileEditor()">✎ Edit Profile</button>
 </div>
@@ -731,6 +743,7 @@ let tileData = {};
 let selectedLocation = {x:0,y:0};
 let mapViewX = null, mapViewY = null;
 let messageHideTimer = null;
+let narrationAutoHideTimer = null;
 let travelTarget = null;
 let travelEstimate = null;
 let travelStopRequested = false;
@@ -1260,6 +1273,17 @@ function inspectEquipmentSlot(slot){
   document.getElementById("equipmentInspectOverlay").style.display="flex";
 }
 
+function switchProfileTab(tab){
+  const valid=["info","stats","equipment"];
+  if(!valid.includes(tab))tab="info";
+  valid.forEach(key=>{
+    const panel=document.getElementById("profileTab"+key.charAt(0).toUpperCase()+key.slice(1));
+    const button=document.getElementById("profileTabButton"+key.charAt(0).toUpperCase()+key.slice(1));
+    if(panel)panel.classList.toggle("hidden",key!==tab);
+    if(button){button.classList.toggle("active",key===tab);button.setAttribute("aria-selected",key===tab?"true":"false");}
+  });
+}
+
 function updateCharacter(){
   ensureCharacterProfile();
   const p = player.characterProfile;
@@ -1489,7 +1513,19 @@ function showMessage(text){
   messageHideTimer=setTimeout(()=>{el.classList.remove("show");},3200);
 }
 
+function scheduleNarrationAutoHide(delay=3800){
+  if(narrationAutoHideTimer)clearTimeout(narrationAutoHideTimer);
+  const popup=document.getElementById("narrationPopup");
+  const continueButton=document.getElementById("popupContinue");
+  if(continueButton)continueButton.classList.add("hidden");
+  narrationAutoHideTimer=setTimeout(()=>{
+    if(popup&&popup.style.display==="flex")popup.style.display="none";
+    if(continueButton)continueButton.classList.remove("hidden");
+    narrationAutoHideTimer=null;
+  },delay);
+}
 function showNarration(title,text){
+  if(narrationAutoHideTimer){clearTimeout(narrationAutoHideTimer);narrationAutoHideTimer=null;}
   document.getElementById("shelterOptions")?.classList.add("hidden");
   travelTarget = null;
   travelEstimate = null;
@@ -1501,6 +1537,8 @@ function showNarration(title,text){
   document.getElementById("popupContinue").classList.remove("hidden");
   document.getElementById("popupRestart").classList.add("hidden");
   document.getElementById("narrationPopup").style.display = "flex";
+  // Informational success popups disappear automatically; choices and warnings remain until dismissed.
+  if(/journey complete|travel success|hostile encounter|hostile|you rest|rest complete|rested|negotiation success|negotiated|cooking complete|construction complete|shelter built|bonfire built|mana discovered|equipment found|old-world equipment found|crafting complete|production building upgraded/i.test(String(title)))scheduleNarrationAutoHide();
 }
 
 function showDeathScreen(){
@@ -1595,6 +1633,8 @@ function retireAtShelter(){
 }
 
 function closeNarration(){
+  if(narrationAutoHideTimer){clearTimeout(narrationAutoHideTimer);narrationAutoHideTimer=null;}
+  document.getElementById("popupContinue")?.classList.remove("hidden");
   if(player.dead){showDeathScreen();return;}
   document.getElementById("narrationPopup").style.display = "none";
   document.getElementById("popupStopTravel")?.classList.add("hidden");
@@ -2975,6 +3015,7 @@ async function confirmTravel(){
     showMessage("Travel ended at "+player.x+", "+player.y+".");
   }
   document.getElementById("popupConfirm").classList.add("hidden");document.getElementById("popupCancel").classList.add("hidden");
+  if(!player.dead){scheduleNarrationAutoHide(4200);}
 }
 /* =========================
    EXPLORATION AND ACTIONS
