@@ -419,7 +419,7 @@ input,select{max-width:100%}
 
 <section class="panel hidden" id="tradePanel">
 <h2>🏪 Trade & Settlement Economy</h2>
-<p class="muted">Manage warehouse supplies, buy food and water, restock the store, and operate your plaza stall.</p>
+<p class="muted">Manage player trades, warehouse supplies, water containers, and your plaza stall. General Store services are accessed by clicking the completed building in your settlement.</p>
 <div class="detail-stat" id="economyStatus"></div>
 <h3>💰 Wallet</h3><div id="walletDisplay" class="detail-stat">Copper: 0 · Silver: 0 · Gold: 0</div><h3>💎 Spirit Stones</h3><div id="spiritStoneDisplay" class="detail-stat">Low: 0 · Medium: 0 · High: 0 · Supreme: 0</div><div class="action-grid"><button onclick="useSpiritStone('low','recover')">Eat Low Stone · Recover</button><button onclick="useSpiritStone('low','xp')">Absorb Low Stone · XP</button><button onclick="useSpiritStone('medium','recover')">Eat Medium Stone</button><button onclick="useSpiritStone('medium','xp')">Absorb Medium Stone</button><button onclick="useSpiritStone('high','recover')">Eat High Stone</button><button onclick="useSpiritStone('high','xp')">Absorb High Stone</button><button onclick="useSpiritStone('supreme','recover')">Eat Supreme Stone</button><button onclick="useSpiritStone('supreme','xp')">Absorb Supreme Stone</button></div><p class="muted">100 copper = 1 silver; 100 silver = 1 gold. Spirit stones are premium materials for upgrades, alchemy, training, recovery and experience absorption.</p><h3>🤝 Player Trading</h3><p class="muted">Coin values in trade fields are entered as copper: 100 copper = 1 silver; 100 silver = 1 gold. Offers display all three denominations. Both players must review and confirm the final offer before it completes.</p>
 <label for="mpTradeTarget">Online player</label><select id="mpTradeTarget" style="width:100%;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px;margin:6px 0"><option value="">No other players online</option></select>
@@ -429,8 +429,7 @@ input,select{max-width:100%}
 <h3>⚖️ Reputation & Morality</h3><div class="detail-stat" id="reputationStatus"></div><p class="muted">Reputation below -10 is Evil, above +10 is Good, and -10 through +10 is Neutral. Your reputation affects NPC prices and reactions.</p>
 <h3>🧑‍🌾 Racial Town NPC Trader</h3><p class="muted">Explore a hidden racial town or village to 100%, then stand on its tile to trade with its local NPC merchant.</p><div id="npcTraderUI"></div>
 <h3>📦 Base Warehouse</h3><p class="muted">Deposit and withdraw supplies. NPC storekeepers restock from warehouse stock.</p><div id="warehouseUI"></div>
-<h3>🏪 Basic Store</h3><div id="storeUI"></div>
-<h3>💧 Water Containers</h3><p class="muted">Buy bottles, canteens, and water jugs from the store. Fill them at rivers or lakes, then drink stored water while traveling.</p><div id="waterContainerList"></div><div class="action-grid"><button onclick="fillWaterContainers()">💧 Fill containers at river/lake</button><button onclick="drinkStoredWater()">🥤 Drink stored water</button></div>
+<h3>💧 Water Containers</h3><p class="muted">Buy bottles, canteens, and water jugs from a completed General Store. Fill them at rivers or lakes, then drink stored water while traveling.</p><div id="waterContainerList"></div><div class="action-grid"><button onclick="fillWaterContainers()">💧 Fill containers at river/lake</button><button onclick="drinkStoredWater()">🥤 Drink stored water</button></div>
 <h3>⛲ Plaza Stall</h3><p class="muted">Build a Plaza to open your local stall. Trading with other real players requires an online multiplayer server.</p><div id="stallUI"></div>
 </section>
 
@@ -1015,11 +1014,15 @@ function wildlifeEncounter(terrain){
 }
 function livestockSummary(){ensureLivestock();return player.livestock.length?player.livestock.map(a=>a.icon+" "+a.name+(a.gender?" ("+a.gender+")":"")).join("\n"):"No animals captured yet.";}
 function breedLivestock(){
- ensureLivestock();const counts={};player.livestock.forEach(a=>counts[a.id]=(counts[a.id]||0)+1);
- const id=Object.keys(counts).find(k=>counts[k]>=2);
- if(!id)return "You need two animals of the same species to breed them.";
- const parent=player.livestock.find(a=>a.id===id);const baby={...parent,name:"Young "+parent.name.replace(/^Wild /,""),gender:Math.random()<.5?"female":"male",age:0};
- player.livestock.push(baby);return "A new "+baby.name+" was born! Your "+parent.id+" herd now has "+counts[id]+" adults plus a young animal.";
+ ensureLivestock();
+ if(!hasBuilding("livestockPen")||!baseAtHome())return "Return to your settlement and use a completed Livestock Pen to breed animals.";
+ if(player.livestock.length>=30)return "The Livestock Pen is full (30 animals).";
+ const pair=player.livestock.find(a=>a.fed&&player.livestock.some(b=>b!==a&&b.id===a.id&&b.fed&&b.gender&&a.gender&&b.gender!==a.gender));
+ if(!pair)return "You need two fed animals of the same species with different genders. Feed both animals first.";
+ const other=player.livestock.find(b=>b!==pair&&b.id===pair.id&&b.fed&&b.gender!==pair.gender);
+ pair.fed=false;other.fed=false;
+ const baby={...pair,name:"Young "+pair.name.replace(/^Wild /,""),gender:Math.random()<.5?"female":"male",age:0,fed:false};
+ player.livestock.push(baby);return "A new "+baby.name+" was born! Both parents need feeding again before breeding. Your herd now has "+player.livestock.filter(a=>a.id===pair.id).length+" of this species.";
 }
 
 const travelDifficulty = {
@@ -1055,7 +1058,8 @@ const buildingTypes = {
   blacksmith:{name:"Blacksmith",icon:"⚒️",category:"city",terrain:null,wood:6,stone:8,ironOre:2,description:"A settlement service."},
   generalStore:{name:"General Store",icon:"🏪",category:"city",terrain:null,wood:8,stone:4,ironOre:0,description:"A settlement service."},
   bank:{name:"Bank",icon:"🏦",category:"city",terrain:null,wood:8,stone:10,ironOre:3,description:"A settlement service."},
-  stable:{name:"Stable",icon:"🐎",category:"city",terrain:null,wood:10,stone:4,ironOre:0,description:"A settlement service."},
+  stable:{name:"Stable",icon:"🐎",category:"city",terrain:null,wood:10,stone:4,ironOre:0,description:"A settlement service for mounts and transport."},
+  livestockPen:{name:"Livestock Pen",icon:"🐄",category:"city",terrain:null,wood:10,stone:5,ironOre:0,description:"Keeps captured wildlife and livestock. Feed, breed, and butcher animals here."},
   plaza:{name:"Plaza",icon:"⛲",category:"city",terrain:null,wood:5,stone:8,ironOre:0,housing:1,description:"A public gathering place."},
   warehouse:{name:"Warehouse",icon:"📦",category:"city",terrain:null,wood:8,stone:5,ironOre:0,description:"Stores settlement supplies and organizes stock."},
   residence:{name:"Residence",icon:"🏠",category:"city",terrain:null,wood:6,stone:3,ironOre:0,housing:4,description:"Provides housing for four additional residents."},
@@ -1942,7 +1946,7 @@ function showItemDescription(id){
 function getMaxWeight(){
   const pack=equippedItem("backpack");
   const transport=equippedItem("transport");
-  return MAX_WEIGHT+(pack&&pack.capacity?pack.capacity:0)+(transport&&transport.carryCapacity?transport.carryCapacity:0);
+  return MAX_WEIGHT+Math.max(0,(Number(player.attributes?.strength)||1)-1)*0.25+(pack&&pack.capacity?pack.capacity:0)+(transport&&transport.carryCapacity?transport.carryCapacity:0);
 }
 function getInventoryWeight(){
   return player.inventory.reduce((n,e)=>
@@ -2744,7 +2748,10 @@ function updateBase(){
   b.buildings.forEach((item,index)=>{
     const def=buildingTypes[item.type];if(!def)return;
     const row=document.createElement("div");row.className="detail-stat";
-    ensureBuildingDurability(item);row.textContent=def.icon+" "+def.name+" — "+item.x+", "+item.y+(item.completed?" — Complete":" — Construction "+projectProgress(item,def)+"% (materials still needed)")+" · HP "+item.health+"/"+item.maxHealth+" · DEF "+item.defense;
+    ensureBuildingDurability(item);
+    if(item.completed){
+      const open=document.createElement("button");open.className="build-button full-button";open.style.textAlign="left";open.innerHTML="<strong>"+def.icon+" "+def.name+" — COMPLETE</strong><small>📍 "+item.x+", "+item.y+" · HP "+item.health+"/"+item.maxHealth+" · DEF "+item.defense+"</small><small>Tap to open building services</small>";open.onclick=()=>openBuildingService(index);row.appendChild(open);
+    }else row.textContent=def.icon+" "+def.name+" — "+item.x+", "+item.y+" — Construction "+projectProgress(item,def)+"% (materials still needed) · HP "+item.health+"/"+item.maxHealth+" · DEF "+item.defense;
     list.appendChild(row);
     if(item.completed&&def.category==="production"){
       item.storage=item.storage||{};
@@ -3125,6 +3132,7 @@ async function performLocationAction(action){
       break;
 
     case "captureWildlife": {
+      if(!hasBuilding("livestockPen")){result="You need a completed Livestock Pen in your settlement before you can safely keep captured animals.";break;}
       const animal=wildlifeEncounter(terrain);
       if(!animal){result="You spot tracks and distant movement, but the animals are too wary to approach. Try another tile or return later.";break;}
       // A modest capture chance keeps livestock valuable without making the action feel futile.
@@ -3555,6 +3563,11 @@ function openLocation(x,y){
 
   const container = document.getElementById("locationActions");
   container.innerHTML = "";
+  if(isHere&&building&&building.completed){
+    const serviceBtn=document.createElement("button");serviceBtn.style.gridColumn="1 / -1";serviceBtn.className="build-button";
+    serviceBtn.innerHTML="<strong>"+buildingTypes[building.type].icon+" Open "+buildingTypes[building.type].name+"</strong><small>Use this completed building's services</small>";
+    serviceBtn.onclick=()=>{const i=player.base?.buildings?.findIndex(v=>v===building);if(i>=0)openBuildingService(i);};container.appendChild(serviceBtn);
+  }
   if(isHere&&town){
     const enterBtn=document.createElement("button");enterBtn.style.gridColumn="1 / -1";enterBtn.className="build-button";
     enterBtn.innerHTML="<strong>🏘️ Approach / Enter Settlement</strong><small>Access depends on race, familiarity, and faction standing</small>";
@@ -4767,7 +4780,7 @@ function tradeWithNPC(id,mode,faction){if(!items[id])return;const price=npcTrade
 function renderTrade(){
  ensureEconomyData();
  const status=document.getElementById("economyStatus");if(status)status.textContent="Coins: "+(player.coins||0)+" · Base: "+(player.base?"established":"not established")+" · Location: "+(baseAtHome()?"at base":"away from base");renderNPCTrader();
- renderWarehouse();renderStore();renderStall();renderWaterContainers();
+ renderWarehouse();renderStall();renderWaterContainers();
 }
 function renderEconomy(){renderCrafting();renderTrade();}
 async function fillWaterContainers(){
@@ -4781,7 +4794,7 @@ function drinkStoredWater(){ensureEconomyData();let id=["waterskin","canteen","w
 function renderWarehouse(){const el=document.getElementById("warehouseUI");el.innerHTML="";if(!player.base){el.textContent="Establish a base first.";return;}if(!hasBuilding("warehouse")){el.textContent="Build and complete a Warehouse first.";return;}if(!baseAtHome()){el.textContent="Return to your base to access the warehouse.";return;}const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(player.base.warehouse)])];ids.forEach(id=>{if(!items[id])return;const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[id].icon+" "+items[id].name+" · Bag "+getItemCount(id)+" · Stored "+(player.base.warehouse[id]||0);const dep=document.createElement("button");dep.textContent="Deposit 1";dep.disabled=!getItemCount(id);dep.onclick=()=>warehouseMove(id,1,true);const wit=document.createElement("button");wit.textContent="Withdraw 1";wit.disabled=!(player.base.warehouse[id]>0);wit.onclick=()=>warehouseMove(id,1,false);row.append(label,dep,wit);el.appendChild(row);});}
 function warehouseMove(id,n,deposit){ensureEconomyData();if(!baseAtHome()||!hasBuilding("warehouse"))return;if(deposit){if(!removeItems(id,n))return;player.base.warehouse[id]=(player.base.warehouse[id]||0)+n;}else{if((player.base.warehouse[id]||0)<n||!addItem(id,n))return;player.base.warehouse[id]-=n;}saveGame();updateScreen();renderEconomy();}
 function restockStore(){if(!buildingService("generalStore")||!hasBuilding("warehouse")){showMessage("At home, a completed General Store and Warehouse are required.");return;}const stock=player.base.storeStock,wh=player.base.warehouse;let moved=0;["fruit","cookedMeat","bottle","canteen","waterJug","waterskin"].forEach(id=>{const target=id==="fruit"?12:5;const need=Math.max(0,target-(stock[id]||0));const take=Math.min(need,wh[id]||0);if(take){wh[id]-=take;stock[id]=(stock[id]||0)+take;moved+=take;}});if(moved){saveGame();renderEconomy();showMessage("NPC storekeepers restocked "+moved+" items from the warehouse.");}else showMessage("Warehouse has no supplies needed by the store.");}
-function renderStore(){const el=document.getElementById("storeUI");el.innerHTML="";if(!player.base||!hasBuilding("generalStore")){el.textContent="Build and complete a General Store at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to use the store.";return;}const stock=player.base.storeStock||{};Object.keys(tradePrices).forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id]?.icon||"")+" "+items[id].name+" · Stock "+(stock[id]||0)+" · "+tradePrices[id]+" coins";const buy=document.createElement("button");buy.textContent="Buy 1";buy.disabled=(stock[id]||0)<1||(player.coins||0)<tradePrices[id];buy.onclick=()=>buyStoreItem(id);const sell=document.createElement("button");sell.textContent="Sell 1";sell.disabled=!getItemCount(id);sell.onclick=()=>sellStoreItem(id);row.append(label,buy,sell);el.appendChild(row);});const restock=document.createElement("button");restock.className="full-button";restock.textContent="📦 NPC Restock from Warehouse";restock.disabled=!hasBuilding("warehouse");restock.onclick=restockStore;el.appendChild(restock);}
+function renderStore(){const el=document.getElementById("storeUI");if(!el)return;el.innerHTML="";if(!player.base||!hasBuilding("generalStore")){el.textContent="Build and complete a General Store at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to use the store.";return;}const stock=player.base.storeStock||{};Object.keys(tradePrices).forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id]?.icon||"")+" "+items[id].name+" · Stock "+(stock[id]||0)+" · "+tradePrices[id]+" coins";const buy=document.createElement("button");buy.textContent="Buy 1";buy.disabled=(stock[id]||0)<1||(player.coins||0)<tradePrices[id];buy.onclick=()=>buyStoreItem(id);const sell=document.createElement("button");sell.textContent="Sell 1";sell.disabled=!getItemCount(id);sell.onclick=()=>sellStoreItem(id);row.append(label,buy,sell);el.appendChild(row);});const restock=document.createElement("button");restock.className="full-button";restock.textContent="📦 NPC Restock from Warehouse";restock.disabled=!hasBuilding("warehouse");restock.onclick=restockStore;el.appendChild(restock);}
 function buyStoreItem(id){const b=player.base,price=Math.max(1,Math.round((tradePrices[id]||999)*(player.characterProfile?.mainProfession==="trader" ? 0.9 : 1)*(1-(Number(player.reputation)||0)*.001)));if(!b||!baseAtHome()||!hasBuilding("generalStore")||(b.storeStock[id]||0)<1||(player.coins||0)<price)return;if(!addItem(id,1))return;b.storeStock[id]--;player.coins-=price;saveGame();renderEconomy();showMessage("Bought "+items[id].name+".");}
 function sellStoreItem(id){const b=player.base,price=Math.max(1,Math.floor((tradePrices[id]||2)*.5*(player.characterProfile?.mainProfession==="trader"?1.2:1)*(1+(Number(player.reputation)||0)*.001)));if(!b||!baseAtHome()||!hasBuilding("generalStore")||!removeItems(id,1))return;b.storeStock[id]=(b.storeStock[id]||0)+1;player.coins=(player.coins||0)+price;saveGame();renderEconomy();showMessage("Sold "+items[id].name+" for "+price+" coins.");}
 function renderStall(){const el=document.getElementById("stallUI");el.innerHTML="";if(!player.base||!hasBuilding("plaza")){el.textContent="Build and complete a Plaza at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to manage your stall.";return;}const p=player.base.stall||(player.base.stall={open:false,items:{}});const toggle=document.createElement("button");toggle.textContent=p.open?"Close Stall":"Open Stall";toggle.onclick=()=>{p.open=!p.open;saveGame();renderEconomy();};el.appendChild(toggle);const note=document.createElement("p");note.className="muted";note.textContent=p.open?"Your stall is open in the plaza. Add inventory below to list items for sale. NPC shoppers can purchase listed stock.":"Your stall is closed.";el.appendChild(note);if(p.open){const customer=document.createElement("button");customer.className="full-button";customer.textContent="🧑‍🤝‍🧑 Invite NPC Customer to Buy";customer.disabled=!Object.values(p.items||{}).some(n=>n>0);customer.onclick=npcBuyFromStall;el.appendChild(customer);}player.inventory.forEach(e=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[e.id].name+" x"+e.amount;const btn=document.createElement("button");btn.textContent="List 1";btn.disabled=!p.open;btn.onclick=()=>{if(removeItems(e.id,1)){p.items[e.id]=(p.items[e.id]||0)+1;saveGame();renderEconomy();}};row.append(label,btn);el.appendChild(row);});Object.entries(p.items).forEach(([id,n])=>{const row=document.createElement("div");row.className="ground-row";row.textContent="For sale: "+(items[id]?.name||id)+" x"+n;el.appendChild(row);});}
@@ -4848,5 +4861,59 @@ if(loaded){
 // Refresh level-gated channel visibility once the game UI has been parsed.
 document.addEventListener("DOMContentLoaded",()=>{refreshQuickChatAccess();});
 </script>
+
+<div id="buildingServiceModal" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.88);overflow:auto;padding:16px">
+ <div style="max-width:600px;margin:20px auto;background:#1b1b1b;border:1px solid #555;border-radius:12px;padding:16px;color:#eee">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2 id="buildingServiceTitle" style="margin:0">Building</h2><button onclick="closeBuildingService()">✖ Close</button></div>
+  <p id="buildingServiceDescription" class="muted"></p><div id="buildingServiceContent"></div>
+ </div>
+</div>
+<script>
+let activeServiceBuildingIndex=-1;
+function closeBuildingService(){const m=document.getElementById('buildingServiceModal');if(m)m.style.display='none';}
+function serviceButton(label,fn,disabled=false){const b=document.createElement('button');b.className='full-button';b.textContent=label;b.disabled=disabled;b.style.margin='6px 0';b.onclick=fn;return b;}
+function openBuildingService(index){
+ if(!player.base)return;const b=player.base.buildings[index];if(!b||!b.completed)return;const def=buildingTypes[b.type];if(!def)return;
+ activeServiceBuildingIndex=index;const modal=document.getElementById('buildingServiceModal'),title=document.getElementById('buildingServiceTitle'),desc=document.getElementById('buildingServiceDescription'),content=document.getElementById('buildingServiceContent');
+ title.textContent=def.icon+' '+def.name;desc.textContent=def.description+' · '+(baseAtHome()?'You are at the settlement.':'You are away from the settlement; return to the headquarters to use most services.');content.innerHTML='';
+ const addNote=t=>{const p=document.createElement('p');p.className='detail-stat';p.textContent=t;content.appendChild(p);};
+ const requireHome=()=>{if(!baseAtHome()){showMessage('Return to your settlement headquarters to use this service.');return false;}return true;};
+ if(b.type==='generalStore'){
+   if(!requireHome()){addNote('Return to your settlement headquarters to access store stock.');}
+   else {const stock=player.base.storeStock||{};Object.keys(tradePrices).filter(id=>items[id]).forEach(id=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(items[id].icon||'📦')+' '+items[id].name+' · Stock '+(stock[id]||0)+' · '+tradePrices[id]+' coins';const buy=serviceButton('Buy 1',()=>{buyStoreItem(id);openBuildingService(index);},(stock[id]||0)<1||(player.coins||0)<tradePrices[id]);buy.className='';const sell=serviceButton('Sell 1',()=>{sellStoreItem(id);openBuildingService(index);},!getItemCount(id));sell.className='';row.append(label,buy,sell);content.appendChild(row);});content.appendChild(serviceButton('📦 Restock from Warehouse',()=>{restockStore();openBuildingService(index);},!hasBuilding('warehouse')));}
+ }else if(b.type==='livestockPen'){
+   ensureLivestock();addNote('Animals in pen: '+player.livestock.length+'/30. Feed animals to keep them healthy; two of the same species can produce offspring. Butchering permanently removes one animal.');
+   const counts={};player.livestock.forEach(a=>counts[a.id]=(counts[a.id]||0)+1);
+   if(!player.livestock.length)addNote('The pen is empty. Use “Capture Wildlife” while exploring to bring animals here.');
+   player.livestock.forEach((a,i)=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(a.icon||'🐾')+' '+a.name+' · '+(a.gender||'unknown')+' · '+(a.fed?'Fed':'Needs feeding');const feed=serviceButton('Feed (1 fruit/meat)',()=>feedLivestock(i),!getItemCount('fruit')&&!getItemCount('meat'));feed.className='';const butcher=serviceButton('Butcher',()=>butcherLivestock(i),false);butcher.className='';row.append(label,feed,butcher);content.appendChild(row);});
+   content.appendChild(serviceButton('🐣 Breed Animals',()=>{if(!requireHome())return;ensureLivestock();const counts={};player.livestock.forEach(a=>counts[a.id]=(counts[a.id]||0)+1);const id=Object.keys(counts).find(k=>counts[k]>=2);if(!id){showMessage('You need two animals of the same species to breed.');return;}if(player.livestock.length>=30){showMessage('The pen is full (30 animals).');return;}const r=breedLivestock();saveGame();updateScreen();showMessage(r);openBuildingService(index);},player.livestock.length>=30||!Object.values(counts).some(n=>n>=2)));
+ }else if(b.type==='inn'){
+   addNote('Rest at the inn for improved recovery.');content.appendChild(serviceButton('🛏️ Rest at Inn (8 hours)',()=>{if(!requireHome())return;closeBuildingService();restAtInn();},false));
+ }else if(b.type==='clinic'){
+   addNote('Medical services restore health.');content.appendChild(serviceButton('🩺 Treatment (10 coins)',()=>{if(!requireHome())return;if((player.coins||0)<10){showMessage('You need 10 coins.');return;}player.coins-=10;player.health=Math.min(player.maxHealth,player.health+40);saveGame();updateScreen();showMessage('Clinic treatment restored up to 40 health.');openBuildingService(index);},(player.coins||0)<10||player.health>=player.maxHealth));
+ }else if(b.type==='warehouse'){
+   addNote('Settlement warehouse: '+Object.entries(player.base.warehouse||{}).filter(([id,n])=>n>0).map(([id,n])=>(items[id]?.name||id)+' x'+n).join(', ')||'No stored goods yet.');content.appendChild(serviceButton('Open Warehouse Inventory',()=>{closeBuildingService();hideScreens();document.getElementById('tradePanel')?.classList.remove('hidden');renderTrade();},false));
+ }else if(b.type==='blacksmith'){
+   addNote('Craft weapons, armor, and tools using your available recipes.');content.appendChild(serviceButton('⚒️ Open Crafting',()=>{closeBuildingService();hideScreens();document.getElementById('craftingPanel')?.classList.remove('hidden');renderCrafting();},false));
+ }else if(b.type==='stable'){
+   addNote('Manage mounts and transport.');content.appendChild(serviceButton('🐎 Open Trade for Mount Supplies',()=>{closeBuildingService();hideScreens();document.getElementById('tradePanel')?.classList.remove('hidden');renderTrade();},false));
+ }else if(b.type==='bank'){
+   addNote('Wallet balance: '+(player.coins||0)+' coins. Bank services are available here.');
+ }else if(b.type==='guardBarracks'){
+   addNote('Guard Barracks improve settlement safety. Current regional safety: '+calculateSafety().label+' ('+calculateSafety().score+'/100).');
+ }else if(b.type==='plaza'){
+   addNote('Operate your public stall from the plaza interface.');content.appendChild(serviceButton('⛲ Open Plaza Stall',()=>{closeBuildingService();hideScreens();document.getElementById('tradePanel')?.classList.remove('hidden');renderTrade();},false));
+ }else if(b.type==='farm'||b.type==='mine'||b.type==='fishpond'||b.type==='lumberCamp'){
+   addNote(productionOutputText(b));content.appendChild(serviceButton('📦 Collect Production',()=>{collectBuildingOutput(index);openBuildingService(index);},!Object.values(b.storage||{}).some(v=>Number(v)>0)));content.appendChild(serviceButton('⬆️ Upgrade Production Building',()=>{upgradeProductionBuilding(index);openBuildingService(index);},!atBase()||b.level>=5));
+ }else if(b.type==='residence')addNote('Housing capacity increased by '+(def.housing||0)+'. Residents: '+player.base.population.total+'.');
+ else if(b.type==='adventurersGuild')addNote('The guild is an expedition hub. Party and mission systems are accessible from the main menu.');
+ else addNote('This building is complete and provides its settlement service.');
+ modal.style.display='block';
+}
+function feedLivestock(index){if(!baseAtHome()||!hasBuilding('livestockPen')){showMessage('Return to the settlement and use the Livestock Pen.');return;}ensureLivestock();const a=player.livestock[index];if(!a)return;const food=getItemCount('fruit')>0?'fruit':getItemCount('meat')>0?'meat':null;if(!food){showMessage('You need fruit or meat to feed an animal.');return;}removeItems(food,1);a.fed=true;a.fedDay=player.day;saveGame();updateScreen();openBuildingService(activeServiceBuildingIndex);showMessage(a.name+' has been fed.');}
+function butcherLivestock(index){if(!baseAtHome()||!hasBuilding('livestockPen')){showMessage('Return to the settlement and use the Livestock Pen.');return;}ensureLivestock();const a=player.livestock[index];if(!a)return;if(!confirm('Butcher '+a.name+'? This permanently removes the animal.'))return;player.livestock.splice(index,1);const meat=a.id==='chicken'||a.id==='duck'?1:2;addItem('meat',meat);if(a.id==='cow'||a.id==='goat')addItem('leather',1);if(a.id==='chicken'||a.id==='duck')addItem('feather',1);saveGame();updateScreen();openBuildingService(activeServiceBuildingIndex);showMessage('Butchered '+a.name+'. Received meat x'+meat+((a.id==='cow'||a.id==='goat')?' and leather x1':((a.id==='chicken'||a.id==='duck')?' and feathers x1':'.')));}
+function restAtInn(){if(!hasBuilding('inn')||!baseAtHome())return;if(player.energy>=player.maxEnergy&&player.health>=player.maxHealth){showMessage('You are already well rested.');return;}player.energy=Math.min(player.maxEnergy,player.energy+60);player.health=Math.min(player.maxHealth,player.health+15);advanceTime(8,'Resting at the inn','🛏️').then(()=>{saveGame();updateScreen();showMessage('Inn rest complete. Energy and health restored.');});}
+</script>
+
 </body>
 </html>
