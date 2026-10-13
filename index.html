@@ -3344,10 +3344,9 @@ function beginTravel(x,y){
   const info = terrainInfo[generateTerrain(x,y)];
   document.getElementById("popupTitle").textContent = "Travel to "+(known?info.name:"Unidentified Tile");
   document.getElementById("popupText").textContent =
-    "Destination: "+(known?info.name:"Unidentified tile")+"\nCoordinates: "+x+", "+y+
-    "\nDistance: "+est.distance+" tile(s)\nEstimated time: "+est.hours+
+    "Distance: "+est.distance+" tile(s)\nEstimated time: "+est.hours+
     " hour(s)\nEnergy cost: "+est.energy+
-    "\n\nHunger and thirst decrease during travel. You can stop at any tile, and the journey will stop automatically if you become too exhausted.\n\nDo you want to travel?";
+    "\n\nDo you want to travel?";
 
   document.getElementById("popupConfirm").classList.remove("hidden");
   document.getElementById("popupCancel").classList.remove("hidden");
@@ -3422,7 +3421,8 @@ async function confirmTravel(){
     if(encounter==="INJURY"){player.health=Math.max(0,player.health-5);if(player.health<=0)player.dead=true;showMessage("The journey leaves you injured (-5 health).");updateScreen();saveGame();}
     openLocation(dest.x,dest.y);
     document.getElementById("popupTitle").textContent="Journey Complete";
-    document.getElementById("popupText").textContent="You arrived at "+dest.x+", "+dest.y+" after traveling "+stepsCompleted+" tile(s)."+(encounter?"\n\n"+encounter:"");
+    const arrivedTerrain=terrainInfo[generateTerrain(dest.x,dest.y)];
+    document.getElementById("popupText").textContent="You arrived at "+(arrivedTerrain?.name||"your destination")+"."+(encounter?"\n\n"+encounter:"");
     if(encounter)showMessage(encounter);else showMessage("You arrived at your destination.");
   }else{
     document.getElementById("popupTitle").textContent=player.dead?"Journey Ended":"Travel Stopped";
@@ -5444,7 +5444,15 @@ function renderCrafting(){
 function salvageYieldFor(id,d){
  const slot=d.slot||"",name=(d.name||id).toLowerCase(),tier=Math.max(1,Number(d.tier)||1);const out={};
  const put=(mat,n)=>{if(items[mat]?.type==="material"&&n>0)out[mat]=(out[mat]||0)+n;};
- if(["head","torso","arms","pants","boots","backpack"].includes(slot)||/jacket|gloves|pants|boots|helmet|vest|hood|cap|backpack|pack/.test(name)){put("cloth",tier>=3?2:tier>=2?2:1);put("leather",tier>=2?1:0);}
+ if(d.type==="container"){
+   if(id==="waterskin"){put("leather",1);put("cloth",1);}
+   else if(id==="woodenBarrel"){put("wood",3);put("leather",1);}
+   else if(id==="waterJug"){put("stone",1);put("cloth",1);}
+   else if(id==="canteen"){put("scrapMetal",1);}
+   else if(id==="bottle"){put("stone",1);}
+   else {put("scrapMetal",1);}
+ }
+ else if(["head","torso","arms","pants","boots","backpack"].includes(slot)||/jacket|gloves|pants|boots|helmet|vest|hood|cap|backpack|pack/.test(name)){put("cloth",tier>=3?2:tier>=2?2:1);put("leather",tier>=2?1:0);}
  else if(slot==="transport"||/horse|cart|wagon|carriage/.test(name)){put("wood",tier>=3?4:tier>=2?3:2);put("scrapMetal",tier>=2?2:1);put("leather",1);}
  else if(["axe","pickaxe","fishingRod","tool"].includes(slot)||d.tool){put("scrapMetal",tier>=3?3:tier>=2?2:1);put("wood",slot==="fishingRod"||/axe|pick|rod/.test(name)?1:0);put("leather",tier>=2?1:0);}
  else if(slot==="mainWeapon"||slot==="subWeapon"||/sword|blade|knife|dagger|bow|spear|staff|club|machete|shield|crowbar/.test(name)){put("scrapMetal",tier>=3?3:tier>=2?2:1);put("wood",/bow|staff|spear|club/.test(name)?1:0);put("leather",tier>=2?1:0);}
@@ -5453,19 +5461,21 @@ function salvageYieldFor(id,d){
 }
 function isEquippedItem(id){return Object.values(player.equipment||{}).some(value=>value===id);}
 function isSalvageableEquipment(id,d){
- if(!d||d.type==="material"||d.type==="food"||d.type==="medicine"||d.type==="water"||d.type==="container")return false;
+ if(!d||d.type==="material"||d.type==="food"||d.type==="medicine"||d.type==="water")return false;
+ if(d.type==="container")return ["bottle","canteen","waterJug","waterskin","woodenBarrel"].includes(id);
  const slot=String(d.slot||"");
  return d.type==="equipment"||["head","torso","arms","pants","boots","backpack","mainWeapon","subWeapon","axe","pickaxe","fishingRod","transport","tool"].includes(slot)||!!d.tool||!!d.carryCapacity||!!d.damage||!!d.defense||!!d.armorType;
 }
 function renderSalvageList(){
  const el=document.getElementById("salvageList");if(!el)return;el.innerHTML="";
  const candidates=(player.inventory||[]).filter(e=>Number(e.amount)>0&&isSalvageableEquipment(e.id,items[e.id]));
- if(!candidates.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No unequipped salvageable weapons, armor, tools, or transport in your bag. Equipped items and raw materials cannot be salvaged.";el.appendChild(note);return;}
+ if(!candidates.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No salvageable equipment, transport, or water containers in your bag. Raw materials, food, and medicine cannot be salvaged.";el.appendChild(note);return;}
  candidates.forEach(e=>{const d=items[e.id],yieldMap=salvageYieldFor(e.id,d);const row=document.createElement("div");row.className="ground-row salvage-row";const info=document.createElement("div");info.className="salvage-info";info.textContent=(d.icon||"📦")+" "+d.name+" ×"+e.amount+" · Salvage yields: "+Object.entries(yieldMap).map(([mat,n])=>items[mat].name+" ×"+n).join(", ");const btn=document.createElement("button");btn.textContent="Salvage 1";btn.disabled=player.dead;btn.onclick=()=>salvageItem(e.id);row.append(info,btn);el.appendChild(row);});
 }
 function salvageItem(id){
- const entry=(player.inventory||[]).find(e=>e.id===id),d=items[id];if(!entry||Number(entry.amount)<1||!isSalvageableEquipment(id,d)){showMessage("Only unequipped weapons, armor, tools, and transport in your bag can be salvaged.");return;}
- const yieldMap=salvageYieldFor(id,d);const inputWeight=Number(d.weight)||0;const outputWeight=Object.entries(yieldMap).reduce((n,[mat,q])=>n+(Number(items[mat]?.weight)||0)*q,0);const currentWeight=getInventoryWeight();
+ const entry=(player.inventory||[]).find(e=>e.id===id),d=items[id];if(!entry||Number(entry.amount)<1||!isSalvageableEquipment(id,d)){showMessage("Only salvageable equipment, transport, and water containers in your bag can be salvaged.");return;}
+ const yieldMap=salvageYieldFor(id,d);
+ if(d.type==="container"&&(Number(player.containerWater?.[id])||0)>0){showMessage("Empty this container before salvaging it. Stored water must be used first.");return;}const inputWeight=Number(d.weight)||0;const outputWeight=Object.entries(yieldMap).reduce((n,[mat,q])=>n+(Number(items[mat]?.weight)||0)*q,0);const currentWeight=getInventoryWeight();
  if(currentWeight-inputWeight+outputWeight>getMaxWeight()+.000001){showMessage("Not enough free carrying capacity for the salvaged materials. Make room first.");return;}
  if(!removeItems(id,1))return;Object.entries(yieldMap).forEach(([mat,q])=>{const existing=player.inventory.find(e=>e.id===mat);if(existing)existing.amount+=q;else player.inventory.push({id:mat,amount:q});if(!player.collectionFound)player.collectionFound={};player.collectionFound[mat]=true;});
  saveGame();updateScreen();renderCrafting();showMessage("Salvaged "+d.name+" into "+Object.entries(yieldMap).map(([mat,q])=>items[mat].name+" ×"+q).join(", ")+". Raw materials cannot be salvaged further.");
