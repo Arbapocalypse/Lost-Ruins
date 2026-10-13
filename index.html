@@ -5012,9 +5012,15 @@ function beginBattle(type,ambush=false,isPvp=false,raceId="",roaming=false){
  const enemies=Array.from({length:groupSize},(_,i)=>({...enemy,name:enemy.name,memberNumber:i+1,hp:enemy.hp,maxHp:enemy.hp,unitHp:enemy.hp}));
  const totalHp=enemies.reduce((sum,e)=>sum+e.hp,0);
  if(!player.encounteredEnemies||typeof player.encounteredEnemies!=="object")player.encounteredEnemies={};
- const enemyId=[type,enemy.race||"",enemy.name].join("|").toLowerCase(),enemyWasKnown=!!player.encounteredEnemies[enemyId];
+ const enemyId=[type,enemy.race||"",enemy.name].join("|").toLowerCase();
+ // Older saves may have stored the same enemy under a different key format.
+ // Match the saved record by exact enemy name and compatible encounter type before treating it as new.
+ const savedEnemyRecords=Object.values(player.encounteredEnemies);
+ const legacyKnownRecord= savedEnemyRecords.find(rec=>rec&&String(rec.name||"").trim().toLowerCase()===String(enemy.name).trim().toLowerCase()&&(!rec.type||rec.type===type||(rec.type==="wildlife"&&type==="wildlife")));
+ const enemyWasKnown=!!player.encounteredEnemies[enemyId]||!!legacyKnownRecord;
+ if(!player.encounteredEnemies[enemyId]&&legacyKnownRecord)player.encounteredEnemies[enemyId]=legacyKnownRecord;
  if(!enemyWasKnown)player.encounteredEnemies[enemyId]={id:enemyId,name:enemy.name,type,race:enemy.race||"",faction:enemy.faction||"",firstDay:player.day||1,encounters:1,lastEncounterHour:totalHours()};
- else{const rec=player.encounteredEnemies[enemyId];if(totalHours()-Number(rec.lastEncounterHour||-999)>=6){rec.encounters=(Number(rec.encounters)||1)+1;rec.lastEncounterHour=totalHours();}}
+ else{const rec=player.encounteredEnemies[enemyId]||legacyKnownRecord;if(rec&&totalHours()-Number(rec.lastEncounterHour||-999)>=6){rec.encounters=(Number(rec.encounters)||1)+1;rec.lastEncounterHour=totalHours();}}
  const enemyDisplayName=enemyWasKnown?enemy.name:"Unknown Hostile";
  const activeSpawnKey=getTileData(player.x,player.y).roamingEncounter?.spawnKey||"";
  if(roaming&&activeSpawnKey){const td=getTileData(player.x,player.y);td.roamingSpawnCooldowns=td.roamingSpawnCooldowns||{};td.roamingSpawnCooldowns[activeSpawnKey]=totalHours()+6;}
@@ -5154,10 +5160,16 @@ function endBattle(message,won){
  document.getElementById("battlePreFight").classList.add("hidden");
  document.getElementById("battleCombat").classList.add("hidden");
  document.getElementById("battleNegotiation").classList.add("hidden");
- const lootSummary=loot.length?"\n\nLoot dropped at "+player.x+", "+player.y+": "+loot.map(d=>d.name+" ×"+d.amount).join(", ")+". Open Ground Loot to collect it.":"";
- const encounterLabel=finished.enemyWasKnown?finished.enemy.name:(won?"Unknown Hostile — identified as "+finished.enemy.name:"Unknown Hostile");
- const outcomeLabel=won?"VICTORY":/negotiat|toll paid|threat outcome|backing away|let you pass|escape|run away/i.test(message)?"RESOLVED WITHOUT COMBAT":/defeated|journey ends|ambush/i.test(message)?"DEFEAT":"ENCOUNTER ENDED";
- document.getElementById("battleIntro").textContent="ENCOUNTER\n"+encounterLabel+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\n"+outcomeLabel+"\n"+message+lootSummary;
+ const lootSummary=loot.length?"\n\n📦 GROUND LOOT · "+player.x+", "+player.y+"\n"+loot.map(d=>d.name+" × "+d.amount).join(" · ")+"\nOpen Ground Loot to collect your rewards.":"";
+ const encounterLabel=finished.enemyWasKnown?finished.enemy.name:(won?"IDENTIFIED: "+finished.enemy.name:"UNIDENTIFIED HOSTILE");
+ const outcomeLabel=won?"🏆 VICTORY":/negotiat|toll paid|threat outcome|backing away|let you pass|escape|run away/i.test(message)?"🕊️ RESOLVED WITHOUT COMBAT":/defeated|journey ends|ambush/i.test(message)?"☠️ DEFEAT":"ENCOUNTER ENDED";
+ const groupLabel=finished.groupSize>1?" · Group of "+finished.groupSize:"";
+ document.getElementById("battleIntro").textContent="⚔️ ENCOUNTER REPORT\n"+encounterLabel+groupLabel+"\n\n"+outcomeLabel+"\n"+message+lootSummary;
+ // Replace the generic default heading after the encounter so the card never falls back to “Hostile”.
+ const opponentHeading=document.getElementById("battleOpponentName");
+ const opponentStats=document.getElementById("battleOpponentStats");
+ if(opponentHeading)opponentHeading.textContent=won?"🏆 Victory":outcomeLabel;
+ if(opponentStats)opponentStats.textContent=finished.enemyWasKnown?finished.enemy.name+" · Encounter complete":(won?finished.enemy.name+" added to your discovered enemies.":"Enemy identity remains unknown.");
  document.getElementById("battleLeaveButton").classList.remove("hidden");
  if(won&&finished.type==="faction"){player.racialKills=(player.racialKills||0)+1;adjustReputation(-3,finished.enemy.faction||"");recordAchievementProgress("racialHunter",1);}
  if(won&&finished.type==="wildlife")adjustReputation(1,"");
