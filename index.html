@@ -20,7 +20,7 @@ button:active{transform:scale(.98)}
 input,select{max-width:100%}
 .hidden{display:none!important}
 .panel{margin-top:10px;padding:12px;background:#242424;border-radius:10px}
-.status-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:8px 6px;background:#292929;border-radius:8px;font-size:12px;align-items:stretch}.status-bar .status-pill{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;white-space:nowrap;padding:6px 3px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:32px}.status-bar .status-pill:active{background:#555}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}.status-bar .calendar-pill{grid-column:span 2;font-weight:700;overflow:hidden;text-overflow:ellipsis}.calendar-details{grid-column:1/-1;margin:0;padding:8px 10px;background:#202820;border:1px solid #465846;border-radius:7px;color:#d7edc8;font-size:11px;line-height:1.4;white-space:normal}.calendar-details.hidden{display:none!important}@media(max-width:360px){.status-bar{grid-template-columns:repeat(3,minmax(0,1fr))}.status-bar .calendar-pill{grid-column:span 1;font-size:11px}}
+.status-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px;background:#292929;border-radius:8px;font-size:12px;align-items:center}.status-bar .status-pill{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;white-space:nowrap;padding:6px 3px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:32px;overflow:hidden}.status-bar .status-pill:active{background:#555}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .calendar-pill{grid-column:auto;font-weight:700;padding:6px 4px}.status-bar .season-icon-pill{font-size:17px}.status-bar .time-pill{font-variant-numeric:tabular-nums;font-size:12px}.calendar-details{grid-column:1/-1;margin:0;padding:8px 10px;background:#202820;border:1px solid #465846;border-radius:7px;color:#d7edc8;font-size:11px;line-height:1.4;white-space:normal}.calendar-details.hidden{display:none!important}@media(max-width:360px){.status-bar{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:6px}.status-bar .status-pill{font-size:11px;padding:6px 2px}.status-bar .season-icon-pill{font-size:16px}.status-bar .time-pill{font-size:11px}}
 .muted{font-size:12px;color:#bbb}
 .good{color:#a5dc91}
 .warning{color:#ffd166}
@@ -246,13 +246,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 </div>
 
 <div id="mpInspectOverlay" class="profile-overlay" onclick="if(event.target===this)closeMpInspect()" style="display:none;z-index:12000"><div class="profile-modal" style="max-height:85vh;overflow:auto"><h2 id="mpInspectName">Survivor Profile</h2><div id="mpInspectBody"></div><button class="profile-button secondary" onclick="closeMpInspect()">Close</button></div></div>
-<div id="survivalStatusOverlay" class="profile-overlay" role="dialog" aria-modal="true" aria-labelledby="survivalStatusTitle" onclick="if(event.target===this)closeSurvivalStatus()" style="display:none;z-index:13000">
-  <div class="profile-modal" style="max-width:340px;width:calc(100% - 32px);max-height:75vh;overflow:auto">
-    <h2 id="survivalStatusTitle">Survival Status</h2>
-    <div id="survivalStatusDetails"></div>
-    <button class="profile-button" onclick="closeSurvivalStatus()">Close</button>
-  </div>
-</div>
 <main id="game">
 <header id="topNav" aria-label="Top navigation">
   <div class="nav-inner">
@@ -260,16 +253,17 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
     <div class="nav-brand">🧭 LOST RUIN</div>
     <button class="nav-icon-btn" onclick="openGuildPanel()" aria-label="Open guild"><span>🏰</span><small>GUILD</small></button><button class="nav-icon-btn" onclick="openPartyPanel()" aria-label="Open party"><span>👥</span><small>PARTY</small></button>
   </div>
-  <section class="status-bar" id="topStatusBar" aria-label="Survival stats and UTC world calendar">
-    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View health details">❤️ <b id="health">100</b></button>
-    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View energy details">⚡ <b id="energy">100</b>/<b id="maxEnergyNav">100</b></button>
-    <button type="button" class="status-pill hidden" id="manaNav" onclick="openSurvivalStatus()" aria-label="View mana details">✨ <b id="mana">0</b>/<b id="maxManaNav">0</b></button>
-    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View hunger details">🍖 <b id="hunger">100</b></button>
-    <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View thirst details">💧 <b id="thirst">100</b></button>
-    <button type="button" class="status-pill calendar-pill" id="period" onclick="toggleCalendarDetails('season')" aria-expanded="false" title="Tap to view seasonal effects">🌱 Spring · Y1 ▾</button>
-    <button type="button" class="status-pill calendar-pill" id="time" onclick="toggleCalendarDetails('time')" aria-expanded="false" title="Tap to view world date and clock">00:00 UTC ▾</button>
+  <section class="status-bar" id="topStatusBar" aria-label="Clickable survival stats and world calendar">
+    <button type="button" class="status-pill" onclick="toggleStatusDetails('health')" aria-expanded="false" aria-label="Health details">❤️ <b id="health">100</b></button>
+    <button type="button" class="status-pill" onclick="toggleStatusDetails('energy')" aria-expanded="false" aria-label="Energy details">⚡ <b id="energy">100</b></button>
+    <button type="button" class="status-pill" onclick="toggleStatusDetails('hunger')" aria-expanded="false" aria-label="Hunger details">🍖 <b id="hunger">100</b></button>
+    <button type="button" class="status-pill" onclick="toggleStatusDetails('thirst')" aria-expanded="false" aria-label="Thirst details">💧 <b id="thirst">100</b></button>
+    <button type="button" class="status-pill hidden" id="manaNav" onclick="toggleStatusDetails('mana')" aria-expanded="false" aria-label="Mana details">✨ <b id="mana">0</b></button>
+    <button type="button" class="status-pill calendar-pill season-icon-pill" id="period" onclick="toggleCalendarDetails('season')" aria-expanded="false" aria-label="Season and seasonal effects" title="Tap to view season and its effects">🌱</button>
+    <button type="button" class="status-pill calendar-pill time-pill" id="time" onclick="toggleCalendarDetails('time')" aria-expanded="false" aria-label="World time details" title="Tap to view UTC date and clock">00:00</button>
+    <div id="statusDetails" class="calendar-details hidden" aria-live="polite"></div>
     <div id="seasonEffect" class="calendar-details hidden" aria-live="polite">Season effects loading…</div>
-    <div id="worldTimeDetails" class="calendar-details hidden">UTC date: <span id="worldDate">2026-10-12</span>. Seasons change at 00:00 UTC.</div>
+    <div id="worldTimeDetails" class="calendar-details hidden">UTC date: <span id="worldDate">2026-10-12</span>. Time shown above is UTC (Coordinated Universal Time). Seasons change at 00:00 UTC.</div>
   </section>
 </header>
 
@@ -645,7 +639,7 @@ const BALANCE = Object.freeze({
   hungerPerHour: 1.5,
   thirstPerHour: 2.25,
   starvationDamagePerHour: 2,
-  travelEnergyPerDifficulty: 4.5,
+  travelEnergyPerDifficulty: 3.5,
   sleepHungerPerHour: 0.75,
   sleepThirstPerHour: 1,
   minimumCombatDamage: 1,
@@ -2031,16 +2025,24 @@ function skillCategory(id){
  if(survivalMasteryIds.includes(id))return "survival";
  return "skills";
 }
-function openSurvivalStatus(){
- const overlay=document.getElementById("survivalStatusOverlay"),box=document.getElementById("survivalStatusDetails");
- if(!overlay||!box)return;
- const rows=[ ["❤️ Health",Math.floor(Number(player.health)||0),Math.floor(Number(player.maxHealth)||100)], ["⚡ Energy",Math.floor(Number(player.energy)||0),Math.floor(Number(player.maxEnergy)||100)] ];
- if(player.manaUnlocked)rows.push(["✨ Mana",Math.floor(Number(player.mana)||0),Math.floor(Number(player.maxMana)||10)]);
- rows.push(["🍖 Hunger",Math.floor(Number(player.hunger)||0),100],["💧 Thirst",Math.floor(Number(player.thirst)||0),100]);
- box.innerHTML=rows.map(([name,current,max])=>`<div class="detail-stat" style="display:flex;justify-content:space-between;gap:12px"><strong>${name}</strong><span>${current}${max===100&&/Hunger|Thirst/.test(name)?" / 100":" / "+max}</span></div>`).join("");
- overlay.style.display="flex";
+function toggleStatusDetails(which){
+ const panel=document.getElementById("statusDetails");if(!panel)return;
+ const buttons=[...document.querySelectorAll("#topStatusBar button[onclick^=\"toggleStatusDetails\"]")];
+ const same=panel.dataset.statusKey===which&&!panel.classList.contains("hidden");
+ document.getElementById("seasonEffect")?.classList.add("hidden");document.getElementById("worldTimeDetails")?.classList.add("hidden");
+ document.getElementById("period")?.setAttribute("aria-expanded","false");document.getElementById("time")?.setAttribute("aria-expanded","false");
+ if(same){panel.classList.add("hidden");delete panel.dataset.statusKey;buttons.forEach(b=>b.setAttribute("aria-expanded","false"));return;}
+ const data={
+  health:{label:"❤️ Health",value:Math.floor(Number(player.health)||0),max:Math.floor(Number(player.maxHealth)||100),desc:"Your life. Reaching zero means death."},
+  energy:{label:"⚡ Energy",value:Math.floor(Number(player.energy)||0),max:Math.floor(Number(player.maxEnergy)||100),desc:"Used for survival actions and affected by rest and conditions."},
+  mana:{label:"✨ Mana",value:Math.floor(Number(player.mana)||0),max:Math.floor(Number(player.maxMana)||10),desc:"Magical energy used by magic abilities."},
+  hunger:{label:"🍖 Hunger",value:Math.floor(Number(player.hunger)||0),max:100,desc:"Eat food to keep hunger above zero. Starvation damages health."},
+  thirst:{label:"💧 Thirst",value:Math.floor(Number(player.thirst)||0),max:100,desc:"Drink water or other suitable drinks. Dehydration damages health."}
+ }[which];
+ if(!data||(which==="mana"&&!player.manaUnlocked))return;
+ panel.innerHTML=`<strong>${data.label}: ${data.value} / ${data.max}</strong><div style="margin-top:4px">${data.desc}</div>`;
+ panel.dataset.statusKey=which;panel.classList.remove("hidden");buttons.forEach(b=>b.setAttribute("aria-expanded",String(b.getAttribute("onclick").includes("'"+which+"'"))));
 }
-function closeSurvivalStatus(){const overlay=document.getElementById("survivalStatusOverlay");if(overlay)overlay.style.display="none";}
 function activeProfessionIds(){const p=player.characterProfile||{};return [...new Set([p.mainProfession,p.subProfession].filter(id=>id&&professionAbilityInfo[id]))];}
 function activateProfessionSkill(professionId){
  if(player.dead)return;
@@ -3075,9 +3077,9 @@ function getCurrentSeason(){return getWorldCalendar().season;}
 function updateWorldClockDisplay(){
   const calendar=getWorldCalendar();
   const period=document.getElementById("period"),date=document.getElementById("worldDate"),time=document.getElementById("time");
-  if(period){period.textContent=calendar.seasonIcon+" "+calendar.seasonName+" · Y"+calendar.year+" ▾";period.title=calendar.season.description+" Tap to view effects.";}
+  if(period){period.textContent=calendar.seasonIcon;period.title=calendar.seasonName+" — tap to view seasonal effects.";period.setAttribute("aria-label",calendar.seasonName+" season and effects");}
   if(date){date.textContent=calendar.utcDate;}
-  if(time){time.textContent=calendar.utcTime+" UTC ▾";time.title="Tap to view the UTC date and clock details.";}
+  if(time){time.textContent="🕒 "+calendar.utcTime;time.title="World time is shown in UTC. Tap for date and timezone details.";}
   const effect=document.getElementById("seasonEffect");if(effect){effect.textContent=calendar.season.effectText+" "+calendar.season.description;}
   document.documentElement.dataset.worldSeason=calendar.seasonName.toLowerCase();
   return calendar;
@@ -3087,9 +3089,10 @@ function toggleCalendarDetails(which){
   const seasonButton=document.getElementById("period"),timeButton=document.getElementById("time");
   const target=which==="season"?season:time,other=which==="season"?time:season;
   const button=which==="season"?seasonButton:timeButton,otherButton=which==="season"?timeButton:seasonButton;
+  const statusPanel=document.getElementById("statusDetails");
   if(!target)return;
   const opening=target.classList.contains("hidden");
-  target.classList.toggle("hidden",!opening);if(other)other.classList.add("hidden");
+  target.classList.toggle("hidden",!opening);if(other)other.classList.add("hidden");if(statusPanel){statusPanel.classList.add("hidden");delete statusPanel.dataset.statusKey;document.querySelectorAll("#topStatusBar button[onclick^=\"toggleStatusDetails\"]").forEach(b=>b.setAttribute("aria-expanded","false"));}
   if(button)button.setAttribute("aria-expanded",String(opening));if(otherButton)otherButton.setAttribute("aria-expanded","false");
 }
 
@@ -3176,6 +3179,26 @@ function startRealWorldGameplayClock(){
   applyRealWorldElapsedTime(Date.now());
   if(!window.__lostRuinGameplayTick)window.__lostRuinGameplayTick=setInterval(()=>applyRealWorldElapsedTime(Date.now()),60000);
 }
+// Small activity-related survival costs. Hunger and thirst still drain mainly with real-world time.
+function applyActivitySurvivalCost(actionLabel="",hours=1){
+  const label=String(actionLabel||"").toLowerCase();
+  if(/rest|sleep|nap|speaking with residents|talk|trade|drink|fill containers/.test(label))return;
+  let hungerCost=0.12,thirstCost=0.16;
+  if(/travel|journey|explor/.test(label)){hungerCost=0.22;thirstCost=0.30;}
+  else if(/hunt|mine|chop|cut wood|salvage|build|construct|upgrade|fight|battle|capture|fish/.test(label)){hungerCost=0.30;thirstCost=0.38;}
+  else if(/cook|craft/.test(label)){hungerCost=0.08;thirstCost=0.10;}
+  // One activity cost per action, not per simulated game-hour.
+  player.hunger=Math.max(0,(Number(player.hunger)||0)-hungerCost);
+  player.thirst=Math.max(0,(Number(player.thirst)||0)-thirstCost);
+}
+function balancedActionEnergyCost(actionId,configuredCost){
+  const costs={
+    explore:6,forageWood:6,captureWildlife:6,hunt:8,buildBase:8,breedLivestock:3,
+    drinkSource:1,collectWater:2,fish:5,search:4,scavenge:6,mine:8,forageFood:4,
+    chop:6,rest:0,sleep:0
+  };
+  return Object.prototype.hasOwnProperty.call(costs,actionId)?costs[actionId]:Math.max(0,Math.round((Number(configuredCost)||0)*0.7));
+}
 let timeAdvanceInProgress=false;
 async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
   if(player.dead)return false;
@@ -3192,6 +3215,7 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
       if(player.hour>=24){player.hour=0;player.day++;}
       Object.values(bonfires).forEach(fire=>{if(fire.fuel>0)fire.fuel=Math.max(0,fire.fuel-1);});
     }
+    applyActivitySurvivalCost(actionLabel,total);
     refreshTileDecay();updateScreen();saveGame();
     if(player.health<=0){player.dead=true;showDeathScreen();return false;}
     return true;
@@ -3469,7 +3493,8 @@ async function performLocationAction(action){
   const seasonMods=getSeasonalModifiers(terrain);
   const seasonalTime=seasonMods.season==="Winter"&&["plains","mountain"].includes(terrain)?1.15:1;
   const effectiveHours=baseActionHours===0?0:(toolBonus.tier>0?Math.max(.25,Math.round(baseActionHours*(1-timeReduction)*seasonalTime*4)/4):Math.max(1,Math.round(baseActionHours*(1-skillTimeReduction)*seasonalTime)));
-  const effectiveCost=Math.max(0,Math.ceil((Number(action.cost)||0)-toolBonus.energyReduction+seasonMods.workEnergy));
+  const balancedBaseCost=balancedActionEnergyCost(action.id,action.cost);
+  const effectiveCost=Math.max(0,Math.ceil(balancedBaseCost-toolBonus.energyReduction+seasonMods.workEnergy));
   if(player.energy<effectiveCost){showNarration("Too Exhausted","You need "+effectiveCost+" energy for this action. Rest first.");return;}
   player.energy = Math.max(0,player.energy-effectiveCost);
   if(effectiveHours>0&&!await advanceTime(effectiveHours,action.name,action.icon||"⚒️"))return;
@@ -3647,12 +3672,12 @@ async function performLocationAction(action){
 
 function getRestingPlace(){
   const fire=getBonfire(player.x,player.y);
-  if(fire&&fire.fuel>0)return {kind:"bonfire",label:"a burning bonfire",energy:38,health:5};
-  if(baseAtHome()&&hasBuilding("inn"))return {kind:"inn",label:"your settlement inn",energy:65,health:8};
-  if(baseAtHome())return {kind:"settlement",label:"your settlement",energy:45,health:6};
+  if(fire&&fire.fuel>0)return {kind:"bonfire",label:"a burning bonfire",energy:45,health:5};
+  if(baseAtHome()&&hasBuilding("inn"))return {kind:"inn",label:"your settlement inn",energy:70,health:8};
+  if(baseAtHome())return {kind:"settlement",label:"your settlement",energy:55,health:6};
   const town=racialTownAt(player.x,player.y);
-  if(town)return {kind:"town",label:town.name,energy:32,health:4};
-  return {kind:"outdoors",label:"the open wilderness",energy:20,health:2};
+  if(town)return {kind:"town",label:town.name,energy:38,health:4};
+  return {kind:"outdoors",label:"the open wilderness",energy:30,health:2};
 }
 async function rest(){
   if(player.dead)return;
