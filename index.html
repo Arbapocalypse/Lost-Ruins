@@ -4925,7 +4925,7 @@ function configureEncounterChoices(type,enemy,enemyWasKnown,ambush,groupSize){
   choices=[["⚔️ Fight","startCombat()"],["😠 Threaten","attemptThreaten()"],["🏃 Run","attemptBattleEscape()"]];
  }else if(type==="bandit"||type==="npc"){
   heading="A band of bandits appears!";
-  intro="They block your path and demand a toll"+(enemyWasKnown?" under the command of "+enemy.name:"")+" before you can pass.";
+  intro=enemyWasKnown?enemy.name+"'s group blocks your path and demands a toll before you can pass.":"An unidentified group blocks your path and demands a toll before you can pass.";
   choices=[["💰 Pay the toll","payBanditToll()"],["🗣️ Negotiate a lower price","attemptNegotiate()"],["😠 Threaten to fight","attemptThreaten()"],["⚔️ Fight","startCombat()"],["🏃 Run","attemptBattleEscape()"]];
  }else if(type==="faction"){
   heading="A hostile patrol confronts you!";
@@ -4955,7 +4955,7 @@ function payBanditToll(){
   return;
  }
  player.coins-=toll;
- endBattle("You paid the bandits "+toll+" coins. They let you pass without a fight.",false);
+ endBattle("Toll paid: You paid "+toll+" coins. The bandits let you pass without a fight.",false);
 }
 function returnToEncounterChoices(){
  if(!activeBattle)return;
@@ -4970,12 +4970,12 @@ function attemptThreaten(){
  const chance=Math.max(8,Math.min(82,28+skill*2+charisma+intimidate*3+player.health*.08-(b.enemy.hp*.12)-(b.groupSize-1)*5));
  if(Math.random()*100<chance){
   if(b.type==="bandit"||b.type==="npc"){
-   endBattle("Your threat convinces the bandits that you are not worth the trouble. They step aside and let you pass.",false);
+   endBattle("Negotiation outcome: Your threat convinces "+(b.enemyWasKnown?b.enemy.name:"the bandit group")+" that you are not worth the trouble. They step aside and let you pass.",false);
   }else{
-   endBattle("You stand your ground and frighten the hostile into backing away.",false);
+   endBattle("Threat outcome: You frighten "+(b.enemyWasKnown?b.enemy.name:"the unidentified hostile")+" into backing away. No fight occurs.",false);
   }
  }else{
-  document.getElementById("battleIntro").textContent="Your threat fails. The hostile refuses to back down and moves to attack!";
+  document.getElementById("battleIntro").textContent="Your threat fails. "+(b.enemyWasKnown?b.enemy.name:"The unidentified hostile")+" refuses to back down and attacks!";
   startCombat();
   if(activeBattle){activeBattle.turn=0;enemyStrike(false);}
  }
@@ -4996,7 +4996,7 @@ function beginBattle(type,ambush=false,isPvp=false,raceId="",roaming=false){
  const choices=type==="faction"?(raceEnemies[raceId]||raceEnemies.human):(defs[type]||defs.wildlife),enemy={...choices[Math.floor(Math.random()*choices.length)]};
  enemy.race=type==="faction"?raceId:"";enemy.faction=type==="faction"?race.faction:"";
  const groupSize=(isPvp?1:enemyGroupSize(type,player.x,player.y));
- const enemies=Array.from({length:groupSize},(_,i)=>({...enemy,name:enemy.name+(groupSize>1?" "+(i+1):""),hp:enemy.hp,maxHp:enemy.hp,unitHp:enemy.hp}));
+ const enemies=Array.from({length:groupSize},(_,i)=>({...enemy,name:enemy.name,memberNumber:i+1,hp:enemy.hp,maxHp:enemy.hp,unitHp:enemy.hp}));
  const totalHp=enemies.reduce((sum,e)=>sum+e.hp,0);
  if(!player.encounteredEnemies||typeof player.encounteredEnemies!=="object")player.encounteredEnemies={};
  const enemyId=[type,enemy.race||"",enemy.name].join("|").toLowerCase(),enemyWasKnown=!!player.encounteredEnemies[enemyId];
@@ -5078,7 +5078,8 @@ function startCombat(){
  document.getElementById("battleLog").textContent="Combat begins. Choose a stance each exchange.";renderBattleStats();
 }
 function syncBattleEnemyHealth(){const b=activeBattle;if(!b)return;b.enemies=(b.enemies||[]).filter(e=>Number(e.hp)>0);b.hp=b.enemies.reduce((sum,e)=>sum+Math.max(0,Number(e.hp)||0),0);if(b.enemies.length){b.enemy=b.enemies[0];} }
-function damageEnemyFront(amount){const b=activeBattle;if(!b||!b.enemies?.length)return {dealt:0,defeated:[]};const front=b.enemies[0],hit=Math.min(Math.max(0,Math.floor(amount)),Math.max(0,front.hp));front.hp-=hit;const defeated=[];if(front.hp<=0){defeated.push(front.name);b.enemies.shift();}syncBattleEnemyHealth();return {dealt:hit,defeated};}
+function formatEnemyUnitName(unit,b=activeBattle){if(!unit)return "hostile";const base=String(unit.name||b?.enemy?.name||"Unknown Hostile");return b&&Number(b.groupSize)>1?base+" #"+(unit.memberNumber||1):base;}
+function damageEnemyFront(amount){const b=activeBattle;if(!b||!b.enemies?.length)return {dealt:0,defeated:[]};const front=b.enemies[0],hit=Math.min(Math.max(0,Math.floor(amount)),Math.max(0,front.hp));front.hp-=hit;const defeated=[];if(front.hp<=0){defeated.push(formatEnemyUnitName(front,b));b.enemies.shift();}syncBattleEnemyHealth();return {dealt:hit,defeated};}
 function enemyGroupAttackPlayer(defense,stance,ambush=false){const b=activeBattle;if(!b)return {total:0,lines:[]};let total=0;const lines=[];const agilityDodge=Math.min(15,Math.max(0,(Number(player.attributes?.agility)||1)-1)*.75);(b.enemies||[]).slice().forEach((e)=>{if(player.health<=0)return;const chance=Math.max(20,(Number(e.accuracy)||72)-agilityDodge);if(Math.random()*100>=chance){lines.push(e.name+" misses.");return;}let damage=Math.max(1,Math.round((Number(e.attack)||1)+Math.random()*2-defense));if(stance==="defensive")damage=Math.max(1,Math.round(damage*.45));else if(stance==="offensive")damage=Math.max(BALANCE.minimumCombatDamage,Math.round(damage*1.2));else if(stance==="balanced")damage=Math.max(BALANCE.minimumCombatDamage,Math.round(damage*.8));player.health=Math.max(0,player.health-damage);total+=damage;lines.push(e.name+" hits for "+damage+" damage.");});return {total,lines};}
 function battleTurn(stance){
  const b=activeBattle;if(!b||!b.combat||b.ended)return;b.identifiedDuringBattle=true;const stats=getCombatStats();battleWeaponSkillXP();let attack=stats.attack,defense=stats.defense,hit=stats.accuracy;
@@ -5092,7 +5093,7 @@ function battleTurn(stance){
  document.getElementById("battleLog").textContent=log;renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated. Your journey ends here.",false);return;}updateScreen();saveGame();
 }
 function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle;b.identifiedDuringBattle=true;const stats=getCombatStats(),result=enemyGroupAttackPlayer(stats.defense,"balanced",ambush);document.getElementById("battleLog").textContent=(ambush?"Ambush! ":"")+result.lines.join(" ");renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
-function renderBattleStats(){if(!activeBattle)return;syncBattleEnemyHealth();const s=getCombatStats(),b=activeBattle,front=b.enemies[0];document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=front?((!b.enemyWasKnown&&!b.identifiedDuringBattle)?"Unknown Hostile":front.name)+(b.enemies.length>1?" + "+(b.enemies.length-1)+" behind":""):"Defeated";document.getElementById("battleEnemyNumbers").textContent=front?(front.hp+" / "+front.maxHp+" HP · ATK "+front.attack+" · DEF "+front.defense+" · Group total "+b.hp+" / "+b.maxHp+" HP"):"0 / "+b.maxHp+" HP";document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
+function renderBattleStats(){if(!activeBattle)return;syncBattleEnemyHealth();const s=getCombatStats(),b=activeBattle,front=b.enemies[0];document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=front?((!b.enemyWasKnown&&!b.identifiedDuringBattle)?"Unknown Hostile":formatEnemyUnitName(front,b))+(b.enemies.length>1?" + "+(b.enemies.length-1)+" behind":""):"Defeated";document.getElementById("battleEnemyNumbers").textContent=front?(front.hp+" / "+front.maxHp+" HP · ATK "+front.attack+" · DEF "+front.defense+" · Group total "+b.hp+" / "+b.maxHp+" HP"):"0 / "+b.maxHp+" HP";document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
 function rollEnemyGroundLoot(finished){
  if(!finished||finished.isPvp||finished.type==="pvp")return [];
  const drops=[];
@@ -5141,7 +5142,9 @@ function endBattle(message,won){
  document.getElementById("battleCombat").classList.add("hidden");
  document.getElementById("battleNegotiation").classList.add("hidden");
  const lootSummary=loot.length?"\n\nLoot dropped at "+player.x+", "+player.y+": "+loot.map(d=>d.name+" ×"+d.amount).join(", ")+". Open Ground Loot to collect it.":"";
- document.getElementById("battleIntro").textContent="Encounter: "+(finished.enemyWasKnown?finished.enemy.name:("Unknown Hostile — identified as "+finished.enemy.name))+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\nOutcome: "+message+lootSummary;
+ const encounterLabel=finished.enemyWasKnown?finished.enemy.name:(won?"Unknown Hostile — identified as "+finished.enemy.name:"Unknown Hostile");
+ const outcomeLabel=won?"VICTORY":/negotiat|toll paid|threat outcome|backing away|let you pass|escape|run away/i.test(message)?"RESOLVED WITHOUT COMBAT":/defeated|journey ends|ambush/i.test(message)?"DEFEAT":"ENCOUNTER ENDED";
+ document.getElementById("battleIntro").textContent="ENCOUNTER\n"+encounterLabel+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\n"+outcomeLabel+"\n"+message+lootSummary;
  document.getElementById("battleLeaveButton").classList.remove("hidden");
  if(won&&finished.type==="faction"){player.racialKills=(player.racialKills||0)+1;adjustReputation(-3,finished.enemy.faction||"");recordAchievementProgress("racialHunter",1);}
  if(won&&finished.type==="wildlife")adjustReputation(1,"");
