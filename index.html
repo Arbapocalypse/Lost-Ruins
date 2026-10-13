@@ -1916,11 +1916,14 @@ function gainCharacterXP(amount){
  if(gained){syncAttributeDerivedStats();renderCharacterAttributes();showMessage("Level up! Level "+player.level+" · +"+(gained*3)+" stat points.");}
 }
 function syncAttributeDerivedStats(){
- ensureAttributes();ensureEquipment();const oldMaxHealth=Number(player.maxHealth)||100,oldMaxEnergy=Number(player.maxEnergy)||100,oldMaxMana=Number(player.maxMana)||10;
- const ratioH=oldMaxHealth>0?(Number(player.health)||0)/oldMaxHealth:1,ratioE=oldMaxEnergy>0?(Number(player.energy)||0)/oldMaxEnergy:1,ratioM=oldMaxMana>0?(Number(player.mana)||0)/oldMaxMana:1;
+ ensureAttributes();ensureEquipment();
+ // Recalculate maxima without converting the current resource amount into a percentage.
+ // This prevents loaded health/mana from being reduced when a saved maximum is stale.
+ const currentHealth=Math.max(0,Number(player.health)||0),currentEnergy=Math.max(0,Number(player.energy)||0),currentMana=Math.max(0,Number(player.mana)||0);
  const combat=getCombatStats();player.maxHealth=combat.maxHealth;player.maxEnergy=100+Math.max(0,player.attributes.endurance-1)*8;
- player.health=Math.min(player.maxHealth,Math.max(0,Math.round(ratioH*player.maxHealth)));player.energy=Math.min(player.maxEnergy,Math.max(0,Math.round(ratioE*player.maxEnergy)));
- if(player.manaUnlocked){const gearMana=Object.values(player.equipment||{}).reduce((sum,id)=>sum+(Number(items[id]?.manaBonus)||0),0);player.maxMana=Math.max(10,player.attributes.magic*10+gearMana);player.mana=Math.min(player.maxMana,Math.max(0,Math.round(ratioM*player.maxMana)));}
+ player.health=Math.min(player.maxHealth,currentHealth);player.energy=Math.min(player.maxEnergy,currentEnergy);
+ if(player.manaUnlocked){const gearMana=Object.values(player.equipment||{}).reduce((sum,id)=>sum+(Number(items[id]?.manaBonus)||0),0);player.maxMana=Math.max(10,player.attributes.magic*10+gearMana);player.mana=Math.min(player.maxMana,currentMana);}
+ else{player.maxMana=0;player.mana=0;}
 }
 function openAttributeModal(id){ensureAttributes();if(id==="magic"&&!player.manaUnlocked)return;selectedAttribute=id;const d=ATTRIBUTE_INFO[id],value=Number(player.attributes[id])||0;document.getElementById("attributeModalTitle").textContent=d.name+" · "+value;document.getElementById("attributeModalDescription").textContent=d.description;document.getElementById("attributeModalEffect").textContent=d.effect(value);const b=document.getElementById("attributeSpendButton");b.disabled=player.statPoints<1;b.textContent="+1 Stat Point ("+player.statPoints+" available)";document.getElementById("attributeModal").classList.add("open");}
 function closeAttributeModal(){document.getElementById("attributeModal")?.classList.remove("open");}
@@ -4659,9 +4662,12 @@ function loadGame(){
     player.maxHunger=player.maxThirst=100;
     syncAttributeDerivedStats();
 
-    ["health","energy","hunger","thirst"].forEach(f=>{
-      player[f]=clamp(Number(player[f])||0,0,100);
-    });
+    // Survival resources have different maxima: health, energy, and mana may exceed 100.
+    player.health=clamp(Number(player.health)||0,0,Math.max(1,Number(player.maxHealth)||100));
+    player.energy=clamp(Number(player.energy)||0,0,Math.max(1,Number(player.maxEnergy)||100));
+    player.hunger=clamp(Number(player.hunger)||0,0,Math.max(1,Number(player.maxHunger)||100));
+    player.thirst=clamp(Number(player.thirst)||0,0,Math.max(1,Number(player.maxThirst)||100));
+    if(player.manaUnlocked)player.mana=clamp(Number(player.mana)||0,0,Math.max(1,Number(player.maxMana)||10));
 
     player.day=Math.max(1,Math.floor(player.day));
     player.hour=clamp(Math.floor(player.hour),0,23);
@@ -4940,12 +4946,63 @@ function battleTurn(stance){
 }
 function enemyStrike(ambush){if(!activeBattle)return;const b=activeBattle;b.identifiedDuringBattle=true;const stats=getCombatStats(),result=enemyGroupAttackPlayer(stats.defense,"balanced",ambush);document.getElementById("battleLog").textContent=(ambush?"Ambush! ":"")+result.lines.join(" ");renderBattleStats();if(player.health<=0){player.dead=true;endBattle("You were defeated in the ambush.",false);}updateScreen();saveGame();}
 function renderBattleStats(){if(!activeBattle)return;syncBattleEnemyHealth();const s=getCombatStats(),b=activeBattle,front=b.enemies[0];document.getElementById("battlePlayerNumbers").textContent=player.health+" / "+s.maxHealth+" HP · ATK "+s.attack+" · DEF "+s.defense;document.getElementById("battleEnemyLabel").textContent=front?((!b.enemyWasKnown&&!b.identifiedDuringBattle)?"Unknown Hostile":front.name)+(b.enemies.length>1?" + "+(b.enemies.length-1)+" behind":""):"Defeated";document.getElementById("battleEnemyNumbers").textContent=front?(front.hp+" / "+front.maxHp+" HP · ATK "+front.attack+" · DEF "+front.defense+" · Group total "+b.hp+" / "+b.maxHp+" HP"):"0 / "+b.maxHp+" HP";document.getElementById("battlePlayerHealthBar").style.width=Math.max(0,player.health/s.maxHealth*100)+"%";document.getElementById("battleEnemyHealthBar").style.width=Math.max(0,b.hp/b.maxHp*100)+"%";}
-function endBattle(message,won){if(!activeBattle)return;if(partyStrategyTimer){clearInterval(partyStrategyTimer);partyStrategyTimer=null;}document.getElementById("partyStrategyDecision")?.classList.add("hidden");const finished=activeBattle;finished.ended=true;player.enemyRewardHistory=player.enemyRewardHistory||{};const lastReward=Number(player.enemyRewardHistory[finished.enemyId]??-999);finished.rewardSuppressed=!!(won&&totalHours()-lastReward<6&&!finished.playerDealtDamage);if(won&&!finished.rewardSuppressed){player.enemyRewardHistory[finished.enemyId]=totalHours();updateMissionEvent("kill",{type:finished.type,enemy:finished.enemy});}if(won&&finished.roaming){const td=getTileData(player.x,player.y);td.roamingDefeatedSpawns=td.roamingDefeatedSpawns||{};if(finished.spawnKey)td.roamingDefeatedSpawns[finished.spawnKey]=true;td.roamingSpawnCooldowns=td.roamingSpawnCooldowns||{};if(finished.spawnKey)td.roamingSpawnCooldowns[finished.spawnKey]=totalHours()+6;td.roamingEncounter=null;}document.getElementById("battlePreFight").classList.add("hidden");document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleIntro").textContent="Encounter: "+(finished.enemyWasKnown?finished.enemy.name:("Unknown Hostile — identified as "+finished.enemy.name))+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\nOutcome: "+message;document.getElementById("battleLeaveButton").classList.remove("hidden");if(won&&!finished.rewardSuppressed){if(finished.type==="dragon"){showMessage("The dragon has been defeated!");}else if(finished.type==="wildlife"){
- const animal=finished.enemy.name.replace(/\s+\d+$/,"");
- const drops={"Wild Rabbit":[["meat",1,.85],["leather",1,.35]],"Forest Deer":[["meat",2,.95],["leather",2,.8]],"Wild Chicken":[["meat",1,.9],["feather",2,.75]],"Mountain Goat":[["meat",2,.85],["leather",2,.7],["wool",1,.35]],"Wild Boar":[["meat",3,.95],["leather",1,.75]],"Feral Dog":[["meat",1,.55],["leather",1,.4]],"Ruin Wolf":[["meat",2,.75],["leather",2,.8]],"Dire Bear":[["meat",4,1],["leather",4,.95]]};
- for(let defeated=0;defeated<Math.max(1,finished.groupSize||1);defeated++){(drops[animal]||[["meat",1,.65]]).forEach(([id,amount,chance])=>{if(Math.random()<chance)addGroundLoot(id,amount,player.x,player.y);});}
- adjustReputation(1,"");
-}if(finished.type==="faction"){player.racialKills=(player.racialKills||0)+1;adjustReputation(-3,finished.enemy.faction||"");recordAchievementProgress("racialHunter",1);}}updateScreen();saveGame();}
+function rollEnemyGroundLoot(finished){
+ if(!finished||finished.isPvp||finished.type==="pvp")return [];
+ const drops=[];
+ const add=(id,amount=1,chance=1)=>{if(items[id]&&Math.random()<chance){const old=drops.find(d=>d.id===id);if(old)old.amount+=amount;else drops.push({id,amount});}};
+ const count=Math.max(1,Math.min(10,Number(finished.groupSize)||1));
+ if(finished.type==="wildlife"){
+  const animal=String(finished.enemy?.name||"").replace(/\s+\d+$/ ,"");
+  const table={"Wild Rabbit":[["meat",1,.9],["leather",1,.4]],"Forest Deer":[["meat",2,.98],["leather",2,.8]],"Wild Chicken":[["meat",1,.95],["feather",2,.8]],"Mountain Goat":[["meat",2,.9],["leather",2,.75],["wool",1,.35]],"Wild Boar":[["meat",3,.98],["leather",1,.8]],"Feral Dog":[["meat",1,.7],["leather",1,.5]],"Ruin Wolf":[["meat",2,.85],["leather",2,.8]],"Dire Bear":[["meat",4,1],["leather",4,.95]]};
+  const animalDrops=table[animal]||[["meat",1,.8]];
+  for(let i=0;i<count;i++)animalDrops.forEach(([id,amount,chance])=>add(id,amount,chance));
+  // A successful hunt always produces at least some meat.
+  if(!drops.length)add("meat",1,1);
+ }else if(finished.type==="dragon"){
+  add("meat",Math.max(2,count*2),1);add("leather",Math.max(2,count),1);add("scrapMetal",2,.85);add("arcaneShard",1,.6);add("moonpetal",1,.25);
+ }else if(finished.type==="faction"){
+  const race=finished.enemy?.race||finished.enemy?.faction||"";
+  add("scrapMetal",1+Math.floor(count/3),.85);add("cloth",1+Math.floor(count/4),.8);add("leather",1+Math.floor(count/3),.65);
+  if(/orc/i.test(race)){add("meat",1+Math.floor(count/2),.7);add("scrapMetal",1,.45);}
+  else if(/goblin/i.test(race)){add("herb",1,.35);add("scrapMetal",1,.55);}
+  else if(/elf/i.test(race)){add("herb",1,.55);add("feather",1,.5);add("moonpetal",1,.08);}
+  else if(/dragon/i.test(race)){add("arcaneShard",1,.15);add("leather",1,.6);}
+  else if(/dwarf/i.test(race)){add("ironOre",1+Math.floor(count/3),.8);add("scrapMetal",1,.65);}
+ }else if(finished.type==="bandit"||finished.type==="npc"){
+  add("scrapMetal",1+Math.floor(count/3),.8);add("cloth",1+Math.floor(count/4),.75);add("leather",1,.6);add("herb",1,.2);
+ }else{
+  add("scrapMetal",1,.6);add("cloth",1,.55);
+ }
+ // Every non-player PvE victory gives at least one recoverable item.
+ if(!drops.length){const fallback=finished.type==="wildlife"?"meat":"scrapMetal";add(fallback,1,1);}
+ drops.forEach(d=>addGroundLoot(d.id,d.amount,player.x,player.y));
+ return drops.map(d=>({name:items[d.id].name,amount:d.amount,id:d.id}));
+}
+function endBattle(message,won){
+ if(!activeBattle)return;
+ if(partyStrategyTimer){clearInterval(partyStrategyTimer);partyStrategyTimer=null;}
+ document.getElementById("partyStrategyDecision")?.classList.add("hidden");
+ const finished=activeBattle;finished.ended=true;
+ player.enemyRewardHistory=player.enemyRewardHistory||{};
+ const lastReward=Number(player.enemyRewardHistory[finished.enemyId]??-999);
+ finished.rewardSuppressed=!!(won&&totalHours()-lastReward<6&&!finished.playerDealtDamage);
+ if(won&&!finished.rewardSuppressed){player.enemyRewardHistory[finished.enemyId]=totalHours();updateMissionEvent("kill",{type:finished.type,enemy:finished.enemy});}
+ if(won&&finished.roaming){const td=getTileData(player.x,player.y);td.roamingDefeatedSpawns=td.roamingDefeatedSpawns||{};if(finished.spawnKey)td.roamingDefeatedSpawns[finished.spawnKey]=true;td.roamingSpawnCooldowns=td.roamingSpawnCooldowns||{};if(finished.spawnKey)td.roamingSpawnCooldowns[finished.spawnKey]=totalHours()+6;td.roamingEncounter=null;}
+ let loot=[];
+ if(won&&!finished.isPvp&&finished.type!=="pvp")loot=rollEnemyGroundLoot(finished);
+ document.getElementById("battlePreFight").classList.add("hidden");
+ document.getElementById("battleCombat").classList.add("hidden");
+ document.getElementById("battleNegotiation").classList.add("hidden");
+ const lootSummary=loot.length?"\n\nLoot dropped at "+player.x+", "+player.y+": "+loot.map(d=>d.name+" ×"+d.amount).join(", ")+". Open Ground Loot to collect it.":"";
+ document.getElementById("battleIntro").textContent="Encounter: "+(finished.enemyWasKnown?finished.enemy.name:("Unknown Hostile — identified as "+finished.enemy.name))+(finished.groupSize>1?" × "+finished.groupSize:"")+"\n\nOutcome: "+message+lootSummary;
+ document.getElementById("battleLeaveButton").classList.remove("hidden");
+ if(won&&finished.type==="faction"){player.racialKills=(player.racialKills||0)+1;adjustReputation(-3,finished.enemy.faction||"");recordAchievementProgress("racialHunter",1);}
+ if(won&&finished.type==="wildlife")adjustReputation(1,"");
+ updateGroundLoot(player.x,player.y);updateScreen();saveGame();
+ if(loot.length)showMessage("Loot dropped: "+loot.map(d=>d.name+" ×"+d.amount).join(", ")+". Check Ground Loot.");
+ else if(won&&finished.rewardSuppressed)showMessage("You won, but this encounter's repeat reward is on cooldown.");
+ else if(won&&finished.type==="dragon")showMessage("The dragon has been defeated!");
+}
 function leaveBattle(){activeBattle=null;hideScreens();document.getElementById("worldMapPanel").classList.remove("hidden");document.getElementById("navigationPanel").classList.remove("hidden");updateScreen();}
 
 /* =========================
@@ -4956,7 +5013,7 @@ function updateScreen(){
   updateWorldClockDisplay();
   const combatStatsNow=getCombatStats();player.maxHealth=combatStatsNow.maxHealth;player.health=Math.min(Number(player.health)||0,player.maxHealth);
   ensureAttributes();player.maxEnergy=100+Math.max(0,(Number(player.attributes.endurance)||1)-1)*8;player.energy=Math.min(Number(player.energy)||0,player.maxEnergy);
-  if(player.manaUnlocked){player.maxMana=Math.max(10,(Number(player.attributes.magic)||1)*10);player.mana=Math.min(Number(player.mana)||0,player.maxMana);}
+  if(player.manaUnlocked){const gearMana=Object.values(player.equipment||{}).reduce((sum,id)=>sum+(Number(items[id]?.manaBonus)||0),0);player.maxMana=Math.max(10,(Number(player.attributes.magic)||1)*10+gearMana);player.mana=Math.min(Math.max(0,Number(player.mana)||0),player.maxMana);}
   if(player.health<=0)player.dead=true;
   refreshTileDecay();
   getTileData(player.x,player.y);
