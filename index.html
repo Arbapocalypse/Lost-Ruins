@@ -544,10 +544,12 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div class="battle-card" id="battleOpponentCard"><h3 id="battleOpponentName">Hostile</h3><div id="battleOpponentStats"></div></div>
 <div id="partyStrategyDecision" class="battle-card hidden"><strong>👥 Party strategy</strong><p id="partyStrategyCountdown">Choose your strategy within 5 seconds. Default: Balanced.</p><div class="stance-row"><button onclick="choosePartyBattleStrategy('offensive')">⚔️ Offensive</button><button onclick="choosePartyBattleStrategy('balanced')">⚖️ Balanced</button><button onclick="choosePartyBattleStrategy('defensive')">🛡️ Defensive</button></div></div>
 <div id="battlePreFight">
-<p>What will you do?</p>
-<div class="battle-actions">
-<button onclick="attemptBattleEscape()">🏃 Attempt Escape</button>
+<h3 id="encounterSituationTitle">What will you do?</h3>
+<p id="encounterSituationText" class="muted">Choose how to respond to the hostile encounter.</p>
+<div class="battle-actions" id="encounterChoiceButtons">
+<button onclick="attemptBattleEscape()">🏃 Run</button>
 <button onclick="attemptNegotiate()">🗣️ Negotiate</button>
+<button onclick="attemptThreaten()">😠 Threaten</button>
 <button onclick="startCombat()">⚔️ Fight</button>
 </div>
 </div>
@@ -4908,6 +4910,78 @@ function enemyGroupSize(type,x=player.x,y=player.y){
  if(hasDen&&Math.random()<.4)count=Math.max(count,3+Math.floor(Math.random()*8));
  return Math.max(1,Math.min(max,count));
 }
+function configureEncounterChoices(type,enemy,enemyWasKnown,ambush,groupSize){
+ const title=document.getElementById("encounterSituationTitle"),desc=document.getElementById("encounterSituationText"),buttons=document.getElementById("encounterChoiceButtons");
+ if(!title||!desc||!buttons)return;
+ const label=enemyWasKnown?enemy.name:"an unidentified hostile";
+ let intro="",heading="What will you do?",choices=[];
+ if(ambush){
+  heading="AMBUSH!";
+  intro=enemyWasKnown?label+" catches you off guard!":"An unidentified hostile suddenly attacks!";
+  choices=[["🏃 Try to Run","attemptBattleEscape()"],["⚔️ Fight Back","startCombat()"]];
+ }else if(type==="wildlife"){
+  heading="Aggressive wildlife jumps at you!";
+  intro=enemyWasKnown?label+" snarls and lunges at you.":"An unidentified wild creature snarls and lunges at you.";
+  choices=[["⚔️ Fight","startCombat()"],["😠 Threaten","attemptThreaten()"],["🏃 Run","attemptBattleEscape()"]];
+ }else if(type==="bandit"||type==="npc"){
+  heading="A band of bandits appears!";
+  intro="They block your path and demand a toll"+(enemyWasKnown?" under the command of "+enemy.name:"")+" before you can pass.";
+  choices=[["💰 Pay the toll","payBanditToll()"],["🗣️ Negotiate a lower price","attemptNegotiate()"],["😠 Threaten to fight","attemptThreaten()"],["⚔️ Fight","startCombat()"],["🏃 Run","attemptBattleEscape()"]];
+ }else if(type==="faction"){
+  heading="A hostile patrol confronts you!";
+  intro=enemyWasKnown?enemy.name+" and the patrol demand that you leave their route.":"An unidentified patrol blocks your path and orders you to stop.";
+  choices=[["🗣️ Negotiate","attemptNegotiate()"],["😠 Threaten","attemptThreaten()"],["⚔️ Fight","startCombat()"],["🏃 Run","attemptBattleEscape()"]];
+ }else if(type==="dragon"){
+  heading="A dangerous creature blocks your path!";
+  intro=enemyWasKnown?enemy.name+" turns toward you and prepares to attack.":"A huge unidentified creature turns toward you. Its strength is unknown.";
+  choices=[["🏃 Run","attemptBattleEscape()"],["😠 Threaten","attemptThreaten()"],["⚔️ Fight","startCombat()"]];
+ }else{
+  heading=type==="pvp"?"A survivor approaches":"Hostile encounter";
+  intro=type==="pvp"?"A nearby survivor approaches cautiously.":"A hostile blocks your way.";
+  choices=[["🗣️ Negotiate","attemptNegotiate()"],["😠 Threaten","attemptThreaten()"],["⚔️ Fight","startCombat()"],["🏃 Run","attemptBattleEscape()"]];
+ }
+ title.textContent=heading;
+ desc.textContent=intro+(groupSize>1?" There are "+groupSize+" hostiles.":"");
+ buttons.innerHTML="";
+ choices.forEach(([label,action])=>{const b=document.createElement("button");b.textContent=label;b.setAttribute("onclick",action);buttons.appendChild(b);});
+}
+function payBanditToll(){
+ if(!activeBattle||!["bandit","npc"].includes(activeBattle.type))return;
+ const toll=Math.min(25,Math.max(5,Math.floor((activeBattle.enemy.attack+activeBattle.enemy.defense)*1.5)));
+ if((Number(player.coins)||0)<toll){
+  document.getElementById("battleNegotiation").classList.remove("hidden");
+  document.getElementById("battlePreFight").classList.add("hidden");
+  document.getElementById("battleNegotiation").innerHTML='<div class="battle-card"><h3>Not enough coins</h3><p>The bandits demand '+toll+' coins, but you cannot afford the toll. You must threaten them, run, or fight.</p><button onclick="returnToEncounterChoices()">Back to choices</button><button onclick="attemptThreaten()">Threaten</button><button onclick="attemptBattleEscape()">Run</button><button onclick="startCombat()">Fight</button></div>';
+  return;
+ }
+ player.coins-=toll;
+ endBattle("You paid the bandits "+toll+" coins. They let you pass without a fight.",false);
+}
+function returnToEncounterChoices(){
+ if(!activeBattle)return;
+ document.getElementById("battleNegotiation").classList.add("hidden");
+ document.getElementById("battlePreFight").classList.remove("hidden");
+}
+function attemptThreaten(){
+ if(!activeBattle||activeBattle.combat||activeBattle.ambush)return;
+ const b=activeBattle,skill=(Number(player.skills?.survival?.level)||1)+(Number(player.skills?.hunting?.level)||1);
+ const charisma=Math.max(0,(Number(player.attributes?.charisma)||1)-1)*2;
+ const intimidate=Number(player.attributes?.strength)||1;
+ const chance=Math.max(8,Math.min(82,28+skill*2+charisma+intimidate*3+player.health*.08-(b.enemy.hp*.12)-(b.groupSize-1)*5));
+ if(Math.random()*100<chance){
+  if(b.type==="bandit"||b.type==="npc"){
+   endBattle("Your threat convinces the bandits that you are not worth the trouble. They step aside and let you pass.",false);
+  }else{
+   endBattle("You stand your ground and frighten the hostile into backing away.",false);
+  }
+ }else{
+  document.getElementById("battleIntro").textContent="Your threat fails. The hostile refuses to back down and moves to attack!";
+  startCombat();
+  if(activeBattle){activeBattle.turn=0;enemyStrike(false);}
+ }
+ updateScreen();saveGame();
+}
+
 function beginBattle(type,ambush=false,isPvp=false,raceId="",roaming=false){
  if(player.dead||activeBattle)return;
  const race=raceInfo[raceId]||raceInfo.human;
@@ -4936,7 +5010,8 @@ function beginBattle(type,ambush=false,isPvp=false,raceId="",roaming=false){
  document.getElementById("battlePreFight").classList.toggle("hidden",ambush);document.getElementById("battleCombat").classList.add("hidden");document.getElementById("battleNegotiation").classList.add("hidden");document.getElementById("battleLeaveButton").classList.add("hidden");
  document.getElementById("battleIntro").textContent=!enemyWasKnown?(roaming?"UNKNOWN HOSTILE: An unfamiliar hostile interrupted your travel. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+".":"UNKNOWN HOSTILE: You have encountered an unfamiliar enemy. Its identity is recorded in Collections. Location: "+player.x+", "+player.y+"."):ambush?"AMBUSH! You were caught off guard. You can still attempt a risky escape.":(roaming?"ENEMY DISCOVERED: A roaming hostile has crossed your path.":type==="pvp"?"A nearby survivor approaches. Local PvP is simulated; real PvP requires the online server.":type==="faction"?"WARNING: You have entered territory watched by "+race.faction+". A "+race.name+" patrol confronts you.":"WARNING: A hostile presence blocks your way. Decide how to respond.");
  document.getElementById("battleOpponentName").textContent=(enemyWasKnown?(type==="wildlife"?"🐺 ":type==="dragon"?"🐉 ":type==="faction"?race.icon+" ":type==="npc"||type==="bandit"?"🗡️ ":"🧍 ")+enemy.name:"❔ Unknown Hostile")+(groupSize>1?" × "+groupSize:"")+(enemyWasKnown&&enemy.faction?" · "+enemy.faction:"");
- document.getElementById("battleOpponentStats").textContent="Front enemy: "+enemies[0].name+" · "+enemies[0].hp+" HP · Attack "+enemies[0].attack+" · Defense "+enemies[0].defense+(groupSize>1?" · Enemies behind: "+(groupSize-1):"");
+ document.getElementById("battleOpponentStats").textContent=(enemyWasKnown?"Front enemy: "+enemies[0].name:"Enemy identity unknown")+(enemyWasKnown?" · "+enemies[0].hp+" HP · Attack "+enemies[0].attack+" · Defense "+enemies[0].defense:"")+(groupSize>1?" · Enemies behind: "+(groupSize-1):"");
+ configureEncounterChoices(type,enemy,enemyWasKnown,ambush,groupSize);
  if(ambush){activeBattle.combat=true;document.getElementById("battleCombat").classList.remove("hidden");document.getElementById("battleLog").textContent="You are ambushed! The enemy group gets the first strike.";renderBattleStats();enemyStrike(true);}
  updateScreen();saveGame();
 }
@@ -4958,6 +5033,27 @@ function attemptNegotiate(){
  if(b.isPvp){
   box.innerHTML='<div class="battle-card"><h3>🤝 Request a Truce</h3><p>Negotiation only works if the other survivor agrees. This is a local prototype, not a real online player.</p><button onclick="pvpNegotiationReply(true)">Accept Talk Request (simulation)</button><button onclick="pvpNegotiationReply(false)">Decline — Prepare to Fight</button></div>';
   return;
+ }
+ if(b.type==="bandit"||b.type==="npc"){
+  const toll=Math.min(25,Math.max(5,Math.floor((b.enemy.attack+b.enemy.defense)*1.5)));
+  const stats=getCombatStats(),skill=(Number(player.skills?.survival?.level)||1)+(Number(player.skills?.scavenging?.level)||1);
+  const racialNegotiation=(raceInfo[player.characterProfile?.race]||raceInfo.human).negotiate||0;
+  const diplomatBonus=player.characterProfile?.mainProfession==="diplomat"?18:player.characterProfile?.subProfession==="diplomat"?9:0;
+  const charismaBonus=Math.max(0,(Number(player.attributes?.charisma)||1)-1)*2;
+  const score=stats.attack+stats.defense+player.health*.15+skill*2+racialNegotiation+diplomatBonus+charismaBonus+player.reputation*.08+Math.random()*25;
+  const difficulty=b.enemy.attack+b.enemy.defense+b.enemy.hp*.25+10;
+  if(score>=difficulty){
+   const reduced=Math.max(1,Math.floor(toll*.4));
+   if((Number(player.coins)||0)>=reduced){
+    player.coins-=reduced;player.negotiations=(player.negotiations||0)+1;adjustReputation(1,b.enemy.faction||"");recordAchievementProgress("peacekeeper",1);
+    box.innerHTML='<div class="battle-card"><h3>🤝 Toll Reduced</h3><p>Your bargaining works. The bandits lower their demand from '+toll+' to '+reduced+' coins.</p><button onclick="endBattle(\'You negotiated the bandit toll down to '+reduced+' coins and were allowed to pass.\',false)">Pay reduced toll & continue</button></div>';
+   }else{
+    box.innerHTML='<div class="battle-card"><h3>🤝 They agree to lower the toll</h3><p>The bandits reduce the toll to '+reduced+' coins, but you still cannot afford it.</p><button onclick="returnToEncounterChoices()">Back to choices</button><button onclick="attemptThreaten()">Threaten</button><button onclick="attemptBattleEscape()">Run</button><button onclick="startCombat()">Fight</button></div>';
+   }
+  }else{
+   box.innerHTML='<div class="battle-card"><h3>Negotiation Failed</h3><p>The bandits refuse to lower their '+toll+'-coin toll. You can pay, threaten them, run, or fight.</p><button onclick="payBanditToll()">Pay '+toll+' coins</button><button onclick="returnToEncounterChoices()">Back to choices</button><button onclick="attemptThreaten()">Threaten</button><button onclick="attemptBattleEscape()">Run</button><button onclick="startCombat()">Fight</button></div>';
+  }
+  updateScreen();saveGame();return;
  }
  const stats=getCombatStats(),skill=(Number(player.skills?.survival?.level)||1)+(Number(player.skills?.scavenging?.level)||1);
  const racialNegotiation=(raceInfo[player.characterProfile?.race]||raceInfo.human).negotiate||0;
