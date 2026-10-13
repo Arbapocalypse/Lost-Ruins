@@ -300,9 +300,9 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
  <div id="tileStatus" class="detail-stat"></div><div id="tilePlayers" class="detail-stat hidden"><h3>🧍 Survivors on this tile</h3><div id="tilePlayersList"></div></div>
  <div id="tileExploration" class="detail-stat"></div>
  <div id="bonfireDetails" class="detail-stat"></div><div id="bonfireActions" class="action-grid"></div>
- <h3>Available Actions</h3><div class="action-grid" id="locationActions"></div>
+ 
 </div>
-<div id="areasTabContent" class="tile-tab-content hidden"><p class="muted">Points of interest on this tile. Completed settlement buildings appear here and can be opened directly.</p><div id="tileAreasList"></div></div>
+<div id="areasTabContent" class="tile-tab-content hidden"><p class="muted">Actions and points of interest are available only while you are on this tile. Completed buildings can be opened directly.</p><h3>Available Actions</h3><div class="action-grid" id="locationActions"></div><h3>Points of Interest</h3><div id="tileAreasList"></div></div>
 <div id="lootTabContent" class="tile-tab-content hidden"><h3>🎒 Items on the Ground</h3><p id="groundLootDescription" class="muted">Items dropped here remain at this location.</p><div id="groundLoot"></div></div>
 <div id="tileBuilding" class="hidden"></div><div id="buildingActions" class="hidden"></div>
 <button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
@@ -2346,10 +2346,15 @@ function updateGroundLoot(x,y){
   const description = document.getElementById("groundLootDescription");
   container.innerHTML = "";
 
-  const pile = groundLoot[locationKey(x,y)] || [];
   const isHere = x===player.x && y===player.y;
+  const pile = isHere ? (groundLoot[locationKey(x,y)] || []) : [];
   const countBadge=document.getElementById("tileLootCount");if(countBadge)countBadge.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';
 
+  if(!isHere){
+    description.textContent = "Ground loot is hidden until you are physically on this tile.";
+    container.textContent = "Travel here to inspect the ground.";
+    return;
+  }
   if(!pile.length){
     description.textContent = "Items dropped here remain at this location.";
     container.textContent = "Nothing on the ground.";
@@ -4033,30 +4038,60 @@ function showSettlementInterior(x,y,town){
 function switchTileTab(tab){
  const tabs={tile:['tileTabContent','tileTabBtn'],areas:['areasTabContent','areasTabBtn'],loot:['lootTabContent','lootTabBtn']};
  Object.entries(tabs).forEach(([key,ids])=>{const panel=document.getElementById(ids[0]),btn=document.getElementById(ids[1]);if(panel)panel.classList.toggle('hidden',key!==tab);if(btn){btn.classList.toggle('active',key===tab);btn.setAttribute('aria-selected',String(key===tab));}});
- if(tab==='areas'&&selectedLocation)renderTileAreas(selectedLocation.x,selectedLocation.y);
+ if(tab==='areas'&&selectedLocation){renderTileAreas(selectedLocation.x,selectedLocation.y);}
  if(tab==='loot'&&selectedLocation){updateGroundLoot(selectedLocation.x,selectedLocation.y);const n=document.getElementById('tileLootCount');if(n){const pile=groundLoot[locationKey(selectedLocation.x,selectedLocation.y)]||[];n.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';}}
 }
 function tilePointOfInterestDefs(x,y,terrain){
  const options={
-  forest:[['🌿','Berry Clearing','A sheltered clearing where edible plants and tracks gather.'],['🪵','Old Campsite','A weathered fire ring and scraps left by a former traveler.'],['🦌','Animal Trail','A narrow path through brush, marked by fresh tracks.'],['🪨','Mossy Stone Shrine','A small stone marker almost swallowed by roots.']],
-  plains:[['🛒','Abandoned Cart','A broken cart lies beside a shallow track.'],['🪨','Standing Stones','Old stones rise from the grass, worn by wind.'],['🏚️','Ruined Homestead','A collapsed homestead may hide old supplies.'],['🌾','Tall-Grass Hollow','A sheltered hollow with signs of wildlife.']],
-  river:[['🌉','Broken Crossing','The remains of a small bridge cross part of the river.'],['🎣','Fishing Bend','A calm bend where fish gather beneath the surface.'],['🪵','Driftwood Bank','Driftwood and river debris collect along the shore.']],
-  lake:[['🛶','Abandoned Landing','A damaged landing and a few old fishing supplies.'],['🌾','Reed Beds','Dense reeds conceal small animals and useful plants.'],['⛺','Lakeside Campsite','A quiet campsite overlooking the water.']],
-  mountain:[['⛏️','Exposed Ore Vein','Mineral seams show through the broken rock.'],['🕳️','Cave Mouth','A dark opening leads into the mountainside.'],['🪨','Rockfall Shelter','A shallow recess beneath a wall of fallen stone.']],
-  volcano:[['🌋','Scorched Crater','Heat-scarred rock surrounds a smoking fissure.'],['🪨','Obsidian Field','Sharp black glass-like stone litters the slope.'],['🕳️','Lava Tube','A dark tunnel cuts beneath cooled volcanic rock.']],
-  city:[['🏪','Ruined Shopfront','Shelves and counters remain beneath the rubble.'],['🏢','Collapsed Apartment','A damaged residential block with unstable floors.'],['🚧','Roadblock','Wreckage blocks the old road.'],['🚇','Subway Entrance','A stairwell descends into the dark underground.']]
+  forest:[
+   ['🌿','Berry Clearing','Wild berries grow beneath a canopy of fern.'],['🪵','Old Campsite','A cold fire ring and abandoned travel gear.'],['🦌','Animal Trail','Fresh tracks lead through thick undergrowth.'],['🪨','Mossy Stone Shrine','A weathered shrine sits among tangled roots.'],['🍄','Fungal Hollow','Fungi and damp leaf litter cover a sunken hollow.'],['🪤','Poacher Snare','A crude snare has been set along the trail.'],['🌳','Hollow Elder Tree','A huge tree has a dark cavity in its trunk.'],['🪶','Feathered Nest','A nest rests on a low branch above scattered bones.'],['🧺','Forager Cache','A woven basket is hidden under leaves.'],['🌫️','Misty Glade','Cold mist pools in a quiet clearing.']],
+  plains:[
+   ['🛒','Abandoned Cart','A broken cart lies beside a shallow track.'],['🪨','Standing Stones','Ancient stones form a ring in the grass.'],['🏚️','Ruined Homestead','A collapsed home may conceal household goods.'],['🌾','Tall-Grass Hollow','A hollow in the grass shelters small wildlife.'],['🪦','Roadside Memorial','A weathered marker stands beside the old road.'],['🪺','Burrow Field','Small burrows pockmark the dry earth.'],['🪵','Charred Camp','Ash and blackened stakes mark an old camp.'],['🪙','Merchant Droppings','Scraps from a lost caravan trail the road.'],['🌬️','Wind-Carved Mound','A mound of exposed soil holds buried debris.'],['🐎','Abandoned Hitching Post','A lonely post stands beside hoofprints.']],
+  river:[
+   ['🌉','Broken Crossing','A shattered footbridge stops halfway over the current.'],['🎣','Fishing Bend','Fish gather in a quiet pool beside the bank.'],['🪵','Driftwood Bank','Branches and debris are caught in the reeds.'],['🪨','River Pebble Bar','Smooth stones and mineral fragments line the shallows.'],['🧺','Washed-Up Pack','A torn pack is wedged between river rocks.'],['🦦','Otter Den','Small tracks disappear beneath the bank.'],['🛶','Capsized Canoe','A damaged canoe rests in shallow water.'],['🌊','Whirlpool Pool','The current spins around a deep rocky pocket.'],['🪝','Lost Fishing Gear','A line and hook are tangled in a branch.'],['🪨','Flood Debris Jam','Floodwater has trapped branches and old objects.']],
+  lake:[
+   ['🛶','Abandoned Landing','A rotting landing holds old fishing supplies.'],['🌾','Reed Beds','Dense reeds conceal nests and small creatures.'],['⛺','Lakeside Campsite','A campsite overlooks the still water.'],['🐟','Spawning Shallows','Fish ripple through the shallow water.'],['🪷','Lily-Covered Cove','Water plants crowd a sheltered cove.'],['🧰','Sunken Supply Crate','A crate is visible beneath the clear shallows.'],['🪶','Waterbird Rookery','Bird calls echo from a small island.'],['🪨','Lake Cave','A dark cleft opens at the waterline.'],['🪝','Old Fishing Pier','A broken pier extends over deep water.'],['💧','Freshwater Spring','Bubbles rise from the lakebed near shore.']],
+  mountain:[
+   ['⛏️','Exposed Ore Vein','Mineral seams glint through broken rock.'],['🕳️','Cave Mouth','A narrow opening descends into darkness.'],['🪨','Rockfall Shelter','A shallow recess sits beneath fallen stone.'],['🧗','Climber’s Cache','A small cache is wedged beside an old climbing route.'],['🦴','Fossil Shelf','Ancient impressions mark a flat rock face.'],['🏚️','Abandoned Mine Camp','Rusty tools lie near a collapsed tent.'],['🦅','Raptor Perch','Feathers and bones litter a high ledge.'],['💎','Crystal Seam','Pale crystals emerge from a crack in the cliff.'],['🪜','Collapsed Mine Shaft','Rotten beams surround a deep shaft.'],['🧭','Surveyor’s Marker','A rusted marker stands beside a narrow pass.']],
+  volcano:[
+   ['🌋','Scorched Crater','Heat-scarred rock circles a smoking fissure.'],['🪨','Obsidian Field','Sharp volcanic glass covers the slope.'],['🕳️','Lava Tube','A dark tunnel cuts beneath cooled lava.'],['♨️','Steam Vent','A vent hisses through mineral-stained stone.'],['🌑','Ashfall Hollow','Fine ash has buried the remains of a campsite.'],['🔩','Melted Equipment','Metal gear has fused into the black rock.'],['🔥','Warm Rock Nest','A nest lies in a sheltered pocket of warm stone.'],['💎','Volcanic Crystal Pocket','Glassy crystals glimmer inside a cooled seam.'],['🪨','Basalt Arch','A natural arch spans a narrow ravine.'],['☠️','Scorched Remains','Charred debris suggests a dangerous past event.']],
+  city:[
+   ['🏪','Ruined Shopfront','Shelves and counters remain beneath the rubble.'],['🏢','Collapsed Apartment','A damaged residential block has unstable floors.'],['🚧','Roadblock','Wreckage blocks the old road.'],['🚇','Subway Entrance','Stairs descend into a dark underground station.'],['🚑','Abandoned Ambulance','A damaged emergency vehicle sits by the curb.'],['📦','Warehouse Loading Bay','Crates are scattered around a sealed loading door.'],['🏥','Clinic Ruins','Medical cabinets may remain inside the wreckage.'],['🚗','Wrecked Convoy','Several vehicles block a debris-strewn street.'],['🔐','Locked Service Room','A reinforced door is partly buried in rubble.'],['📡','Collapsed Relay Tower','Broken antenna parts cover the rooftop access.'],['🛡️','Makeshift Barricade','A barricade shows signs of a hurried defense.'],['🕯️','Memorial Corner','Candles and personal belongings remain untouched.']]
  };
- const list=options[terrain]||options.plains;const seed=Math.abs((Math.imul((x|0)+101,73856093)^Math.imul((y|0)-37,19349663)^terrainHash(x,y,91))|0);
- const count=1+(seed%3);const out=[];for(let i=0;i<count;i++)out.push(list[(seed+i*3)%list.length]);return out;
+ const list=options[terrain]||options.plains;
+ const seed=Math.abs((Math.imul((x|0)+101,73856093)^Math.imul((y|0)-37,19349663)^terrainHash(x,y,91))|0);
+ const count=2+(seed%3);const out=[];for(let i=0;i<count;i++)out.push(list[(seed+i*3)%list.length]);return out;
 }
+function resolvePointOfInterest(x,y,terrain,poi,key){
+ if(x!==player.x||y!==player.y){showMessage('Travel to this tile to investigate this point of interest.');return;}
+ const td=getTileData(x,y);td.resolvedPOIs=td.resolvedPOIs||{};
+ if(td.resolvedPOIs[key]){showMessage('You have already searched this point of interest.');return;}
+ if(player.dead){showMessage('You cannot investigate while incapacitated.');return;}
+ if((Number(player.energy)||0)<4){showMessage('You need at least 4 energy to investigate.');return;}
+ player.energy=Math.max(0,player.energy-4);td.discoveredPOIs=td.discoveredPOIs||{};td.discoveredPOIs[key]=true;td.resolvedPOIs[key]=true;
+ const lootPools={
+  forest:['fruit','herb','wood','meat'],plains:['fruit','herb','meat','cloth','wood'],river:['meat','stone','herb','fishingRod'],lake:['meat','stone','herb','water'],mountain:['stone','ironOre','copperOre','wood'],volcano:['stone','ironOre','copperOre','arcaneShard'],city:['cloth','herb','water','oldJacket','wornCap','stone']
+ };
+ const pool=lootPools[terrain]||lootPools.plains;const eventRoll=Math.random();let message='';
+ if(eventRoll<0.24){
+   const events={forest:['You find fresh tracks circling the site. Something nearby has been feeding.','A sudden rustle startles a small animal from cover.','You uncover a hidden trail leading deeper into the brush.'],plains:['A gust reveals something buried beneath the grass.','Distant movement crosses the open ground and disappears.','You discover fresh tracks circling the site.'],river:['The current shifts and reveals an object caught beneath the bank.','A fish thrashes in the shallows as you approach.','The water has exposed a narrow path along the bank.'],lake:['Ripples spread across the cove; something moves beneath the surface.','A waterbird scatters, revealing a hidden nest.','The shallows expose something caught between stones.'],mountain:['Loose rock shifts underfoot, revealing a narrow recess.','A bird of prey circles above the ridge.','You hear a faint echo from deeper inside the rock.'],volcano:['A hot gust rolls from a nearby fissure. You retreat from the edge.','The ground trembles faintly beneath your boots.','A cooling crust cracks, exposing a dark seam.'],city:['A loose panel reveals a concealed compartment.','A distant metallic crash echoes between the ruins.','You find signs that someone searched this place recently.']};
+   const arr=events[terrain]||events.plains;message=arr[Math.floor(Math.random()*arr.length)];
+ }else{
+   const id=pool[Math.floor(Math.random()*pool.length)];const amount=1+(Math.random()<.28?1:0);if(items[id])addGroundLoot(id,amount,x,y);message='You searched '+poi[1]+' and found '+(items[id]?.name||id)+' × '+amount+'. The find is now in this tile’s Loot tab.';
+ }
+ saveGame();updateScreen();updateGroundLoot(x,y);renderTileAreas(x,y);showNarration(poi[0]+' '+poi[1],message);const lootTab=document.getElementById('lootTabBtn');if(lootTab){const pile=groundLoot[locationKey(x,y)]||[];lootTab.innerHTML='🎒 Loot <span id="tileLootCount">'+(pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'')+'</span>';}
+}
+
 function renderTileAreas(x,y){
  const box=document.getElementById('tileAreasList');if(!box)return;box.innerHTML='';const terrain=generateTerrain(x,y),td=getTileData(x,y),here=x===player.x&&y===player.y;
- if(isHeadquarters(x,y)&&player.base){const home=document.createElement('button');home.className='build-button area-poi';home.innerHTML='<strong>🏕️ '+(shelterTypes[player.base.shelterType]?.name||'Settlement Headquarters')+'</strong><small>Settlement headquarters · Level '+(player.base.level||1)+'</small><small>Tap to manage settlement, stockpile, and construction</small>';home.onclick=()=>openBase();box.appendChild(home);}
+ const actions=document.getElementById('locationActions');if(actions)actions.classList.remove('hidden');
+ if(!here){const note=document.createElement('div');note.className='detail-stat';note.textContent='Travel to this tile to reveal its points of interest and ground loot. The area is not visible from a distance.';box.appendChild(note);return;}
+ if(isHeadquarters(x,y)&&player.base){const home=document.createElement('button');home.className='build-button area-poi';home.innerHTML='<strong>🏕️ '+(shelterTypes[player.base.shelterType]?.name||'Settlement Headquarters')+'</strong><small>Headquarters · Level '+(player.base.level||1)+'</small><small>Tap to manage settlement, stockpile, and construction</small>';home.onclick=()=>openBase();box.appendChild(home);}
  const buildings=(player.base?.buildings||[]).filter(b=>Number(b.x)===Number(x)&&Number(b.y)===Number(y)&&b.completed);
- buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed building · '+(buildingTypes[b.type]?.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to open its services</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
- if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y);const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach the settlement</small>';btn.onclick=()=>{if(here)enterSettlement(x,y);else showNarration(town.name,'Travel to this tile to approach the settlement.');};box.appendChild(btn);}
- const poiList=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};
- poiList.forEach((poi,i)=>{const key=terrain+':'+i;const row=document.createElement('div');row.className='detail-stat area-poi';const btn=document.createElement('button');btn.className='build-button';btn.innerHTML='<strong>'+poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'')+'</strong><small>'+poi[2]+'</small><small>'+(td.discoveredPOIs[key]?'Inspect point of interest':'Explore to investigate')+'</small>';btn.onclick=()=>{td.discoveredPOIs[key]=true;saveGame();showNarration(poi[0]+' '+poi[1],poi[2]+' Further searching may reveal resources or loot.');renderTileAreas(x,y);};row.appendChild(btn);box.appendChild(row);});
+ buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed building · '+(def.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to open services</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
+ if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y);const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach the settlement</small>';btn.onclick=()=>enterSettlement(x,y);box.appendChild(btn);}
+ const poiList=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
+ poiList.forEach((poi,i)=>{const key=terrain+':'+i;const btn=document.createElement('button');btn.className='build-button area-poi';const resolved=!!td.resolvedPOIs[key];btn.innerHTML='<strong>'+poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'')+'</strong><small>'+poi[2]+'</small><small>'+(resolved?'✓ Searched': '🔎 Investigate · Costs 4 energy')+'</small>';btn.disabled=resolved||player.dead;btn.onclick=()=>resolvePointOfInterest(x,y,terrain,poi,key);box.appendChild(btn);});
  if(!box.children.length)box.textContent='No points of interest found here yet.';
 }
 
@@ -4107,7 +4142,7 @@ function openLocation(x,y){
 
   updateBonfireUI(x,y);
   updateGroundLoot(x,y);
-  const lootCount=document.getElementById("tileLootCount");if(lootCount){const pile=groundLoot[locationKey(x,y)]||[];lootCount.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';}
+  const lootCount=document.getElementById("tileLootCount");if(lootCount){const pile=isHere?(groundLoot[locationKey(x,y)]||[]):[];lootCount.textContent=isHere&&pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';}
   // Construction is managed from the Settlement screen, never from the tile panel.
   document.getElementById("tileBuilding").innerHTML="";document.getElementById("buildingActions").innerHTML="";
 
