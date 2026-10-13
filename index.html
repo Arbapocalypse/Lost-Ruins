@@ -229,6 +229,9 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 
 .economy-top-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 16px}.economy-card,.player-trade-card{background:#202020;border:1px solid #3a3a3a;border-radius:12px;padding:12px;min-width:0}.economy-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.coin-hint{display:inline-flex;align-items:center;justify-content:center;border:1px solid #666;border-radius:50%;width:20px;height:20px;color:#bbb;font-size:12px}.compact-wallet,.compact-stones{font-size:13px;line-height:1.45;padding:7px!important;margin:0}.stone-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.stone-chips button{padding:5px 8px;font-size:12px;border-radius:8px}.stone-detail{margin-top:8px;padding:9px;border-radius:8px;background:#171717;font-size:13px;line-height:1.45}.player-trade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.player-trade-grid label{display:block;font-size:12px;align-self:end}.player-trade-grid input,.player-trade-grid select{width:100%!important;min-width:0;padding:8px!important;margin:3px 0 7px!important;font-size:13px}.player-trade-card>.full-button{margin-top:5px}.player-trade-card h3{margin-top:12px}@media(max-width:430px){.economy-top-grid{grid-template-columns:1fr}.player-trade-grid{grid-template-columns:1fr}}
 
+
+.settlement-summary,.settlement-safety{padding:9px 11px;margin:7px 0;border:1px solid #343b3c;border-radius:10px;background:#171d1d;white-space:normal;line-height:1.4;font-size:.88rem}.settlement-safety{color:#c8d6cf;font-size:.82rem}.settlement-storage{margin:8px 0;padding:9px;border:1px solid #343b3c;border-radius:10px;background:#171b1b}.settlement-storage summary{font-weight:700;cursor:pointer}.stock-tabs,.storage-tabs,.store-tabs{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 9px}.stock-tabs button,.storage-tabs button,.store-tabs button{flex:1;min-width:72px;padding:7px 5px;font-size:.78rem}.stock-tabs button.active,.storage-tabs button.active,.store-tabs button.active{background:#3d6851;border-color:#6a9c7d}.stockpile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.stockpile-item{padding:7px;border:1px solid #343b3c;border-radius:8px;background:#202626;font-size:.82rem}.stockpile-item strong{float:right}.donate-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.donate-row select{flex:1;min-width:120px}.donate-row button{padding:7px}.store-category-note{font-size:.78rem;color:#b8c4bf;margin:5px 0 8px}
+
 </style>
 </head>
 
@@ -438,18 +441,15 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 </div>
 
 <section class="panel hidden" id="basePanel">
-<h2>🏘️ Settlement Management</h2>
-<div id="baseDetails"></div>
-<h3>🛡️ Regional Safety</h3>
-<div id="safetyDetails"></div>
+<h2>🏘️ Settlement</h2>
+<div id="baseDetails" class="settlement-summary"></div>
+<div id="safetyDetails" class="settlement-safety"></div>
 <h3>👥 Population</h3>
 <div id="populationDetails"></div>
-<h3>📦 Settlement Stockpile</h3>
+<h3>📦 Stockpile</h3>
 <div id="stockpileDetails"></div>
-<h3>📦 Base Warehouse</h3><p class="muted">Deposit and withdraw supplies. Assigned NPC storekeepers can restock a completed General Store from warehouse stock.</p><div id="warehouseUI"></div>
-<h3>🔒 Private Shelter Storage</h3>
-<p class="muted">Only the shelter owner can access these personal belongings. This storage is separate from the shared settlement warehouse.</p>
-<div id="privateStorageUI"></div>
+<details class="settlement-storage"><summary>📦 Shared Warehouse</summary><p class="muted">Shared settlement supplies. Store clerks can restock the General Store from here.</p><div id="warehouseTabs" class="storage-tabs"></div><div id="warehouseUI"></div></details>
+<details class="settlement-storage" open><summary>🔒 Private Shelter Storage</summary><p class="muted">Your personal belongings, separate from the shared stockpile.</p><div id="privateStorageTabs"></div><div id="privateStorageUI"></div></details>
 <h3>🏙️ City Structures & 🏭 Production Buildings</h3>
 <div id="buildingList"></div>
 <button class="full-button upgrade-button" id="upgradeBaseButton" onclick="upgradeBase()">Upgrade Shelter</button>
@@ -2190,7 +2190,8 @@ function showItemDescription(id){
 function getMaxWeight(){
   const pack=equippedItem("backpack");
   const transport=equippedItem("transport");
-  return MAX_WEIGHT+Math.max(0,(Number(player.attributes?.strength)||1)-1)*0.25+(pack&&pack.capacity?pack.capacity:0)+(transport&&transport.carryCapacity?transport.carryCapacity:0);
+  const mods=player.base?.mountUpgrades?.[player.equipment?.transport]||{};
+  return MAX_WEIGHT+Math.max(0,(Number(player.attributes?.strength)||1)-1)*0.25+(pack&&pack.capacity?pack.capacity:0)+(transport&&transport.carryCapacity?transport.carryCapacity:0)+(mods.lashings?5:0);
 }
 function getInventoryWeight(){
   return player.inventory.reduce((n,e)=>
@@ -2775,7 +2776,7 @@ function makeBase(){
   return {
     x:player.x,y:player.y,level:1,shelterType:player.pendingShelterType||"outdoorShelter",buildings:[],
     population:{total:1,food:0,wood:0,mining:0,fishing:0,merchant:0,craft:0,guard:0,idle:1},
-    stockpile:{fruit:0,meat:0,wood:0,stone:0,ironOre:0,copperOre:0},
+    stockpile:{fruit:0,meat:0,water:0,wood:0,stone:0,ironOre:0,copperOre:0},
     lastGrowthDay:player.day,productionHours:0,privateStorage:{}
   };
 }
@@ -2855,6 +2856,7 @@ function calculateSafety(){
 
 function produceSettlementHour(){
   if(!player.base)return;
+  passiveSettlementGathering();
   const b=player.base;
   // One production cycle per six in-game hours; production is stored per building.
   b.buildings.forEach(building=>{
@@ -2876,6 +2878,14 @@ function produceSettlementHour(){
     }
   });
 }
+function stockpileCapAdd(id,amount){if(!player.base)return 0;const s=player.base.stockpile||(player.base.stockpile={});const cur=Math.max(0,Number(s[id])||0);const add=Math.max(0,Math.min(Math.floor(Number(amount)||0),1000-cur));s[id]=cur+add;return add;}
+function stockpileCategory(id){const d=items[id]||{},n=(d.name||id).toLowerCase();if(id==='water'||d.type==='water'||/water|drink|beverage/.test(n))return 'water';if(/fruit|apple|banana|mango|orange|coconut|guava|papaya|berr|grape|pear|peach|plum|melon/.test(id+' '+n))return 'fruit';if(/meat|fish|salmon|tuna|trout|sardine|jerky|cookedmeat|poultry|chicken/.test(id+' '+n))return 'meat';if(d.type==='equipment'||d.slot||d.carryCapacity)return 'equipment';if(d.type==='material'||/wood|stone|ore|ingot|cloth|leather|scrap|crystal|metal|fiber|hide/.test(id+' '+n))return 'materials';if(d.type==='food')return 'food';return 'materials';}
+function setStockTab(tab){if(!player.base)return;player.base.stockTab=tab;renderStockpileTab();document.querySelectorAll('[data-stock-tab]').forEach(b=>b.classList.toggle('active',b.dataset.stockTab===tab));}
+function renderStockpileTab(){const el=document.getElementById('stockpileTabContent');if(!el||!player.base)return;const s=player.base.stockpile||(player.base.stockpile={});s.water=Math.min(1000,Math.max(0,Number(s.water)||0));const tab=player.base.stockTab||'food';const rows=[];if(tab==='food'){rows.push(['Fruit',s.fruit||0],['Meat',s.meat||0],['Water',s.water||0]);Object.entries(s).forEach(([id,n])=>{if(!['fruit','meat','water','wood','stone','ironOre','copperOre'].includes(id)&&n>0&&stockpileCategory(id)==='food')rows.push([items[id]?.name||id,n]);});}else if(tab==='equipment'){Object.entries(s).forEach(([id,n])=>{if(n>0&&items[id]&&stockpileCategory(id)==='equipment')rows.push([items[id].icon+' '+items[id].name,n]);});}else{Object.entries(s).forEach(([id,n])=>{if(n>0&&!['fruit','meat','water'].includes(id)&&stockpileCategory(id)==='materials')rows.push([items[id]?.icon+' '+(items[id]?.name||id),n]);});}el.innerHTML=rows.length?'<div class="stockpile-list">'+rows.map(([name,n])=>'<div class="stockpile-item">'+name+'<strong>'+Math.min(1000,Number(n)||0)+'/1000</strong></div>').join('')+'</div>':'<p class="muted">No items in this category yet. Donate items below.</p>';}
+function populateDonationSelect(){const sel=document.getElementById('donateItemSelect');if(!sel)return;const old=sel.value;sel.innerHTML='<option value="">Choose item to donate…</option>';const ids=[...new Set([...(player.inventory||[]).map(e=>e.id),...Object.keys(items)])].filter(id=>items[id]&&getItemCount(id)>0);ids.forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=(items[id].icon||'📦')+' '+items[id].name+' ×'+getItemCount(id);sel.appendChild(o);});if(ids.includes(old))sel.value=old;}
+function donateToStockpile(){if(!player.base||!baseAtHome()){showMessage('Return to your settlement to donate items.');return;}const id=document.getElementById('donateItemSelect')?.value;const amount=Math.max(1,Math.min(1000,Math.floor(Number(document.getElementById('donateAmount')?.value)||1)));if(!id||!items[id]||getItemCount(id)<1){showMessage('Choose an item you have in your bag.');return;}const category=stockpileCategory(id);let key=id;if(category==='fruit')key='fruit';else if(category==='meat')key='meat';else if(category==='water')key='water';const s=player.base.stockpile||(player.base.stockpile={});const current=Math.max(0,Number(s[key])||0);const can=Math.min(amount,getItemCount(id),Math.max(0,1000-current));if(can<1){showMessage((items[key]?.name||key)+' stockpile is full (1,000).');return;}if(!removeItems(id,can))return;s[key]=current+can;saveGame();updateScreen();showMessage('Donated '+can+' '+(category==='fruit'?'fruit':category==='meat'?'meat':category==='water'?'water':items[id].name)+' to the settlement stockpile.');}
+function passiveSettlementGathering(){if(!player.base)return;assignVillagers();const p=player.base.population||{};const idle=Math.max(0,Math.floor(Number(p.idle)||0));if(!idle)return;const s=player.base.stockpile||(player.base.stockpile={});const food=stockpileCapAdd('fruit',Math.min(idle,Math.max(0,1000-(Number(s.fruit)||0))));const water=stockpileCapAdd('water',Math.min(Math.max(1,Math.floor(idle/2)),Math.max(0,1000-(Number(s.water)||0))));if(food||water){p.lastForageDay=player.day;}}
+
 function updatePopulationForNewDay(){
   if(!player.base)return;
   const b = player.base;
@@ -3015,6 +3025,7 @@ function updateBase(){
     button.textContent = "Build a settlement first";
     const retire=document.getElementById("retireButton");if(retire)retire.disabled=true;
     renderPrivateStorage();
+    renderWarehouse();
     return;
   }
 
@@ -3027,19 +3038,17 @@ function updateBase(){
   const p = b.population;
   const s = b.stockpile;
 
-  details.textContent = "🏘️ "+(shelterTypes[b.shelterType]?.name||level.name)+" — Level "+b.level+" / 10"+
-    "\n👥 Population limit: "+housingCapacity()+"\n📍 Headquarters: "+b.x+", "+b.y;
-  safetyBox.textContent = "City structures share the headquarters tile. Production buildings operate on fully explored terrain tiles.\nRegional safety: "+safe.label+" ("+safe.score+"/100).";
+  details.innerHTML='<strong>'+(shelterTypes[b.shelterType]?.icon||'🏕️')+' '+(shelterTypes[b.shelterType]?.name||level.name)+'</strong> <span>Lv '+b.level+'/10</span><div class="management-metric"><span>Residents</span><strong>'+p.total+' / '+housingCapacity()+'</strong></div><div class="management-metric"><span>Headquarters</span><strong>'+b.x+', '+b.y+'</strong></div>';
+  safetyBox.innerHTML='<strong>🛡️ '+safe.label+' · '+safe.score+'/100</strong><div class="store-category-note">City structures share headquarters tile · Production buildings need fully explored terrain.</div>';
 
   popBox.innerHTML = '<div class="management-grid">'+[
     ['👥 Population', [['Residents',p.total+' / '+housingCapacity()],['Unassigned',p.idle]]],
     ['🛡️ Security & Work', [['Guards',p.guard],['Farmers',p.food],['Miners',p.mining],['Fishermen',p.fishing],['Lumberjacks',p.wood],['Merchants',p.merchant],['Craftsmen',p.craft]]]
   ].map(([title,rows])=>'<div class="management-card"><h4>'+title+'</h4>'+rows.map(([label,value])=>'<div class="management-metric"><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>').join('')+'</div>';
 
-  stockBox.innerHTML = '<div class="management-grid">'+[
-    ['🍎 Food & Supplies', [['Fruit',s.fruit],['Meat',s.meat]]],
-    ['⛏️ Construction Materials', [['Wood',s.wood],['Stone',s.stone],['Iron Ore',s.ironOre],['Copper Ore',s.copperOre]]]
-  ].map(([title,rows])=>'<div class="management-card"><h4>'+title+'</h4>'+rows.map(([label,value])=>'<div class="management-metric"><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>').join('')+'</div>';
+  b.stockpile=b.stockpile||{};Object.keys(s).forEach(id=>{s[id]=Math.min(1000,Math.max(0,Math.floor(Number(s[id])||0)));});s.water=Math.min(1000,Math.max(0,Number(s.water)||0));
+  stockBox.innerHTML='<div class="stock-tabs"><button data-stock-tab="food" class="'+((b.stockTab||'food')==='food'?'active':'')+'" onclick="setStockTab(&quot;food&quot;)">🍎 Food</button><button data-stock-tab="equipment" class="'+(b.stockTab==='equipment'?'active':'')+'" onclick="setStockTab(&quot;equipment&quot;)">🛡️ Equipment</button><button data-stock-tab="materials" class="'+(b.stockTab==='materials'?'active':'')+'" onclick="setStockTab(&quot;materials&quot;)">🪵 Materials</button></div><div id="stockpileTabContent"></div><div class="donate-row"><select id="donateItemSelect"><option value="">Choose item to donate…</option></select><input id="donateAmount" type="number" min="1" max="1000" value="1" style="width:70px;max-width:80px"><button onclick="donateToStockpile()">Donate</button></div><div class="store-category-note">Stockpile limit: 1,000 per category/resource. Fruit varieties combine as Fruit; meat and fish combine as Meat; water items combine as Water.</div>';
+  renderStockpileTab();populateDonationSelect();
 
   list.innerHTML = "";
   const baseRow = document.createElement("div");
@@ -3098,6 +3107,7 @@ function updateBase(){
     }
   }
   renderPrivateStorage();
+  renderWarehouse();
 }
 
 /* =========================
@@ -3275,7 +3285,8 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
     for(let i=0;i<total;i++){
       if(player.dead)return false;
       player.hour++;
-      if(player.hour>=24){player.hour=0;player.day++;}
+      if(player.hour>=24){player.hour=0;player.day++;updatePopulationForNewDay();}
+      produceSettlementHour();
       Object.values(bonfires).forEach(fire=>{if(fire.fuel>0)fire.fuel=Math.max(0,fire.fuel-1);});
     }
     applyActivitySurvivalCost(actionLabel,total);
@@ -3296,7 +3307,8 @@ async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
 function getTravelModifiers(){
   const transport=equippedItem("transport");
   if(!transport)return {name:"On Foot",speed:1,energy:1};
-  return {name:transport.name||"Travel Method",speed:Math.max(.35,Number(transport.travelSpeed)||1),energy:Math.max(.2,Number(transport.energyMultiplier)||1)};
+  const mods=player.base?.mountUpgrades?.[player.equipment?.transport]||{};
+  return {name:transport.name||"Travel Method",speed:Math.max(.35,(Number(transport.travelSpeed)||1)*(mods.horseshoes?.92:1)*(mods.wheels?.9:1)),energy:Math.max(.2,(Number(transport.energyMultiplier)||1)*(mods.groomed?.9:1)*(mods.frame?.95:1))};
 }
 
 function calculateTravel(x,y){
@@ -5528,10 +5540,10 @@ function renderPrivateStorage(){
  const el=document.getElementById("privateStorageUI");if(!el)return;el.innerHTML="";
  if(!player.base){el.textContent="Build a shelter to unlock private storage.";return;}
  if(!baseAtHome()){el.textContent="Return to your shelter to access your private storage.";return;}
- player.base.privateStorage=player.base.privateStorage||{};
- const storage=player.base.privateStorage;
- const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(storage)])].filter(id=>items[id]);
- if(!ids.length){const note=document.createElement("p");note.className="muted";note.textContent="Your private storage is empty. Items stored here are separate from the shared warehouse.";el.appendChild(note);}
+ player.base.privateStorage=player.base.privateStorage||{};const storage=player.base.privateStorage;const tab=player.base.privateStorageTab||'food';
+ const tabs=document.getElementById('privateStorageTabs');if(tabs){tabs.innerHTML='';[['food','🍎 Food'],['equipment','🛡️ Equipment'],['materials','🪵 Materials']].forEach(([key,label])=>{const btn=document.createElement('button');btn.textContent=label;btn.className=(tab===key?'active':'');btn.onclick=()=>{player.base.privateStorageTab=key;saveGame();renderPrivateStorage();};tabs.appendChild(btn);});}
+ const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(storage)])].filter(id=>items[id]&&(stockpileCategory(id)===tab||(tab==='food'&&['fruit','meat','water'].includes(stockpileCategory(id)))));
+ if(!ids.length){const note=document.createElement("p");note.className="muted";note.textContent="No items in this category. Your private storage is separate from the shared settlement stockpile.";el.appendChild(note);}
  ids.forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id].icon||"📦")+" "+items[id].name+" · Bag "+getItemCount(id)+" · Private "+(Number(storage[id])||0);const dep=document.createElement("button");dep.textContent="Store 1";dep.disabled=!getItemCount(id);dep.onclick=()=>movePrivateStorage(id,1,true);const take=document.createElement("button");take.textContent="Take 1";take.disabled=!(Number(storage[id])>0);take.onclick=()=>movePrivateStorage(id,1,false);row.append(label,dep,take);el.appendChild(row);});
 }
 function movePrivateStorage(id,n,deposit){
@@ -5541,7 +5553,7 @@ function movePrivateStorage(id,n,deposit){
  else{if((Number(st[id])||0)<n||!addItem(id,n))return;st[id]-=n;if(st[id]<=0)delete st[id];}
  saveGame();updateScreen();renderPrivateStorage();showMessage(deposit?"Item stored in your private shelter storage.":"Item withdrawn from your private shelter storage.");
 }
-function renderWarehouse(){const el=document.getElementById("warehouseUI");if(!el)return;el.innerHTML="";if(!player.base){el.textContent="Establish a base first.";return;}if(!hasBuilding("warehouse")){el.textContent="Build and complete a Warehouse first.";return;}if(!baseAtHome()){el.textContent="Return to your base to access the warehouse.";return;}const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(player.base.warehouse)])];ids.forEach(id=>{if(!items[id])return;const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[id].icon+" "+items[id].name+" · Bag "+getItemCount(id)+" · Stored "+(player.base.warehouse[id]||0);const dep=document.createElement("button");dep.textContent="Deposit 1";dep.disabled=!getItemCount(id);dep.onclick=()=>warehouseMove(id,1,true);const wit=document.createElement("button");wit.textContent="Withdraw 1";wit.disabled=!(player.base.warehouse[id]>0);wit.onclick=()=>warehouseMove(id,1,false);row.append(label,dep,wit);el.appendChild(row);});}
+function renderWarehouse(){const el=document.getElementById("warehouseUI");if(!el)return;el.innerHTML="";if(!player.base){el.textContent="Establish a base first.";return;}if(!hasBuilding("warehouse")){el.textContent="Build and complete a Warehouse first.";return;}if(!baseAtHome()){el.textContent="Return to your base to access the warehouse.";return;}const b=player.base;b.warehouseTab=b.warehouseTab||'food';const tabs=document.getElementById('warehouseTabs');if(tabs){tabs.innerHTML='';[['food','🍎 Food'],['equipment','🛡️ Equipment'],['materials','🪵 Materials']].forEach(([key,label])=>{const btn=document.createElement('button');btn.textContent=label;btn.className=b.warehouseTab===key?'active':'';btn.onclick=()=>{b.warehouseTab=key;renderWarehouse();};tabs.appendChild(btn);});}const storage=b.warehouse||(b.warehouse={});const ids=[...new Set([...player.inventory.map(e=>e.id),...Object.keys(storage)])].filter(id=>items[id]&&(stockpileCategory(id)===b.warehouseTab||(b.warehouseTab==='food'&&['fruit','meat','water'].includes(stockpileCategory(id)))));if(!ids.length){el.textContent="No items in this category.";return;}ids.forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=items[id].icon+" "+items[id].name+" · Bag "+getItemCount(id)+" · Stored "+(storage[id]||0);const dep=document.createElement("button");dep.textContent="Deposit 1";dep.disabled=!getItemCount(id);dep.onclick=()=>warehouseMove(id,1,true);const wit=document.createElement("button");wit.textContent="Withdraw 1";wit.disabled=!(storage[id]>0);wit.onclick=()=>warehouseMove(id,1,false);row.append(label,dep,wit);el.appendChild(row);});}
 function warehouseMove(id,n,deposit){ensureEconomyData();if(!baseAtHome()||!hasBuilding("warehouse"))return;if(deposit){if(!removeItems(id,n))return;player.base.warehouse[id]=(player.base.warehouse[id]||0)+n;}else{if((player.base.warehouse[id]||0)<n||!addItem(id,n))return;player.base.warehouse[id]-=n;}saveGame();updateScreen();renderEconomy();}
 function restockStore(){if(!buildingService("generalStore")||!hasBuilding("warehouse")){showMessage("At home, a completed General Store and Warehouse are required.");return;}const store=player.base.buildings.find(b=>b.type==="generalStore"&&b.completed);if(!store||Number(store.staffAssigned)<1){showMessage("Assign a resident as Store Clerk before the General Store can restock from the warehouse.");return;}const stock=player.base.storeStock,wh=player.base.warehouse;let moved=0;["fruit","cookedMeat","bottle","canteen","waterJug","waterskin"].forEach(id=>{const target=id==="fruit"?12:5;const need=Math.max(0,target-(stock[id]||0));const take=Math.min(need,wh[id]||0);if(take){wh[id]-=take;stock[id]=(stock[id]||0)+take;moved+=take;}});if(moved){saveGame();renderEconomy();showMessage("NPC storekeepers restocked "+moved+" items from the warehouse.");}else showMessage("Warehouse has no supplies needed by the store.");}
 function renderStore(){const el=document.getElementById("storeUI");if(!el)return;el.innerHTML="";if(!player.base||!hasBuilding("generalStore")){el.textContent="Build and complete a General Store at your base first.";return;}if(!baseAtHome()){el.textContent="Return to your base to use the store.";return;}const stock=player.base.storeStock||{};Object.keys(tradePrices).forEach(id=>{const row=document.createElement("div");row.className="item-row";const label=document.createElement("span");label.className="item-name";label.textContent=(items[id]?.icon||"")+" "+items[id].name+" · Stock "+(stock[id]||0)+" · "+tradePrices[id]+" coins";const buy=document.createElement("button");buy.textContent="Buy 1";buy.disabled=(stock[id]||0)<1||(player.coins||0)<tradePrices[id];buy.onclick=()=>buyStoreItem(id);const sell=document.createElement("button");sell.textContent="Sell 1";sell.disabled=!getItemCount(id);sell.onclick=()=>sellStoreItem(id);row.append(label,buy,sell);el.appendChild(row);});const restock=document.createElement("button");restock.className="full-button";restock.textContent="📦 NPC Restock from Warehouse";restock.disabled=!hasBuilding("warehouse")||!(player.base.buildings.find(b=>b.type==="generalStore"&&b.completed)?.staffAssigned>0);restock.onclick=restockStore;el.appendChild(restock);}
@@ -5623,6 +5635,8 @@ document.addEventListener("DOMContentLoaded",()=>{refreshQuickChatAccess();});
 let activeServiceBuildingIndex=-1;
 function closeBuildingService(){const m=document.getElementById('buildingServiceModal');if(m)m.style.display='none';}
 function serviceButton(label,fn,disabled=false){const b=document.createElement('button');b.className='full-button';b.textContent=label;b.disabled=disabled;b.style.margin='6px 0';b.onclick=fn;return b;}
+function mountUpgrade(index,id,upgrade,cost){if(!player.base||!baseAtHome()||!player.base.buildings[index]||player.base.buildings[index].type!=='stable'){showMessage('Use the completed Stable at your settlement.');return;}player.base.mountUpgrades=player.base.mountUpgrades||{};const mods=player.base.mountUpgrades[id]||(player.base.mountUpgrades[id]={});if(mods[upgrade]){showMessage('This modification is already installed.');return;}for(const [item,n] of Object.entries(cost)){if(getItemCount(item)<n){showMessage('Not enough '+(items[item]?.name||item)+'. Required: '+n+'.');return;}}for(const [item,n] of Object.entries(cost))removeItems(item,n);mods[upgrade]=true;saveGame();updateScreen();showMessage('Modification installed on '+items[id].name+'.');openBuildingService(index);}
+
 function openBuildingService(index){
  if(!player.base)return;const b=player.base.buildings[index];if(!b||!b.completed)return;const def=buildingTypes[b.type];if(!def)return;
  activeServiceBuildingIndex=index;const modal=document.getElementById('buildingServiceModal'),title=document.getElementById('buildingServiceTitle'),desc=document.getElementById('buildingServiceDescription'),content=document.getElementById('buildingServiceContent');
@@ -5631,7 +5645,7 @@ function openBuildingService(index){
  const requireHome=()=>{if(!baseAtHome()){showMessage('Return to your settlement headquarters to use this service.');return false;}return true;};
  if(b.type==='generalStore'){
    if(!requireHome()){addNote('Return to your settlement headquarters to access store stock.');}
-   else {const stock=player.base.storeStock||{};Object.keys(tradePrices).filter(id=>items[id]).forEach(id=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(items[id].icon||'📦')+' '+items[id].name+' · Stock '+(stock[id]||0)+' · '+tradePrices[id]+' coins';const buy=serviceButton('Buy 1',()=>{buyStoreItem(id);openBuildingService(index);},(stock[id]||0)<1||(player.coins||0)<tradePrices[id]);buy.className='';const sell=serviceButton('Sell 1',()=>{sellStoreItem(id);openBuildingService(index);},!getItemCount(id));sell.className='';row.append(label,buy,sell);content.appendChild(row);});content.appendChild(serviceButton('📦 Restock from Warehouse',()=>{restockStore();openBuildingService(index);},!hasBuilding('warehouse')||Number(b.staffAssigned)<1));}
+   else {const stock=player.base.storeStock||{};const storeTab=player.base.storeTab||'food';const tabs=document.createElement('div');tabs.className='store-tabs';[['food','🍎 Food'],['equipment','🛡️ Equipment'],['materials','🪵 Materials']].forEach(([key,label])=>{const btn=serviceButton(label,()=>{player.base.storeTab=key;saveGame();openBuildingService(index);},false);btn.className=storeTab===key?'active':'';tabs.appendChild(btn);});content.appendChild(tabs);const note=document.createElement('p');note.className='store-category-note';note.textContent='General Store · '+({food:'Food & drink',equipment:'Equipment & transport',materials:'Materials & supplies'}[storeTab]);content.appendChild(note);Object.keys(tradePrices).filter(id=>items[id]&&(stockpileCategory(id)===storeTab||(storeTab==='food'&&['fruit','meat','water'].includes(stockpileCategory(id))))).forEach(id=>{const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(items[id].icon||'📦')+' '+items[id].name+' · Stock '+(stock[id]||0)+' · '+tradePrices[id]+' coins';const buy=serviceButton('Buy 1',()=>{buyStoreItem(id);openBuildingService(index);},(stock[id]||0)<1||(player.coins||0)<tradePrices[id]);buy.className='';const sell=serviceButton('Sell 1',()=>{sellStoreItem(id);openBuildingService(index);},!getItemCount(id));sell.className='';row.append(label,buy,sell);content.appendChild(row);});content.appendChild(serviceButton('📦 Restock from Warehouse',()=>{restockStore();openBuildingService(index);},!hasBuilding('warehouse')||Number(b.staffAssigned)<1));}
    b.staffAssigned=Math.max(0,Math.floor(Number(b.staffAssigned)||0));
    addNote('Store clerks assigned: '+b.staffAssigned+' / 1. Assign a resident to staff this store.');
    content.appendChild(serviceButton('➕ Assign Store Clerk',()=>assignResidents(index,1),b.staffAssigned>=1||!baseAtHome()||player.dead));
@@ -5651,7 +5665,14 @@ function openBuildingService(index){
  }else if(b.type==='blacksmith'){
    addNote('Craft weapons, armor, and tools using your available recipes.');content.appendChild(serviceButton('⚒️ Open Crafting',()=>{closeBuildingService();hideScreens();document.getElementById('craftingPanel')?.classList.remove('hidden');renderCrafting();},false));
  }else if(b.type==='stable'){
-   addNote('Manage mounts and transport.');content.appendChild(serviceButton('🐎 Open Trade for Mount Supplies',()=>{closeBuildingService();hideScreens();document.getElementById('tradePanel')?.classList.remove('hidden');renderTrade();},false));
+   ensureEquipment();player.base.mountUpgrades=player.base.mountUpgrades||{};const equipped=player.equipment?.transport;const owned=[...new Set([equipped,...(player.inventory||[]).filter(e=>items[e.id]?.slot==='transport').map(e=>e.id)])].filter(id=>id&&items[id]?.slot==='transport');
+   addNote('Manage your mounts and transport here. Select any transport you own, including carts and wagons, to equip it or improve it.');
+   if(!owned.length)addNote('No mounts or transport owned yet. Find or purchase a horse, cart, or wagon first.');
+   owned.forEach(id=>{const d=items[id],mods=player.base.mountUpgrades[id]||(player.base.mountUpgrades[id]={});const row=document.createElement('div');row.className='item-row';const label=document.createElement('span');label.className='item-name';label.textContent=(d.icon||'🛒')+' '+d.name+(equipped===id?' · Equipped':' · In bag')+' · Capacity '+(d.carryCapacity||0)+' kg'+(mods.horseArmor?' · Armored':'')+(mods.horseshoes?' · Shoed':'')+(mods.frame?' · Reinforced':'')+(mods.wheels?' · Improved wheels':'');row.appendChild(label);if(equipped!==id){const equip=serviceButton('Equip',()=>{equipItem(id);openBuildingService(index);},!getItemCount(id));equip.className='';row.appendChild(equip);}else{const unequip=serviceButton('Unequip',()=>{unequipItem('transport');openBuildingService(index);},false);unequip.className='';row.appendChild(unequip);}content.appendChild(row);
+     const horse=/horse/i.test(id+' '+d.name);const cart=/cart|wagon|carriage|handcart/i.test(id+' '+d.name);
+     if(horse){content.appendChild(serviceButton('🛡️ Fit Horse Armor (Leather ×3, Iron Ore ×2)',()=>mountUpgrade(index,id,'horseArmor',{leather:3,ironOre:2}),!!mods.horseArmor||!baseAtHome()||getItemCount('leather')<3||getItemCount('ironOre')<2));content.appendChild(serviceButton('🧲 Shoe Horse (Iron Ore ×2)',()=>mountUpgrade(index,id,'horseshoes',{ironOre:2}),!!mods.horseshoes||!baseAtHome()||getItemCount('ironOre')<2));content.appendChild(serviceButton('🧹 Groom & Feed Mount (Fruit ×1)',()=>{if(!baseAtHome()||!removeItems('fruit',1)){showMessage('You need to be at the stable with 1 fruit.');return;}mods.groomed=true;saveGame();showMessage(d.name+' has been groomed and fed.');openBuildingService(index);},!baseAtHome()||!getItemCount('fruit')));}
+     if(cart){content.appendChild(serviceButton('🪵 Reinforce Frame (Wood ×3, Iron Ore ×2)',()=>mountUpgrade(index,id,'frame',{wood:3,ironOre:2}),!!mods.frame||!baseAtHome()||getItemCount('wood')<3||getItemCount('ironOre')<2));content.appendChild(serviceButton('🛞 Upgrade Wheels (Wood ×2, Scrap Metal ×1)',()=>mountUpgrade(index,id,'wheels',{wood:2,scrapMetal:1}),!!mods.wheels||!baseAtHome()||getItemCount('wood')<2||getItemCount('scrapMetal')<1));content.appendChild(serviceButton('🪢 Add Cargo Lashings (Leather ×1, Cloth ×1)',()=>mountUpgrade(index,id,'lashings',{leather:1,cloth:1}),!!mods.lashings||!baseAtHome()||getItemCount('leather')<1||getItemCount('cloth')<1));}
+   });
  }else if(b.type==='bank'){
    addNote('Wallet balance: '+(player.coins||0)+' coins. Bank services are available here.');
  }else if(b.type==='guardBarracks'){
