@@ -221,6 +221,11 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 .tutorial-actions button{flex:1;padding:12px 8px}
 #tutorialSkip{width:100%;margin-top:8px;background:#292d29;border-color:#4b514b}
 
+
+#cookingInterface{display:none;position:fixed;inset:0;z-index:18000;background:#000c;align-items:center;justify-content:center;padding:12px}
+#cookingInterface.open{display:flex}#cookingInterface .cook-card{width:100%;max-width:520px;max-height:88vh;overflow:auto;background:#1c241d;border:1px solid #71836d;border-radius:14px;padding:15px;box-shadow:0 12px 40px #000b}
+.cook-recipe{background:#252e25;border:1px solid #465747;border-radius:10px;padding:11px;margin:9px 0}.cook-recipe h3{margin:0 0 7px;font-size:16px}.cook-recipe p{font-size:12px;margin:5px 0;color:#d1ded1}.cook-recipe .cook-missing{color:#ffb4a8}.cook-recipe button{width:100%;margin-top:8px}
+
 </style>
 </head>
 
@@ -2539,21 +2544,57 @@ const cookingRecipes=[
  {id:"fishStew",label:"🍲 River Fish Stew",ingredients:{riverLoot09:1,herb:1},hours:1},
  {id:"eggSkillet",label:"🍳 Campfire Egg Skillet",ingredients:{forestLoot08:1,forestLoot13:1},hours:1}
 ];
+function cookingEffectText(food){
+ const effects=[];
+ if(Number(food.hungerEffect)>0)effects.push('+'+food.hungerEffect+' Hunger');
+ if(Number(food.energyEffect)>0)effects.push('+'+food.energyEffect+' Energy');
+ if(Number(food.healthEffect)>0)effects.push('+'+food.healthEffect+' Health');
+ if(Number(food.thirstEffect)>0)effects.push('+'+food.thirstEffect+' Thirst');
+ if(Number(food.manaEffect)>0)effects.push('+'+food.manaEffect+' Mana');
+ return effects.length?effects.join(' · '):'No listed stat effects';
+}
+function closeCookingInterface(){document.getElementById('cookingInterface')?.classList.remove('open');}
+function ensureCookingInterface(){
+ let modal=document.getElementById('cookingInterface');
+ if(!modal){modal=document.createElement('div');modal.id='cookingInterface';modal.innerHTML='<div class="cook-card" role="dialog" aria-modal="true" aria-labelledby="cookInterfaceTitle"><h2 id="cookInterfaceTitle">🍳 Cook at Bonfire</h2><p id="cookInterfaceNote" class="muted"></p><div id="cookRecipeList"></div><button type="button" class="full-button" onclick="closeCookingInterface()">Close</button></div>';modal.addEventListener('click',e=>{if(e.target===modal)closeCookingInterface();});document.body.appendChild(modal);}
+ return modal;
+}
+function openCookingInterface(){
+ const modal=ensureCookingInterface();const note=document.getElementById('cookInterfaceNote'),list=document.getElementById('cookRecipeList');
+ if(!isBonfireBurning(player.x,player.y)){note.textContent='A burning bonfire is required. Add firewood if the fire has gone out.';list.innerHTML='';modal.classList.add('open');return;}
+ const fire=getBonfire(player.x,player.y);note.textContent='Fire fuel: '+(fire?.fuel||0)+' hour(s). Select a recipe to see ingredients and exact effects.';list.innerHTML='';
+ cookingRecipes.forEach(recipe=>{
+  const food=items[recipe.id];if(!food)return;
+  const missing=Object.entries(recipe.ingredients).filter(([id,n])=>getItemCount(id)<n);
+  const ingredients=Object.entries(recipe.ingredients).map(([id,n])=>`${n} × ${items[id]?.name||id} (${getItemCount(id)} owned)`).join(' · ');
+  const inputWeight=Object.entries(recipe.ingredients).reduce((sum,[id,n])=>sum+(Number(items[id]?.weight)||0)*n,0);
+  const tooHeavy=getInventoryWeight()-inputWeight+(Number(food.weight)||0)>getMaxWeight()+.000001;
+  const card=document.createElement('div');card.className='cook-recipe';
+  const title=document.createElement('h3');title.textContent=recipe.label;
+  const ing=document.createElement('p');ing.innerHTML='<strong>Raw materials:</strong> ';ing.appendChild(document.createTextNode(ingredients));
+  const effect=document.createElement('p');effect.innerHTML='<strong>Food effects:</strong> ';effect.appendChild(document.createTextNode(cookingEffectText(food)));
+  const time=document.createElement('p');time.textContent='Cooking time: '+recipe.hours+' in-game hour(s)';
+  const button=document.createElement('button');button.type='button';button.className='build-button';button.textContent=missing.length?'Missing ingredients':(tooHeavy?'Inventory full':'Cook '+food.name);button.disabled=player.dead||!fire||fire.fuel<recipe.hours||missing.length>0||tooHeavy;button.onclick=()=>cookRecipe(recipe.id);
+  if(missing.length){const m=document.createElement('p');m.className='cook-missing';m.textContent='Need: '+missing.map(([id,n])=>(n-getItemCount(id))+' more '+(items[id]?.name||id)).join(', ');card.appendChild(m);}
+  card.append(title,ing,effect,time,button);list.appendChild(card);
+ });
+ modal.classList.add('open');
+}
 async function cookRecipe(id){
- if(!isBonfireBurning(player.x,player.y)){showNarration("No Fire","You need a burning bonfire to cook food.");return;}
+ if(!isBonfireBurning(player.x,player.y)){showNarration('No Fire','You need a burning bonfire to cook food.');openCookingInterface();return;}
  const recipe=cookingRecipes.find(r=>r.id===id),food=items[id];if(!recipe||!food)return;
  const missing=Object.entries(recipe.ingredients).filter(([item,n])=>getItemCount(item)<n);
- if(missing.length){showNarration("Ingredients Missing","You need: "+missing.map(([item,n])=>n+" × "+(items[item]?.name||item)).join(", ")+".");return;}
+ if(missing.length){showNarration('Ingredients Missing','You need: '+missing.map(([item,n])=>n+' × '+(items[item]?.name||item)).join(', ')+'.');openCookingInterface();return;}
+ const fire=getBonfire(player.x,player.y);if(!fire||fire.fuel<recipe.hours){showNarration('Not Enough Firewood','Add firewood before cooking this recipe.');openCookingInterface();return;}
  const inputWeight=Object.entries(recipe.ingredients).reduce((sum,[item,n])=>sum+(Number(items[item]?.weight)||0)*n,0);
- if(getInventoryWeight()-inputWeight+(Number(food.weight)||0)>getMaxWeight()+.000001){showNarration("Inventory Full","Make room in your backpack before cooking.");return;}
+ if(getInventoryWeight()-inputWeight+(Number(food.weight)||0)>getMaxWeight()+.000001){showNarration('Inventory Full','Make room in your backpack before cooking.');openCookingInterface();return;}
  Object.entries(recipe.ingredients).forEach(([item,n])=>removeItems(item,n));
  addItem(id,1);
- const xp=gainXP("cooking",20);
- // The elapsed hour consumes bonfire fuel and drains survival needs; the meal is added before time passes.
- if(!await advanceTime(recipe.hours,"Cooking meal","🍲"))return;
+ const xp=gainXP('cooking',20);
+ if(!await advanceTime(recipe.hours,'Cooking meal','🍲')){closeCookingInterface();return;}
  updateScreen();openLocation(player.x,player.y);
- const gains=[];if(food.hungerEffect)gains.push("+"+food.hungerEffect+" hunger");if(food.energyEffect)gains.push("+"+food.energyEffect+" energy when eaten");if(food.healthEffect)gains.push("+"+food.healthEffect+" health when eaten");
- showNarration("Cooking Complete",food.icon+" You prepared "+food.name+".\n\nWhen eaten, it restores: "+gains.join(", ")+"."+xp);
+ showNarration('Cooking Complete',food.icon+' You prepared '+food.name+'.\n\nFood effects when eaten: '+cookingEffectText(food)+'. '+xp);
+ openCookingInterface();
 }
 function cookMeat(){cookRecipe("cookedMeat");}
 
@@ -2591,13 +2632,12 @@ function updateBonfireUI(x,y){
   fuel.onclick = addFirewood;
   actions.appendChild(fuel);
 
-  cookingRecipes.forEach(recipe=>{
-    const cook = document.createElement("button");cook.className="build-button";
-    const ingredients=Object.entries(recipe.ingredients).map(([id,n])=>n+" × "+(items[id]?.name||id)).join(" + ");
-    cook.innerHTML="<strong>"+recipe.label+"</strong><small>Ingredients: "+ingredients+"</small><small>Restores energy and hunger</small>";
-    cook.disabled=player.dead||fire.fuel<=0||Object.entries(recipe.ingredients).some(([id,n])=>getItemCount(id)<n);
-    cook.onclick=()=>cookRecipe(recipe.id);actions.appendChild(cook);
-  });
+  const cook = document.createElement("button");
+  cook.className = "build-button";
+  cook.innerHTML = "<strong>🍳 Cook Food</strong><small>Open recipes, raw materials, and food effects</small>";
+  cook.disabled = player.dead || fire.fuel <= 0;
+  cook.onclick = openCookingInterface;
+  actions.appendChild(cook);
 
   const restBtn = document.createElement("button");
   restBtn.className = "rest-button";
@@ -3208,6 +3248,11 @@ function balancedActionEnergyCost(actionId,configuredCost){
     chop:6,rest:0,sleep:0
   };
   return Object.prototype.hasOwnProperty.call(costs,actionId)?costs[actionId]:Math.max(0,Math.round((Number(configuredCost)||0)*0.7));
+}
+function previewActionEnergyCost(action,terrain=generateTerrain(player.x,player.y)){
+ const seasonMods=getSeasonalModifiers(terrain);
+ const toolBonus=getEquippedToolBonus(action.id);
+ return Math.max(0,Math.ceil(balancedActionEnergyCost(action.id,action.cost)-Math.max(0,Number(toolBonus.energyReduction)||0)+(Number(seasonMods.workEnergy)||0)));
 }
 let timeAdvanceInProgress=false;
 async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
@@ -4055,7 +4100,7 @@ function openLocation(x,y){
     container.appendChild(exploreDevelopedBtn);
     (info.actions||[]).forEach(action=>{
       const actionBtn=document.createElement("button");
-      actionBtn.innerHTML="<strong>"+action.name+"</strong><small>"+action.detail+"</small><small>⚡ "+action.cost+" energy · "+action.hours+" hour(s)</small>";
+      actionBtn.innerHTML="<strong>"+action.name+"</strong><small>"+action.detail+"</small><small>⚡ "+previewActionEnergyCost(action,terrain)+" energy · "+action.hours+" hour(s)</small>";
       actionBtn.disabled=player.dead;
       actionBtn.onclick=()=>performLocationAction(action);
       container.appendChild(actionBtn);
@@ -4084,7 +4129,7 @@ function openLocation(x,y){
     availableActions.forEach(action=>{
       const btn = document.createElement("button");
       btn.innerHTML = "<strong>"+action.name+"</strong><small>"+action.detail+
-        "</small><small>⚡ "+action.cost+" energy · "+action.hours+" hour(s)</small>";
+        "</small><small>⚡ "+previewActionEnergyCost(action,terrain)+" energy · "+action.hours+" hour(s)</small>";
       btn.disabled = player.dead;
       btn.onclick = ()=>performLocationAction(action);
       container.appendChild(btn);
