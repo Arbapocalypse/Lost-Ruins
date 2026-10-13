@@ -232,6 +232,8 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 
 .settlement-summary,.settlement-safety{padding:9px 11px;margin:7px 0;border:1px solid #343b3c;border-radius:10px;background:#171d1d;white-space:normal;line-height:1.4;font-size:.88rem}.settlement-safety{color:#c8d6cf;font-size:.82rem}.settlement-storage{margin:8px 0;padding:9px;border:1px solid #343b3c;border-radius:10px;background:#171b1b}.settlement-storage summary{font-weight:700;cursor:pointer}.stock-tabs,.storage-tabs,.store-tabs{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 9px}.stock-tabs button,.storage-tabs button,.store-tabs button{flex:1;min-width:72px;padding:7px 5px;font-size:.78rem}.stock-tabs button.active,.storage-tabs button.active,.store-tabs button.active{background:#3d6851;border-color:#6a9c7d}.stockpile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.stockpile-item{padding:7px;border:1px solid #343b3c;border-radius:8px;background:#202626;font-size:.82rem}.stockpile-item strong{float:right}.donate-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.donate-row select{flex:1;min-width:120px}.donate-row button{padding:7px}.store-category-note{font-size:.78rem;color:#b8c4bf;margin:5px 0 8px}
 
+
+.tile-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}.tile-tabs .profile-tab-button{padding:10px 5px;font-size:13px}.tile-tab-content{min-width:0}.area-poi{margin:7px 0;width:100%;text-align:left}.area-poi small{display:block;margin-top:4px;color:#c8c8c8;white-space:normal}.settlement-storage{margin:8px 0}
 </style>
 </head>
 
@@ -287,23 +289,22 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <section class="panel hidden" id="locationPanel">
 <h2 id="locationTitle">🌲 Forest</h2>
 <div id="locationCoordinates" class="detail-stat"></div>
-<h3>Description</h3>
-<p id="locationDescription"></p>
-<h3>Possible Loot</h3>
-<p id="locationLoot"></p>
-<div id="tileStatus" class="detail-stat"></div><div id="tilePlayers" class="detail-stat hidden"><h3>🧍 Survivors on this tile</h3><div id="tilePlayersList"></div></div>
-<div id="tileExploration" class="detail-stat"></div>
-
-<div id="bonfireDetails" class="detail-stat"></div>
-<div id="bonfireActions" class="action-grid"></div>
-<h3>🪵 Items on the Ground</h3>
-<p id="groundLootDescription" class="muted">Items dropped here remain at this location.</p>
-<div id="groundLoot"></div>
-<h3>🏗️ Construction</h3>
-<div id="tileBuilding"></div>
-<div class="action-grid" id="buildingActions"></div>
-<h3>Available Actions</h3>
-<div class="action-grid" id="locationActions"></div>
+<div class="profile-tabs tile-tabs" role="tablist" aria-label="Tile details">
+ <button class="profile-tab-button active" id="tileTabBtn" onclick="switchTileTab('tile')" role="tab" aria-selected="true">🗺️ Tile</button>
+ <button class="profile-tab-button" id="areasTabBtn" onclick="switchTileTab('areas')" role="tab" aria-selected="false">📍 Areas</button>
+ <button class="profile-tab-button" id="lootTabBtn" onclick="switchTileTab('loot')" role="tab" aria-selected="false">🎒 Loot <span id="tileLootCount"></span></button>
+</div>
+<div id="tileTabContent" class="tile-tab-content">
+ <h3>Description</h3><p id="locationDescription"></p>
+ <h3>Possible Loot</h3><p id="locationLoot"></p>
+ <div id="tileStatus" class="detail-stat"></div><div id="tilePlayers" class="detail-stat hidden"><h3>🧍 Survivors on this tile</h3><div id="tilePlayersList"></div></div>
+ <div id="tileExploration" class="detail-stat"></div>
+ <div id="bonfireDetails" class="detail-stat"></div><div id="bonfireActions" class="action-grid"></div>
+ <h3>Available Actions</h3><div class="action-grid" id="locationActions"></div>
+</div>
+<div id="areasTabContent" class="tile-tab-content hidden"><p class="muted">Points of interest on this tile. Completed settlement buildings appear here and can be opened directly.</p><div id="tileAreasList"></div></div>
+<div id="lootTabContent" class="tile-tab-content hidden"><h3>🎒 Items on the Ground</h3><p id="groundLootDescription" class="muted">Items dropped here remain at this location.</p><div id="groundLoot"></div></div>
+<div id="tileBuilding" class="hidden"></div><div id="buildingActions" class="hidden"></div>
 <button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
@@ -450,7 +451,9 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div id="stockpileDetails"></div>
 <details class="settlement-storage"><summary>📦 Shared Warehouse</summary><p class="muted">Shared settlement supplies. Store clerks can restock the General Store from here.</p><div id="warehouseTabs" class="storage-tabs"></div><div id="warehouseUI"></div></details>
 <details class="settlement-storage" open><summary>🔒 Private Shelter Storage</summary><p class="muted">Your personal belongings, separate from the shared stockpile.</p><div id="privateStorageTabs"></div><div id="privateStorageUI"></div></details>
-<h3>🏙️ City Structures & 🏭 Production Buildings</h3>
+<h3>🏗️ Construction & Buildings</h3>
+<p class="muted">All construction projects are managed here. Completed buildings appear under Areas on their tile and can be opened directly.</p>
+<div id="buildingConstructionManagement"></div>
 <div id="buildingList"></div>
 <button class="full-button upgrade-button" id="upgradeBaseButton" onclick="upgradeBase()">Upgrade Shelter</button>
 <button class="full-button" id="retireButton" onclick="retireAtShelter()" style="background:#356447">🏡 Retire Here & Raise an Heir</button>
@@ -2345,6 +2348,7 @@ function updateGroundLoot(x,y){
 
   const pile = groundLoot[locationKey(x,y)] || [];
   const isHere = x===player.x && y===player.y;
+  const countBadge=document.getElementById("tileLootCount");if(countBadge)countBadge.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';
 
   if(!pile.length){
     description.textContent = "Items dropped here remain at this location.";
@@ -3007,6 +3011,20 @@ function updateBuildingOptions(x,y,terrain){
   });
   if(x!==player.x||y!==player.y){const note=document.createElement("p");note.className="muted";note.textContent="Travel to this tile before constructing a production building.";container.appendChild(note);}
 }
+function renderSettlementConstruction(){
+ const box=document.getElementById('buildingConstructionManagement');if(!box)return;box.innerHTML='';if(!player.base){box.textContent='Build a settlement first.';return;}
+ const b=player.base;const projects=(b.buildings||[]).filter(item=>!item.completed);
+ if(projects.length){const h=document.createElement('h4');h.textContent='Active construction projects';box.appendChild(h);projects.forEach(project=>{const def=buildingTypes[project.type];if(!def)return;const row=document.createElement('div');row.className='detail-stat';row.textContent=def.icon+' '+def.name+' · '+project.x+', '+project.y+' · '+projectProgress(project,def)+'% complete\n'+buildingMaterialStatus(project,def);row.style.whiteSpace='pre-line';box.appendChild(row);const btn=document.createElement('button');btn.className='build-button';btn.textContent='📦 Contribute materials';btn.disabled=player.dead||player.x!==project.x||player.y!==project.y;btn.onclick=()=>contributeBuildingMaterials(project);box.appendChild(btn);});}
+ const city=document.createElement('details');city.className='settlement-storage';city.open=true;const sum=document.createElement('summary');sum.textContent='🏙️ Start a city structure · Headquarters';city.appendChild(sum);const cityBody=document.createElement('div');cityBody.className='action-grid';
+ Object.entries(buildingTypes).filter(([type,def])=>def.category==='city'&&!(b.buildings||[]).some(item=>item.type===type&&item.completed)&&!(b.buildings||[]).some(item=>item.type===type&&!item.completed)).forEach(([type,def])=>{const btn=document.createElement('button');btn.className='build-button';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>'+buildingCostText(type)+'</small><small>'+def.description+'</small>';btn.disabled=player.dead||!atBase()||player.energy<5;btn.onclick=()=>buildBuilding(type,b.x,b.y);cityBody.appendChild(btn);});if(!cityBody.children.length)cityBody.textContent='All available city structures are already completed or under construction.';city.appendChild(cityBody);box.appendChild(city);
+ const terrain=generateTerrain(player.x,player.y),td=getTileData(player.x,player.y);const prod=document.createElement('details');prod.className='settlement-storage';prod.open=true;const ps=document.createElement('summary');ps.textContent='🏭 Production building · Current tile ('+player.x+', '+player.y+')';prod.appendChild(ps);const prodBody=document.createElement('div');prodBody.className='action-grid';
+ if(isHeadquarters(player.x,player.y))prodBody.textContent='Travel to a fully explored suitable terrain tile to start a production building here.';
+ else if(!isFullyExplored(player.x,player.y))prodBody.textContent='Explore this tile to 100% before starting a production building.';
+ else if(buildingAt(player.x,player.y))prodBody.textContent='This tile already contains a building or construction project.';
+ else {Object.entries(buildingTypes).filter(([type,def])=>def.category==='production'&&canBuildOn(type,terrain)).forEach(([type,def])=>{const btn=document.createElement('button');btn.className='build-button';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>'+buildingCostText(type)+'</small><small>'+def.description+'</small>';btn.disabled=player.dead||player.energy<5;btn.onclick=()=>buildBuilding(type,player.x,player.y);prodBody.appendChild(btn);});if(!prodBody.children.length)prodBody.textContent='No production building matches this terrain.';}
+ prod.appendChild(prodBody);box.appendChild(prod);
+}
+
 function updateBase(){
   const details = document.getElementById("baseDetails");
   const safetyBox = document.getElementById("safetyDetails");
@@ -3026,6 +3044,7 @@ function updateBase(){
     const retire=document.getElementById("retireButton");if(retire)retire.disabled=true;
     renderPrivateStorage();
     renderWarehouse();
+    renderSettlementConstruction();
     return;
   }
 
@@ -3108,6 +3127,7 @@ function updateBase(){
   }
   renderPrivateStorage();
   renderWarehouse();
+  renderSettlementConstruction();
 }
 
 /* =========================
@@ -4010,6 +4030,36 @@ function showSettlementInterior(x,y,town){
    LOCATION SCREEN
 ========================= */
 
+function switchTileTab(tab){
+ const tabs={tile:['tileTabContent','tileTabBtn'],areas:['areasTabContent','areasTabBtn'],loot:['lootTabContent','lootTabBtn']};
+ Object.entries(tabs).forEach(([key,ids])=>{const panel=document.getElementById(ids[0]),btn=document.getElementById(ids[1]);if(panel)panel.classList.toggle('hidden',key!==tab);if(btn){btn.classList.toggle('active',key===tab);btn.setAttribute('aria-selected',String(key===tab));}});
+ if(tab==='areas'&&selectedLocation)renderTileAreas(selectedLocation.x,selectedLocation.y);
+ if(tab==='loot'&&selectedLocation){updateGroundLoot(selectedLocation.x,selectedLocation.y);const n=document.getElementById('tileLootCount');if(n){const pile=groundLoot[locationKey(selectedLocation.x,selectedLocation.y)]||[];n.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';}}
+}
+function tilePointOfInterestDefs(x,y,terrain){
+ const options={
+  forest:[['🌿','Berry Clearing','A sheltered clearing where edible plants and tracks gather.'],['🪵','Old Campsite','A weathered fire ring and scraps left by a former traveler.'],['🦌','Animal Trail','A narrow path through brush, marked by fresh tracks.'],['🪨','Mossy Stone Shrine','A small stone marker almost swallowed by roots.']],
+  plains:[['🛒','Abandoned Cart','A broken cart lies beside a shallow track.'],['🪨','Standing Stones','Old stones rise from the grass, worn by wind.'],['🏚️','Ruined Homestead','A collapsed homestead may hide old supplies.'],['🌾','Tall-Grass Hollow','A sheltered hollow with signs of wildlife.']],
+  river:[['🌉','Broken Crossing','The remains of a small bridge cross part of the river.'],['🎣','Fishing Bend','A calm bend where fish gather beneath the surface.'],['🪵','Driftwood Bank','Driftwood and river debris collect along the shore.']],
+  lake:[['🛶','Abandoned Landing','A damaged landing and a few old fishing supplies.'],['🌾','Reed Beds','Dense reeds conceal small animals and useful plants.'],['⛺','Lakeside Campsite','A quiet campsite overlooking the water.']],
+  mountain:[['⛏️','Exposed Ore Vein','Mineral seams show through the broken rock.'],['🕳️','Cave Mouth','A dark opening leads into the mountainside.'],['🪨','Rockfall Shelter','A shallow recess beneath a wall of fallen stone.']],
+  volcano:[['🌋','Scorched Crater','Heat-scarred rock surrounds a smoking fissure.'],['🪨','Obsidian Field','Sharp black glass-like stone litters the slope.'],['🕳️','Lava Tube','A dark tunnel cuts beneath cooled volcanic rock.']],
+  city:[['🏪','Ruined Shopfront','Shelves and counters remain beneath the rubble.'],['🏢','Collapsed Apartment','A damaged residential block with unstable floors.'],['🚧','Roadblock','Wreckage blocks the old road.'],['🚇','Subway Entrance','A stairwell descends into the dark underground.']]
+ };
+ const list=options[terrain]||options.plains;const seed=Math.abs((Math.imul((x|0)+101,73856093)^Math.imul((y|0)-37,19349663)^terrainHash(x,y,91))|0);
+ const count=1+(seed%3);const out=[];for(let i=0;i<count;i++)out.push(list[(seed+i*3)%list.length]);return out;
+}
+function renderTileAreas(x,y){
+ const box=document.getElementById('tileAreasList');if(!box)return;box.innerHTML='';const terrain=generateTerrain(x,y),td=getTileData(x,y),here=x===player.x&&y===player.y;
+ if(isHeadquarters(x,y)&&player.base){const home=document.createElement('button');home.className='build-button area-poi';home.innerHTML='<strong>🏕️ '+(shelterTypes[player.base.shelterType]?.name||'Settlement Headquarters')+'</strong><small>Settlement headquarters · Level '+(player.base.level||1)+'</small><small>Tap to manage settlement, stockpile, and construction</small>';home.onclick=()=>openBase();box.appendChild(home);}
+ const buildings=(player.base?.buildings||[]).filter(b=>Number(b.x)===Number(x)&&Number(b.y)===Number(y)&&b.completed);
+ buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed building · '+(buildingTypes[b.type]?.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to open its services</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
+ if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y);const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach the settlement</small>';btn.onclick=()=>{if(here)enterSettlement(x,y);else showNarration(town.name,'Travel to this tile to approach the settlement.');};box.appendChild(btn);}
+ const poiList=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};
+ poiList.forEach((poi,i)=>{const key=terrain+':'+i;const row=document.createElement('div');row.className='detail-stat area-poi';const btn=document.createElement('button');btn.className='build-button';btn.innerHTML='<strong>'+poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'')+'</strong><small>'+poi[2]+'</small><small>'+(td.discoveredPOIs[key]?'Inspect point of interest':'Explore to investigate')+'</small>';btn.onclick=()=>{td.discoveredPOIs[key]=true;saveGame();showNarration(poi[0]+' '+poi[1],poi[2]+' Further searching may reveal resources or loot.');renderTileAreas(x,y);};row.appendChild(btn);box.appendChild(row);});
+ if(!box.children.length)box.textContent='No points of interest found here yet.';
+}
+
 function openLocation(x,y){
   if(!canSeeTile(x,y)){showNarration("Fog of War","You can only inspect tiles within one tile of your current location.");return;}
   selectedLocation = {x,y};
@@ -4023,6 +4073,8 @@ function openLocation(x,y){
   hideScreens();
   document.getElementById("locationPanel").classList.remove("hidden");
   renderTilePlayers(x,y);
+  switchTileTab('tile');
+  renderTileAreas(x,y);
 
   document.getElementById("locationTitle").textContent = isKnown ? info.icon+" "+info.name : "❔ Unidentified Tile";
 
@@ -4055,15 +4107,14 @@ function openLocation(x,y){
 
   updateBonfireUI(x,y);
   updateGroundLoot(x,y);
-  updateBuildingOptions(x,y,terrain);
+  const lootCount=document.getElementById("tileLootCount");if(lootCount){const pile=groundLoot[locationKey(x,y)]||[];lootCount.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';}
+  // Construction is managed from the Settlement screen, never from the tile panel.
+  document.getElementById("tileBuilding").innerHTML="";document.getElementById("buildingActions").innerHTML="";
 
   const container = document.getElementById("locationActions");
   container.innerHTML = "";
   const magicSiteHere=magicalSiteAt(x,y);
   if(isHere&&magicSiteHere&&getTileData(x,y).magicSiteDiscovered){const magicBtn=document.createElement("button");magicBtn.className="build-button";magicBtn.style.gridColumn="1 / -1";magicBtn.innerHTML="<strong>✨ Train at "+magicSiteHere.name+"</strong><small>Spend energy to study the mana flow and progress Magic.</small>";magicBtn.onclick=trainAtMagicSite;container.appendChild(magicBtn);}
-  if(isHere&&player.base&&Array.isArray(player.base.buildings)){
-    player.base.buildings.forEach((site,index)=>{if(site.x!==x||site.y!==y||!site.completed)return;const def=buildingTypes[site.type];if(!def)return;const serviceBtn=document.createElement("button");serviceBtn.style.gridColumn="1 / -1";serviceBtn.className="build-button";serviceBtn.innerHTML="<strong>"+def.icon+" Open "+def.name+"</strong><small>Use this completed building's services</small>";serviceBtn.onclick=()=>openBuildingService(index);container.appendChild(serviceBtn);});
-  }
   if(isHere&&town){
     const enterBtn=document.createElement("button");enterBtn.style.gridColumn="1 / -1";enterBtn.className="build-button";
     enterBtn.innerHTML="<strong>🏘️ Approach / Enter Settlement</strong><small>Access depends on race, familiarity, and faction standing</small>";
@@ -5220,11 +5271,9 @@ function updateScreen(){
 
   if(!document.getElementById("locationPanel").classList.contains("hidden")){
     updateGroundLoot(selectedLocation.x,selectedLocation.y);
-    updateBuildingOptions(
-      selectedLocation.x,
-      selectedLocation.y,
-      generateTerrain(selectedLocation.x,selectedLocation.y)
-    );
+    // Construction controls live exclusively in Manage Settlement.
+    const constructionInfo=document.getElementById("tileBuilding");if(constructionInfo)constructionInfo.innerHTML="";
+    const constructionActions=document.getElementById("buildingActions");if(constructionActions)constructionActions.innerHTML="";
     updateBonfireUI(selectedLocation.x,selectedLocation.y);
   }
 
