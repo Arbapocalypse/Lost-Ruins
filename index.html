@@ -20,7 +20,7 @@ button:active{transform:scale(.98)}
 input,select{max-width:100%}
 .hidden{display:none!important}
 .panel{margin-top:10px;padding:12px;background:#242424;border-radius:10px}
-.status-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 6px;background:#292929;border-radius:8px;font-size:12px}.status-bar span,.status-bar .status-pill{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.status-bar .status-pill{padding:5px 7px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:30px}.status-bar .status-pill:active{background:#555}.status-bar #seasonEffect{white-space:normal;max-width:100%;padding:4px 7px;border-radius:6px;background:#303a30;color:#d7edc8;border:1px solid #465846;font-size:11px}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}
+.status-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:8px 6px;background:#292929;border-radius:8px;font-size:12px;align-items:stretch}.status-bar .status-pill{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;white-space:nowrap;padding:6px 3px;margin:0;background:#383838;border:1px solid #4a4a4a;border-radius:7px;color:#fff;font-size:12px;min-height:32px}.status-bar .status-pill:active{background:#555}.status-bar b{font-variant-numeric:tabular-nums;color:#fff;font-weight:700}.status-bar .status-value{display:inline-block;min-width:2ch}.status-bar .calendar-pill{grid-column:span 2;font-weight:700;overflow:hidden;text-overflow:ellipsis}.calendar-details{grid-column:1/-1;margin:0;padding:8px 10px;background:#202820;border:1px solid #465846;border-radius:7px;color:#d7edc8;font-size:11px;line-height:1.4;white-space:normal}.calendar-details.hidden{display:none!important}@media(max-width:360px){.status-bar{grid-template-columns:repeat(3,minmax(0,1fr))}.status-bar .calendar-pill{grid-column:span 1;font-size:11px}}
 .muted{font-size:12px;color:#bbb}
 .good{color:#a5dc91}
 .warning{color:#ffd166}
@@ -266,10 +266,10 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
     <button type="button" class="status-pill hidden" id="manaNav" onclick="openSurvivalStatus()" aria-label="View mana details">✨ <b id="mana">0</b>/<b id="maxManaNav">0</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View hunger details">🍖 <b id="hunger">100</b></button>
     <button type="button" class="status-pill" onclick="openSurvivalStatus()" aria-label="View thirst details">💧 <b id="thirst">100</b></button>
-    <span id="period" title="Shared world season and year">🌱 Spring · Year 1</span>
-    <span id="seasonEffect" title="Current seasonal gameplay effects">Season effects loading…</span>
-    <span id="worldDate" title="Real-world UTC date">UTC 2026-10-12</span>
-    <span id="time" title="Real-world UTC time">00:00 UTC</span>
+    <button type="button" class="status-pill calendar-pill" id="period" onclick="toggleCalendarDetails('season')" aria-expanded="false" title="Tap to view seasonal effects">🌱 Spring · Y1 ▾</button>
+    <button type="button" class="status-pill calendar-pill" id="time" onclick="toggleCalendarDetails('time')" aria-expanded="false" title="Tap to view world date and clock">00:00 UTC ▾</button>
+    <div id="seasonEffect" class="calendar-details hidden" aria-live="polite">Season effects loading…</div>
+    <div id="worldTimeDetails" class="calendar-details hidden">UTC date: <span id="worldDate">2026-10-12</span>. Seasons change at 00:00 UTC.</div>
   </section>
 </header>
 
@@ -3075,13 +3075,24 @@ function getCurrentSeason(){return getWorldCalendar().season;}
 function updateWorldClockDisplay(){
   const calendar=getWorldCalendar();
   const period=document.getElementById("period"),date=document.getElementById("worldDate"),time=document.getElementById("time");
-  if(period){period.textContent=calendar.seasonIcon+" "+calendar.seasonName+" · Year "+calendar.year;period.title=calendar.season.description+" Season changes at 00:00 UTC.";}
-  if(date){date.textContent="UTC "+calendar.utcDate;date.title="Real-world date in Coordinated Universal Time.";}
-  const effect=document.getElementById("seasonEffect");if(effect){effect.textContent=calendar.season.effectText;effect.title=calendar.season.description+" Seasonal effects apply to exploration, travel, survival, and production. Current world time is authoritative UTC calendar time; multiplayer still requires server validation.";}
-  if(time){time.textContent=calendar.utcTime+" UTC";time.title="Shared real-world clock shown in UTC.";}
+  if(period){period.textContent=calendar.seasonIcon+" "+calendar.seasonName+" · Y"+calendar.year+" ▾";period.title=calendar.season.description+" Tap to view effects.";}
+  if(date){date.textContent=calendar.utcDate;}
+  if(time){time.textContent=calendar.utcTime+" UTC ▾";time.title="Tap to view the UTC date and clock details.";}
+  const effect=document.getElementById("seasonEffect");if(effect){effect.textContent=calendar.season.effectText+" "+calendar.season.description;}
   document.documentElement.dataset.worldSeason=calendar.seasonName.toLowerCase();
   return calendar;
 }
+function toggleCalendarDetails(which){
+  const season=document.getElementById("seasonEffect"),time=document.getElementById("worldTimeDetails");
+  const seasonButton=document.getElementById("period"),timeButton=document.getElementById("time");
+  const target=which==="season"?season:time,other=which==="season"?time:season;
+  const button=which==="season"?seasonButton:timeButton,otherButton=which==="season"?timeButton:seasonButton;
+  if(!target)return;
+  const opening=target.classList.contains("hidden");
+  target.classList.toggle("hidden",!opening);if(other)other.classList.add("hidden");
+  if(button)button.setAttribute("aria-expanded",String(opening));if(otherButton)otherButton.setAttribute("aria-expanded","false");
+}
+
 function getSeasonalModifiers(terrain=generateTerrain(player.x,player.y)){
   const season=getCurrentSeason().name;
   return {
@@ -3166,45 +3177,29 @@ function startRealWorldGameplayClock(){
   if(!window.__lostRuinGameplayTick)window.__lostRuinGameplayTick=setInterval(()=>applyRealWorldElapsedTime(Date.now()),60000);
 }
 let timeAdvanceInProgress=false;
-function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 async function advanceTime(hours,actionLabel="Taking action",actionIcon="⌛"){
   if(player.dead)return false;
   if(timeAdvanceInProgress){showMessage("Another action is already in progress.");return false;}
   const total=Math.max(0,Math.ceil(Number(hours)||0));
   if(!total)return true;
   timeAdvanceInProgress=true;
-  const overlay=document.getElementById("actionClockOverlay"),title=document.getElementById("actionClockTitle"),detail=document.getElementById("actionClockDetail"),fill=document.getElementById("actionClockFill"),icon=document.getElementById("actionClockIcon");
-  // Travel already has its own hourglass/progress display. Suppress the duplicate full-screen action clock only while traveling.
-  const showActionClock=!String(actionLabel).startsWith("Traveling to next tile");
-  if(showActionClock&&overlay){overlay.style.display="flex";icon.textContent=actionIcon;title.textContent=actionLabel;}
-  let alive=true;
   try{
+    // Action hours resolve immediately: no five-second in-game clock animation.
+    // UTC survival/calendar timers continue independently of action completion.
     for(let i=0;i<total;i++){
-      const start=Date.now(),duration=5000;
-      while(Date.now()-start<duration){
-        if(player.dead){alive=false;break;}
-        const elapsed=Date.now()-start,progress=Math.min(100,elapsed/duration*100);
-        if(fill)fill.style.width=progress+"%";
-        if(detail)detail.textContent="In-game hour "+(i+1)+" of "+total+" · "+Math.ceil((duration-elapsed)/1000)+"s remaining";
-        await waitMs(100);
-      }
-      if(!alive)break;
+      if(player.dead)return false;
       player.hour++;
       if(player.hour>=24){player.hour=0;player.day++;}
-      // Action-time hours are only for short action feedback. Calendar aging and survival
-      // are tied to elapsed real-world time, not how many animations the player triggers.
       Object.values(bonfires).forEach(fire=>{if(fire.fuel>0)fire.fuel=Math.max(0,fire.fuel-1);});
-      updateScreen();saveGame();
-      if(player.health<=0){player.dead=true;alive=false;break;}
-      if(detail)detail.textContent="Hour completed · Day "+player.day+" · "+String(player.hour).padStart(2,"0")+":00";
-      if(fill)fill.style.width="0%";
     }
+    refreshTileDecay();updateScreen();saveGame();
+    if(player.health<=0){player.dead=true;showDeathScreen();return false;}
+    return true;
   }finally{
-    if(showActionClock&&overlay)overlay.style.display="none";if(fill)fill.style.width="0%";timeAdvanceInProgress=false;
+    const overlay=document.getElementById("actionClockOverlay");if(overlay)overlay.style.display="none";
+    const fill=document.getElementById("actionClockFill");if(fill)fill.style.width="0%";
+    timeAdvanceInProgress=false;
   }
-  refreshTileDecay();updateScreen();saveGame();
-  if(player.dead){showDeathScreen();return false;}
-  return alive;
 }
 
 /* =========================
