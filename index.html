@@ -959,7 +959,14 @@ const terrainLootPools = {
   lake:["lakeLoot01","lakeLoot02","lakeLoot03","lakeLoot04","lakeLoot09","lakeLoot10","lakeLoot11","lakeLoot15","lakeLoot16","lakeLoot19"],
   city:["cityLoot01","cityLoot02","cityLoot03","cityLoot04","cityLoot05","cityLoot06","cityLoot07","cityLoot08","cityLoot09","cityLoot10","cityLoot11","cityLoot12","cityLoot13","cityLoot14","cityLoot15","cityLoot16","cityLoot17","cityLoot18","cityLoot19","cityLoot20"]
 };
-function rollLootTier(){const perception=Math.max(0,(Number(player.attributes?.perception)||1)-1);const shift=Math.min(.12,perception*.005);const r=Math.max(0,Math.random()-shift);return r<.55?1:r<.83?2:r<.97?3:4;}
+function rollLootTier(){
+ const perception=Math.max(0,(Number(player.attributes?.perception)||1)-1);
+ const luck=Math.max(0,(Number(player.attributes?.luck)||1)-1);
+ // Perception improves discovery quality; Luck directly shifts rolls toward higher tiers.
+ const shift=Math.min(.25,perception*.005+luck*.01);
+ const r=Math.max(0,Math.random()-shift);
+ return r<.55?1:r<.83?2:r<.97?3:4;
+}
 function getTerrainBonusLoot(terrain){
   // Loose water is never ground loot. Wilderness water loot is only allowed when it is a named sealed vessel.
   const pool=(terrainLootPools[terrain]||[]).filter(id=>items[id]&&(items[id].type!=="water"||terrain==="city"||!!items[id].reusableContainer));
@@ -1906,7 +1913,7 @@ function characterXPNeeded(level){return Math.max(100,level*100);}
 function gainCharacterXP(amount){
  ensureAttributes();const learningBonus=1+Math.max(0,player.attributes.intelligence-1)*0.01;player.characterXP+=Math.max(0,Number(amount)||0)*learningBonus;let gained=0;
  while(player.characterXP>=characterXPNeeded(player.level)){player.characterXP-=characterXPNeeded(player.level);player.level++;player.statPoints+=3;gained++;}
- if(gained){syncAttributeDerivedStats();showMessage("Level up! Level "+player.level+" · +"+(gained*3)+" stat points.");}
+ if(gained){syncAttributeDerivedStats();renderCharacterAttributes();showMessage("Level up! Level "+player.level+" · +"+(gained*3)+" stat points.");}
 }
 function syncAttributeDerivedStats(){
  ensureAttributes();ensureEquipment();const oldMaxHealth=Number(player.maxHealth)||100,oldMaxEnergy=Number(player.maxEnergy)||100,oldMaxMana=Number(player.maxMana)||10;
@@ -4792,7 +4799,7 @@ function battleWeaponSkillXP(){const id=equippedCombatSkill();if(id)gainXP(id,5)
 function getCombatStats(){
  ensureEquipment();
  ensureAttributes();
- let attack=5+Math.max(0,player.attributes.strength-1)*2,defense=Math.floor(Math.max(0,player.attributes.vitality-1)*0.5),speed=5+Math.max(0,player.attributes.agility-1),accuracy=70+Math.max(0,player.attributes.perception-1),crit=5+Math.max(0,player.attributes.agility-1)+Math.floor(Math.max(0,player.attributes.luck-1)*0.5),healthBonus=Math.max(0,player.attributes.vitality-1)*10;
+ let attack=5+Math.max(0,player.attributes.strength-1)*2,defense=Math.floor(Math.max(0,player.attributes.vitality-1)*0.5),speed=5+Math.max(0,player.attributes.agility-1),accuracy=70+Math.max(0,player.attributes.perception-1),crit=5+Math.max(0,player.attributes.agility-1)+Math.max(0,player.attributes.luck-1)*0.5,healthBonus=Math.max(0,player.attributes.vitality-1)*10;
  Object.values(player.equipment||{}).forEach(id=>{const it=items[id];if(!it)return;attack+=Number(it.damage)||0;defense+=Number(it.defense)||0;speed+=Number(it.speedBonus)||0;accuracy+=Number(it.accuracy)||0;crit+=Number(it.crit)||0;healthBonus+=Number(it.healthBonus)||0;});
  const weaponSkill=equippedCombatSkill();
  if(weaponSkill){const lv=skillLevel(weaponSkill);attack=Math.round(attack*(1+Math.min(.35,Math.max(0,lv-1)*.01)));accuracy+=Math.min(12,Math.max(0,lv-1)*.35);crit+=Math.min(10,Math.max(0,lv-1)*.25);if(weaponSkill==="hammer")attack+=Math.floor(Math.max(0,lv-1)*.12);if(weaponSkill==="axe")attack+=Math.floor(Math.max(0,lv-1)*.10);if(weaponSkill==="pole"){accuracy+=Math.min(8,Math.floor(Math.max(0,lv-1)*.25));defense+=Math.floor(Math.max(0,lv-1)*.08);}}
@@ -4898,7 +4905,8 @@ function attemptNegotiate(){
  const stats=getCombatStats(),skill=(Number(player.skills?.survival?.level)||1)+(Number(player.skills?.scavenging?.level)||1);
  const racialNegotiation=(raceInfo[player.characterProfile?.race]||raceInfo.human).negotiate||0;
  const diplomatBonus=player.characterProfile?.mainProfession==="diplomat"?18:player.characterProfile?.subProfession==="diplomat"?9:0;
- const score=stats.attack+stats.defense+player.health*.15+skill*2+racialNegotiation+diplomatBonus+player.reputation*.08+Math.random()*25;
+ const charismaBonus=Math.max(0,(Number(player.attributes?.charisma)||1)-1)*2;
+ const score=stats.attack+stats.defense+player.health*.15+skill*2+racialNegotiation+diplomatBonus+charismaBonus+player.reputation*.08+Math.random()*25;
  const difficulty=b.enemy.attack+b.enemy.defense+b.enemy.hp*.25+25;
  if(score>=difficulty){player.negotiations=(player.negotiations||0)+1;adjustReputation(2,b.enemy.faction||"");recordAchievementProgress("peacekeeper",1);box.innerHTML='<div class="battle-card"><h3>Negotiation Successful</h3><p>You negotiated with <strong>'+b.enemyDisplayName+'</strong>. Your posture and condition convinced the hostile to back down. No fight occurs.</p><button onclick="endBattle(\'The hostile backs away after negotiation.\',false)">Continue</button></div>';}
  else{box.innerHTML='<div class="battle-card"><h3>Negotiation Failed</h3><p>The opponent refuses to trust you and prepares to attack.</p><button onclick="startCombat()">Fight</button></div>';}
@@ -5236,12 +5244,12 @@ function isSalvageableEquipment(id,d){
 }
 function renderSalvageList(){
  const el=document.getElementById("salvageList");if(!el)return;el.innerHTML="";
- const candidates=(player.inventory||[]).filter(e=>isSalvageableEquipment(e.id,items[e.id])&&!isEquippedItem(e.id));
+ const candidates=(player.inventory||[]).filter(e=>Number(e.amount)>0&&isSalvageableEquipment(e.id,items[e.id]));
  if(!candidates.length){const note=document.createElement("div");note.className="ground-row";note.textContent="No unequipped salvageable weapons, armor, tools, or transport in your bag. Equipped items and raw materials cannot be salvaged.";el.appendChild(note);return;}
  candidates.forEach(e=>{const d=items[e.id],yieldMap=salvageYieldFor(e.id,d);const row=document.createElement("div");row.className="ground-row salvage-row";const info=document.createElement("div");info.className="salvage-info";info.textContent=(d.icon||"📦")+" "+d.name+" ×"+e.amount+" · Salvage yields: "+Object.entries(yieldMap).map(([mat,n])=>items[mat].name+" ×"+n).join(", ");const btn=document.createElement("button");btn.textContent="Salvage 1";btn.disabled=player.dead;btn.onclick=()=>salvageItem(e.id);row.append(info,btn);el.appendChild(row);});
 }
 function salvageItem(id){
- const entry=(player.inventory||[]).find(e=>e.id===id),d=items[id];if(!entry||!isSalvageableEquipment(id,d)||isEquippedItem(id)){showMessage("Only unequipped weapons, armor, tools, and transport can be salvaged.");return;}
+ const entry=(player.inventory||[]).find(e=>e.id===id),d=items[id];if(!entry||Number(entry.amount)<1||!isSalvageableEquipment(id,d)){showMessage("Only unequipped weapons, armor, tools, and transport in your bag can be salvaged.");return;}
  const yieldMap=salvageYieldFor(id,d);const inputWeight=Number(d.weight)||0;const outputWeight=Object.entries(yieldMap).reduce((n,[mat,q])=>n+(Number(items[mat]?.weight)||0)*q,0);const currentWeight=getInventoryWeight();
  if(currentWeight-inputWeight+outputWeight>getMaxWeight()+.000001){showMessage("Not enough free carrying capacity for the salvaged materials. Make room first.");return;}
  if(!removeItems(id,1))return;Object.entries(yieldMap).forEach(([mat,q])=>{const existing=player.inventory.find(e=>e.id===mat);if(existing)existing.amount+=q;else player.inventory.push({id:mat,amount:q});if(!player.collectionFound)player.collectionFound={};player.collectionFound[mat]=true;});
@@ -5253,11 +5261,21 @@ function renderWaterContainers(){
 }
 function reputationAlignment(){const r=Number(player.reputation)||0;return r>10?"GOOD":r< -10?"EVIL":"NEUTRAL";}
 function adjustReputation(amount,faction=""){
+ const charisma=Math.max(0,(Number(player.attributes?.charisma)||1)-1);
+ if(Number(amount)>0)amount=Number(amount)*(1+Math.min(.25,charisma*.01));
  player.reputation=Math.max(-100,Math.min(100,(Number(player.reputation)||0)+amount));
  if(faction){player.factionReputation[faction]=Math.max(-100,Math.min(100,(Number(player.factionReputation[faction])||0)+amount));const fr=player.factionReputation[faction];if(fr>=25)recordAchievementProgress("factionFriend",fr);if(fr<=-25)recordAchievementProgress("factionEnemy",Math.abs(fr));}
  if(player.reputation>=11)recordAchievementProgress("goodDeeds",1);if(player.reputation<=-11)recordAchievementProgress("darkReputation",1);
 }
-function npcTradePrice(id,mode){const base=Number(tradePrices[id]||items[id]?.value||items[id]?.tier*12||3);const rep=Number(player.reputation)||0;const trader=player.characterProfile?.mainProfession==="trader"?0.12:player.characterProfile?.subProfession==="trader"?0.06:0;const factor=mode==="buy"?Math.max(.65,1.35-rep*.003-trader):Math.min(.9,.42+rep*.002+trader);return Math.max(1,Math.round(base*factor));}
+function npcTradePrice(id,mode){
+ const base=Number(tradePrices[id]||items[id]?.value||items[id]?.tier*12||3);
+ const rep=Number(player.reputation)||0;
+ const trader=player.characterProfile?.mainProfession==="trader"?0.12:player.characterProfile?.subProfession==="trader"?0.06:0;
+ const charismaBonus=Math.min(.25,Math.max(0,(Number(player.attributes?.charisma)||1)-1)*.01);
+ let factor=mode==="buy"?Math.max(.65,1.35-rep*.003-trader):Math.min(.9,.42+rep*.002+trader);
+ factor=mode==="buy"?factor*(1-charismaBonus):factor*(1+charismaBonus);
+ return Math.max(1,Math.round(base*factor));
+}
 function renderNPCTrader(){
  const el=document.getElementById("npcTraderUI"),repEl=document.getElementById("reputationStatus");if(repEl)repEl.textContent="Morality: "+reputationAlignment()+" ("+(player.reputation>=0?"+":"")+player.reputation+") · Faction standing: "+Object.entries(player.factionReputation||{}).map(([f,v])=>f+" "+(v>=0?"+":"")+v).join(" · ");if(!el)return;el.innerHTML="";
  const town=discoveredTownAt(player.x,player.y);if(!town){el.textContent="No racial town trader at this location. Find a hidden village or town, explore its tile to 100%, then stand on that tile.";return;}
