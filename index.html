@@ -305,7 +305,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div id="areasTabContent" class="tile-tab-content hidden"><p class="muted">Actions and points of interest are available only while you are on this tile. Completed buildings can be opened directly.</p><h3>Available Actions</h3><div class="action-grid" id="locationActions"></div><h3>Points of Interest</h3><div id="tileAreasList"></div></div>
 <div id="lootTabContent" class="tile-tab-content hidden"><h3>🎒 Items on the Ground</h3><p id="groundLootDescription" class="muted">Items dropped here remain at this location.</p><div id="groundLoot"></div></div>
 <div id="tileBuilding" class="hidden"></div><div id="buildingActions" class="hidden"></div>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 <section class="panel hidden" id="skillsPanel">
@@ -813,6 +812,8 @@ const items = {
   water:{name:"Water",icon:"💧",type:"water",effect:25,weight:1},
   herb:{name:"Herb",icon:"🌿",type:"medicine",effect:20,weight:.2},
   wood:{name:"Wood",icon:"🪵",type:"material",effect:0,weight:2},
+  coal:{name:"Coal",icon:"⚫",type:"material",effect:0,weight:1,value:2,description:"Fuel-rich charcoal left by an extinguished bonfire."},
+  ash:{name:"Ash",icon:"🌫️",type:"material",effect:0,weight:.5,value:1,description:"Fine ash collected from an extinguished bonfire."},
   meat:{name:"Raw Meat",icon:"🥩",type:"food",effect:25,weight:2},
   cookedMeat:{name:"Cooked Meat",icon:"🍖",type:"food",effect:40,weight:2},
   stone:{name:"Stone",icon:"🪨",type:"material",effect:0,weight:3},
@@ -1010,8 +1011,6 @@ const terrainInfo = {
     loot:"Fruit, herbs, wood, and raw meat.",
     actions:[
       {id:"forageWood",name:"🪓 Cut Wood",detail:"Cut trees and collect usable wood",cost:8,hours:1},
-      {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
-      {id:"hunt",name:"🏹 Hunt Animals",detail:"Track and hunt wild animals for food and materials",cost:15,hours:2},
       {id:"buildBase",name:"🏕️ Build Settlement",detail:"Start a shelter project; add materials over time",cost:10,hours:4}
       ,{id:"breedLivestock",name:"🐣 Breed Livestock",detail:"Breed two animals of the same species; offspring join your livestock",cost:5,hours:4}
     ]
@@ -1021,8 +1020,6 @@ const terrainInfo = {
     description:"Open grassland with flat ground suitable for settlements and farms.",
     loot:"Fruit, herbs, and raw meat.",
     actions:[
-      {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
-      {id:"hunt",name:"🏹 Hunt Animals",detail:"Track and hunt wild animals for food and materials",cost:15,hours:2},
       {id:"buildBase",name:"🏕️ Build Settlement",detail:"Start a shelter project; add materials over time",cost:10,hours:4}
       ,{id:"breedLivestock",name:"🐣 Breed Livestock",detail:"Breed two animals of the same species; offspring join your livestock",cost:5,hours:4}
     ]
@@ -1034,7 +1031,6 @@ const terrainInfo = {
     actions:[
       {id:"drinkSource",name:"🥤 Drink from River",detail:"Drink directly from the river to restore thirst; no container needed",cost:1,hours:0},
       {id:"collectWater",name:"💧 Fill Containers",detail:"Instantly fill reusable bottles, canteens, jugs, or waterskins (energy cost only)",cost:3,hours:0},
-      {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
       {id:"fish",name:"🎣 Fish",detail:"Try to catch food",cost:10,hours:2},
       {id:"search",name:"🔎 Search Bank",detail:"Search the riverbank",cost:6,hours:1}
       ,{id:"breedLivestock",name:"🐣 Breed Livestock",detail:"Breed two animals of the same species; offspring join your livestock",cost:5,hours:4}
@@ -1047,7 +1043,6 @@ const terrainInfo = {
     actions:[
       {id:"drinkSource",name:"🥤 Drink from Lake",detail:"Drink directly from the lake to restore thirst; no container needed",cost:1,hours:0},
       {id:"collectWater",name:"💧 Fill Containers",detail:"Instantly fill reusable bottles, canteens, jugs, or waterskins (energy cost only)",cost:3,hours:0},
-      {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
       {id:"fish",name:"🎣 Fish",detail:"Try to catch fish",cost:10,hours:2},
       {id:"search",name:"🔎 Search Shore",detail:"Search for supplies",cost:6,hours:1}
       ,{id:"breedLivestock",name:"🐣 Breed Livestock",detail:"Breed two animals of the same species; offspring join your livestock",cost:5,hours:4}
@@ -1068,7 +1063,6 @@ const terrainInfo = {
     description:"Rocky slopes and steep paths. Mining can yield valuable ore.",
     loot:"Stone, iron ore, copper ore, and herbs.",
     actions:[
-      {id:"captureWildlife",name:"🪤 Capture Wildlife",detail:"Attempt to capture a suitable wild animal alive",cost:10,hours:2},
       {id:"mine",name:"⛏️ Mine",detail:"Mine stone and ore",cost:8,hours:1},
       {id:"forageFood",name:"🌿 Search for Plants",detail:"Look for edible plants",cost:8,hours:1}
     ]
@@ -2518,7 +2512,7 @@ async function buildBonfire(){
 
   removeItems("wood",2);
   player.energy -= 5;
-  bonfires[key] = {fuel:6};
+  bonfires[key] = {fuel:6,remainsCollected:false};
   recordAchievementProgress("bonfireBuilder",1);
   const xp = gainXP("survival",10);
 
@@ -2529,6 +2523,19 @@ async function buildBonfire(){
   showNarration("Bonfire Built",
     "🔥 You built a bonfire. It starts with 6 hours of fuel.\n\n"+
     "A burning bonfire allows cooking."+xp);
+}
+
+function collectBonfireRemains(){
+  const fire=getBonfire(player.x,player.y);
+  if(!fire||fire.fuel>0){showNarration("Bonfire Still Burning","Wait until the bonfire has burned out before collecting its remains.");return;}
+  if(fire.remainsCollected){showMessage("You have already collected the remains from this bonfire.");return;}
+  const coalAmount=Math.floor(Math.random()*3); // 0–2
+  const ashAmount=1+Math.floor(Math.random()*4); // 1–4
+  if(coalAmount&&!addItem("coal",coalAmount))addGroundLoot("coal",coalAmount,player.x,player.y);
+  if(!addItem("ash",ashAmount))addGroundLoot("ash",ashAmount,player.x,player.y);
+  fire.remainsCollected=true;
+  saveGame();updateScreen();openLocation(player.x,player.y);
+  showNarration("Bonfire Remains Collected","You sift through the cold ashes and recover "+(coalAmount?"⚫ Coal ×"+coalAmount+" and ":"")+"🌫️ Ash ×"+ashAmount+".");
 }
 
 function addFirewood(){
@@ -2631,6 +2638,12 @@ function updateBonfireUI(x,y){
       btn.disabled = player.dead || getItemCount("wood")<2 || player.energy<5;
       btn.onclick = buildBonfire;
       actions.appendChild(btn);
+      const restBtn=document.createElement("button");
+      restBtn.className="rest-button";
+      restBtn.innerHTML="<strong>🪑 Rest</strong><small>Rest here for 1 hour and recover energy</small>";
+      restBtn.disabled=player.dead||player.energy>=(player.maxEnergy||100);
+      restBtn.onclick=rest;
+      actions.appendChild(restBtn);
     }
     return;
   }
@@ -2641,6 +2654,14 @@ function updateBonfireUI(x,y){
   if(x!==player.x || y!==player.y){
     details.textContent += "\nTravel here to tend the fire or cook.";
     return;
+  }
+
+  if(fire.fuel<=0 && !fire.remainsCollected){
+    const remains=document.createElement("button");remains.className="build-button";
+    remains.innerHTML="<strong>🧹 Collect Coal & Ash</strong><small>Random amount of coal and ash from the cold bonfire</small>";
+    remains.disabled=player.dead;
+    remains.onclick=collectBonfireRemains;
+    actions.appendChild(remains);
   }
 
   const fuel = document.createElement("button");
@@ -4091,6 +4112,27 @@ function resolvePointOfInterest(x,y,terrain,poi,key){
  saveGame();updateScreen();updateGroundLoot(x,y);renderTileAreas(x,y);showNarration(poi[0]+' '+poi[1],message);const lootTab=document.getElementById('lootTabBtn');if(lootTab){const pile=groundLoot[locationKey(x,y)]||[];lootTab.innerHTML='🎒 Loot <span id="tileLootCount">'+(pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'')+'</span>';}
 }
 
+async function exploreTerrainPOI(){
+ if(player.dead)return;
+ if(player.x!==selectedLocation.x||player.y!==selectedLocation.y){showNarration('Travel First','You must stand on this terrain tile to explore it.');return;}
+ if(player.energy<10){showNarration('Too Exhausted','You need at least 10 energy to explore. Rest first.');return;}
+ const x=player.x,y=player.y,terrain=generateTerrain(x,y),td=getTileData(x,y),defs=tilePointOfInterestDefs(x,y,terrain);
+ const poi=defs[Math.floor(Math.random()*defs.length)]||['🔎','Wilderness Sign','You notice signs of activity nearby.'];
+ player.energy=Math.max(0,player.energy-6);
+ const progress=addTileExploration(x,y,15);
+ markTileVisited(x,y);
+ if(!await advanceTime(1,'Exploring '+(terrainInfo[terrain]?.name||terrain),'🔎'))return;
+ gainXP('survival',4);gainXP('exploration',4);
+ const lootPools={forest:['fruit','herb','wood','meat','berries'],plains:['fruit','herb','meat','cloth','wood','berries'],river:['meat','stone','herb','fishingRod'],lake:['meat','stone','herb','water'],mountain:['stone','ironOre','copperOre','wood','herb'],volcano:['stone','ironOre','copperOre','arcaneShard','ash'],city:['cloth','herb','water','scrapMetal','leather','stone']};
+ const roll=Math.random();let result='';
+ if(roll<.22){const events={forest:['You hear movement in the brush, but whatever made it is gone.','Fresh animal tracks lead away from the area.','A sheltered hollow reveals signs of a recent camp.'],plains:['You spot movement in the tall grass. It vanishes before you get close.','A shallow burrow is hidden beneath the grass.','You uncover a weathered trail marker.'],river:['Something glints between stones along the bank.','A fish splashes in the shallows and disappears.','The current has exposed a small hidden recess.'],lake:['Waterbirds scatter from a sheltered cove.','Ripples suggest wildlife nearby.','You find a nest tucked among reeds.'],mountain:['Loose stones reveal a narrow ledge.','A bird circles above the ridge.','You find a mineral-stained crack in the rock.'],volcano:['A cooling patch of ash reveals tracks.','A warm fissure vents steam nearby.','Dark glassy stones glimmer in the slope.'],city:['A loose panel hides a small compartment.','You find signs someone passed through recently.','A ruined cabinet has been overlooked.']};const arr=events[terrain]||events.plains;result=arr[Math.floor(Math.random()*arr.length)];}
+ else {const pool=lootPools[terrain]||lootPools.plains;let id=pool[Math.floor(Math.random()*pool.length)];if(!items[id])id='herb';const amount=1+Math.floor(Math.random()*2);addGroundLoot(id,amount,x,y);result='Possible find: '+(items[id]?.icon||'📦')+' '+(items[id]?.name||id)+' ×'+amount+'. It has been placed in this tile’s Loot tab.';}
+ td.lastExplorePOI={title:poi[0]+' '+poi[1],description:poi[2],result,at:Date.now()};
+ td.discoveredPOIs=td.discoveredPOIs||{};td.discoveredPOIs['lastExplorePOI']=true;
+ saveGame();updateScreen();updateGroundLoot(x,y);renderTileAreas(x,y);openLocation(x,y);
+ showNarration(poi[0]+' '+poi[1],result+'\n\nExploration progress: '+progress+'%.');
+}
+
 function renderTileAreas(x,y){
  const box=document.getElementById('tileAreasList');if(!box)return;box.innerHTML='';
  const terrain=generateTerrain(x,y),td=getTileData(x,y),here=x===player.x&&y===player.y;
@@ -4104,11 +4146,18 @@ function renderTileAreas(x,y){
  buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed · '+(def.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to use</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
  if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y),btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach</small>';btn.onclick=()=>enterSettlement(x,y);box.appendChild(btn);}
  const defs=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
- defs.forEach((poi,i)=>{const key=terrain+':'+i,card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'');card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent=td.resolvedPOIs[key]?'✓ Investigated':'🔎 Investigate · 4 energy';btn.disabled=!!td.resolvedPOIs[key]||player.dead;btn.onclick=()=>resolvePointOfInterest(x,y,terrain,poi,key);card.appendChild(btn);box.appendChild(card);});
+ const seenPOIs=new Set();
+ defs.forEach((poi,i)=>{const poiIdentity=String(poi[1]||'').trim().toLowerCase();if(seenPOIs.has(poiIdentity))return;seenPOIs.add(poiIdentity);const key=terrain+':'+i,card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'');card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent=td.resolvedPOIs[key]?'✓ Investigated':'🔎 Investigate · 4 energy';btn.disabled=!!td.resolvedPOIs[key]||player.dead;btn.onclick=()=>resolvePointOfInterest(x,y,terrain,poi,key);card.appendChild(btn);box.appendChild(card);});
  // All terrain actions are represented as named Areas, not a separate action list.
- const info=terrainInfo[terrain];(info?.actions||[]).filter(a=>!['buildBase','breedLivestock'].includes(a.id)).forEach(action=>{
+ const info=terrainInfo[terrain];(info?.actions||[]).filter(a=>!['buildBase','breedLivestock','captureWildlife','hunt'].includes(a.id)).forEach(action=>{
    const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=action.name;card.appendChild(title);const desc=document.createElement('small');desc.textContent=action.detail;card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent='▶ '+action.name.replace(/^\S+\s*/,'');btn.disabled=player.dead;btn.onclick=()=>performLocationAction(action);card.appendChild(btn);box.appendChild(card);
  });
+ // Exploring is a single terrain POI action. Each use creates a fresh random discovery/result, while the static POI list remains stable and duplicate-free.
+ const exploreCard=document.createElement('div');exploreCard.className='ground-row area-poi';
+ const exploreTitle=document.createElement('strong');exploreTitle.textContent='🔎 Explore Area';exploreCard.appendChild(exploreTitle);
+ const exploreDesc=document.createElement('small');exploreDesc.textContent='Search this terrain for a random point of interest, supplies, or an unexpected event.';exploreCard.appendChild(exploreDesc);
+ const exploreBtn=document.createElement('button');exploreBtn.style.marginTop='6px';exploreBtn.textContent='Explore · 6 energy';exploreBtn.disabled=player.dead||player.energy<10;exploreBtn.onclick=exploreTerrainPOI;exploreCard.appendChild(exploreBtn);box.appendChild(exploreCard);
+ if(td.lastExplorePOI){const last=document.createElement('div');last.className='ground-row area-poi';const lt=document.createElement('strong');lt.textContent='✨ Latest Discovery: '+td.lastExplorePOI.title;last.appendChild(lt);const ld=document.createElement('small');ld.textContent=td.lastExplorePOI.description+' Result: '+td.lastExplorePOI.result;last.appendChild(ld);box.appendChild(last);}
  // Wildlife identity is saved per tile and never rerolls when Explore is used.
  if(['forest','plains','river','lake','mountain','volcano'].includes(terrain)){
    if(!td.wildlifePOI){const pool=wildlifeByTerrain[terrain]||wildlifeByTerrain.forest||[];if(pool.length){const seed=Math.abs((Math.imul((x|0)+17,83492791)^Math.imul((y|0)-9,297121507))|0);const chosen=pool[seed%pool.length];td.wildlifePOI={...chosen,resolved:false};}}
@@ -4144,15 +4193,22 @@ function openLocation(x,y){
   const clue=isKnown?territoryClue(x,y):null;
   const town=discoveredTownAt(x,y);
   document.getElementById("locationCoordinates").textContent =
-    "Terrain: "+(isKnown?info.name:"Unidentified terrain")+" · Coordinates: "+x+", "+y+
-    (clue?"\nTerritory: "+clue.icon+" "+clue.faction+"\nSigns: "+clue.clue:"")+
-    (town?"\nDiscovered settlement: "+town.icon+" "+town.name+" ("+raceName(town.race)+" · "+town.faction+")":"")+
-    (isHere?" — Your current location":"")+
-    (isBase?" — Settlement Headquarters":"")+
-    (isInsideTerritory(x,y)?" — Owned Territory":"");
+    "Coordinates: "+x+", "+y+
+    (isHere?" · Current location":"")+
+    (isBase?" · Settlement HQ":"")+
+    (isInsideTerritory(x,y)?" · Owned Territory":"");
 
   document.getElementById("locationDescription").textContent = isKnown ? info.description+(town?" · "+town.name+" ("+raceName(town.race)+")":"") : "Unknown terrain. Travel here to identify it.";
-  document.getElementById("locationLoot").textContent = isKnown ? info.loot+(clue?"\n\nFaction signs: "+clue.clue+"\nLikely inhabitants: "+clue.faction:"" )+(town?"\n\nSettlement discovered: "+town.name+". Its inhabitants may be friendly, wary, or hostile.":"") : "Unknown until you visit.";
+  const possibleLoot={
+    forest:["Fruit","Apple","Banana","Mango","Orange","Coconut","Guava","Papaya","Berries","Herbs","Wood","Raw meat","Wildlife materials"],
+    plains:["Fruit","Apple","Banana","Orange","Papaya","Berries","Herbs","Raw meat","Wood","Cloth","Wildlife materials"],
+    river:["Coconut","Orange","Herbs","Raw meat","Fish","Stone","Fishing gear","Water (drink or fill containers)"],
+    lake:["Raw meat","Herbs","Fish","Stone","Fishing gear","Water (drink or fill containers)"],
+    mountain:["Wood","Herbs","Stone","Iron ore","Copper ore","Berries","Wildlife materials"],
+    volcano:["Stone","Iron ore","Copper ore","Arcane shards","Ash","Volcanic materials","Rare magical loot"],
+    city:["Sealed drinks / water","Wood","Herbs","Fruit","Scrap metal","Cloth","Leather","Old-world equipment","Stone","Rare city loot"]
+  };
+  document.getElementById("locationLoot").textContent = isKnown ? (possibleLoot[terrain]||[info.loot]).join(" · ")+(town?" · Settlement supplies may also be available":"") : "Unknown until you visit.";
   document.getElementById("tileExploration").textContent=isKnown ? tileExplorationText(x,y) : "Exploration: 0% · Terrain unidentified";
 
   const status = document.getElementById("tileStatus");
@@ -4917,15 +4973,15 @@ function loadGame(){
     if(data.tileData && typeof data.tileData==="object"){
       Object.entries(data.tileData).forEach(([key,t])=>{
         if(!t || typeof t!=="object")return;
-        tileData[key]={exploration:clamp(Number(t.exploration)||0,0,100),terrainKnown:t.terrainKnown===true,lastVisited:t.lastVisited??null,lastVisitHour:Number.isFinite(t.lastVisitHour)?t.lastVisitHour:null,resources:t.resources&&typeof t.resources==="object"?t.resources:{},claimed:t.claimed===true,dangerKnown:t.dangerKnown===true,encounterResolved:t.encounterResolved===true};
+        tileData[key]={...t,exploration:clamp(Number(t.exploration)||0,0,100),terrainKnown:t.terrainKnown===true,lastVisited:t.lastVisited??null,lastVisitHour:Number.isFinite(t.lastVisitHour)?t.lastVisitHour:null,resources:t.resources&&typeof t.resources==="object"?t.resources:{},claimed:t.claimed===true,dangerKnown:t.dangerKnown===true,encounterResolved:t.encounterResolved===true};
       });
     }
 
     bonfires={};
     if(data.bonfires && typeof data.bonfires==="object"){
       Object.entries(data.bonfires).forEach(([key,fire])=>{
-        if(fire && Number.isFinite(fire.fuel) && fire.fuel>0){
-          bonfires[key]={fuel:fire.fuel};
+        if(fire && Number.isFinite(fire.fuel) && fire.fuel>=0){
+          bonfires[key]={fuel:fire.fuel,remainsCollected:fire.remainsCollected===true};
         }
       });
     }
