@@ -195,12 +195,14 @@ async function initializeStorage() {
 function persist() {
   const snapshot = takeSnapshot();
   saveLocalBackup(snapshot);
-  if (storageMode !== 'supabase') return;
-  persistenceQueue = persistenceQueue
-    .then(() => writeSupabaseSnapshot(snapshot))
-    .catch(error => {
-      console.error('Supabase persistence failed:', error.message);
-    });
+  if (storageMode !== 'supabase') return Promise.resolve(true);
+  // Keep the queue moving after a failed write, but return the individual
+  // operation's result so account creation can wait for a confirmed save.
+  const write = persistenceQueue.then(() => writeSupabaseSnapshot(snapshot));
+  persistenceQueue = write.catch(error => {
+    console.error('Supabase persistence failed:', error.message);
+  });
+  return write.then(() => true).catch(() => false);
 }
 
 const server = http.createServer((req, res) => {
@@ -323,7 +325,7 @@ function handlePartyAction(c, msg) {
   if (action === 'leave') { removePartyMember(c); send(c.ws, { type: 'partyState', party: null, text: 'You left the party.' }); return; }
   fail(c.ws, 'Unknown party action.');
 }
-function handleAuth(c, msg) {
+async function handleAuth(c, msg) {
   const mode = ['login', 'register', 'resume'].includes(msg.mode) ? msg.mode : 'register';
   const username = cleanText(msg.username, 24), password = String(msg.password || '');
   if (!validUsername(username)) { fail(c.ws, 'Username must be 3–24 characters: letters, numbers, underscore.'); return false; }
@@ -338,7 +340,7 @@ function handleAuth(c, msg) {
     if (account) { fail(c.ws, 'That username already exists. Please log in instead.'); return false; }
     const salt = crypto.randomBytes(16).toString('hex'), hash = crypto.scryptSync(password, salt, 64).toString('hex');
     account = { username, characterName, race, salt, hash, createdAt: Date.now(), level: 0 };
-    accounts.set(username.toLowerCase(), account); persist();
+    accounts.set(username.toLowerCase(), account);
   } else if (mode === 'login') {
     if (!account) { fail(c.ws, 'Account not found. Check your username or create an account.'); return false; }
     const hash = crypto.scryptSync(password, account.salt, 64).toString('hex');
@@ -354,7 +356,18 @@ function handleAuth(c, msg) {
     const tokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
     account.sessionTokens = account.sessionTokens.filter(t => t !== tokenHash); account.sessionTokens.push(tokenHash);
     if (account.sessionTokens.length > 8) account.sessionTokens = account.sessionTokens.slice(-8);
-    accounts.set(username.toLowerCase(), account); persist();
+    accounts.set(username.toLowerCase(), account);
+  }
+  // Do not tell the client registration/login succeeded until the latest
+  // account record, including its session token hash, has been saved.
+  const saved = await persist();
+  if (!saved) {
+    if (mode === 'register') {
+      accounts.delete(username.toLowerCase());
+      saveLocalBackup(takeSnapshot());
+    }
+    fail(c.ws, 'The server could not save your account to the database. Please try again shortly.');
+    return false;
   }
   c.accountKey = username.toLowerCase(); c.account = account; c.name = account.characterName; c.race = account.race; c.level = Number(account.level) || 0;
   c.roomId = cleanText(msg.worldId, 48) || 'lost-ruin-main'; c.x = validCoord(Number(msg.x)); c.y = validCoord(Number(msg.y)); c.joined = true; clients.set(c.id, c);
@@ -372,7 +385,7 @@ wss.on('connection', (ws) => {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { fail(ws, 'Invalid message format.'); return; }
     if (!msg || typeof msg.type !== 'string') { fail(ws, 'Missing message type.'); return; }
-    if (msg.type === 'auth') { if (c.joined) { fail(ws, 'Already authenticated.'); return; } handleAuth(c, msg); return; }
+    if (msg.type === 'auth') { if (c.joined) { fail(ws, 'Already authenticated.'); return; } handleAuth(c, msg).catch(error => { console.error('Authentication/storage error:', error.message); fail(ws, 'The server encountered a storage error while processing your account. Please try again later.'); }); return; }
     if (msg.type === 'ping') { send(ws, { type: 'pong', at: Number(msg.at) || Date.now() }); return; }
     if (!c.joined || !c.roomId) { fail(ws, 'Create an account or log in before entering the world.'); return; }
     if (msg.type === 'location') {

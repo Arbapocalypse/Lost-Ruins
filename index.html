@@ -234,6 +234,43 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 
 
 .tile-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}.tile-tabs .profile-tab-button{padding:8px 4px;font-size:12px}.tile-tab-content{min-width:0}.tile-tab-content h3{font-size:.94rem;margin:10px 0 6px}.tile-tab-content>p.muted{font-size:.76rem;line-height:1.3;margin:5px 0 8px}.area-poi{margin:5px 0;width:100%;text-align:left}.area-poi small{display:block;margin-top:3px;color:#c8c8c8;white-space:normal;line-height:1.3;font-size:.78rem}.poi-result-card{padding:8px 9px;border:1px solid #38433b;border-radius:9px;background:linear-gradient(135deg,#202923,#191f1b);margin:6px 0}.poi-investigate-button{padding:7px 9px!important;font-size:.78rem!important;margin-top:6px;background:#34533d!important;border:1px solid #52765a!important}.area-explore-action{width:100%;text-align:left;margin:3px 0 7px;padding:9px 10px!important;border:1px solid #64866a!important;border-radius:9px!important;background:linear-gradient(135deg,#2b4932,#202e24)!important}.area-explore-action strong,.area-explore-action small{display:block}.area-explore-action small{font-size:.75rem;color:#d0ded1;margin-top:3px}.action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.action-grid button{min-width:0;padding:8px!important;font-size:.8rem}.settlement-storage{margin:8px 0}
+
+/* Multiplayer account screen refresh */
+.mp-auth-shell{max-width:470px;margin:0 auto;padding:4px 0 14px;color:#f4f5f6}
+.mp-auth-hero{display:flex;gap:14px;align-items:center;padding:12px 4px 18px}
+.mp-auth-emblem{width:58px;height:58px;flex:0 0 58px;border:1px solid #687a65;border-radius:18px;display:grid;place-items:center;font-size:30px;background:linear-gradient(145deg,#27392e,#17211c);box-shadow:0 8px 24px #0005}
+.mp-kicker{font-size:10px;letter-spacing:2px;color:#b8d39e;font-weight:800;margin:0 0 4px}
+.mp-auth-hero h2{margin:0 0 5px;font-size:24px;line-height:1.15}
+.mp-auth-hero p:last-child{margin:0;color:#b9c0ba;font-size:13px;line-height:1.45}
+.mp-auth-status{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:11px;background:#17231d;border:1px solid #34483a;font-size:12px;line-height:1.4;margin-bottom:13px;overflow-wrap:anywhere}
+.mp-status-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#b4a16b;box-shadow:0 0 0 3px #b4a16b22}
+.mp-auth-card{padding:15px;border:1px solid #353b36;border-radius:15px;background:linear-gradient(160deg,#202521,#171a18);box-shadow:0 12px 28px #0003}
+.mp-auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;background:#111512;border-radius:10px;margin-bottom:15px}
+.mp-auth-tab{border:0;border-radius:8px;padding:10px 7px;background:transparent;color:#aeb6af;font-weight:700}
+.mp-auth-tab.active{background:#d0e0bc;color:#1b271a}
+.mp-auth-note,.mp-field-help{font-size:12px;line-height:1.5;color:#adb6ae;margin:0 0 14px}
+.mp-auth-card label{display:block;font-size:12px;color:#d8ded8;font-weight:700;margin:12px 0 6px}
+.mp-auth-card input,.mp-auth-card select{width:100%;min-width:0;padding:12px;border-radius:9px;border:1px solid #454d46;background:#101310;color:#f5f6f5;font-size:14px;outline:none}
+.mp-auth-card input:focus,.mp-auth-card select:focus{border-color:#a6c28e;box-shadow:0 0 0 2px #a6c28e22}
+.mp-password-row{display:flex;gap:7px;align-items:stretch}
+.mp-password-row input{flex:1;width:0}
+.mp-password-row button{border:1px solid #454d46;background:#2b322c;color:#e7ece7;border-radius:9px;padding:0 11px;font-size:12px}
+.mp-field-help{margin:14px 0 8px;color:#c7d2c3}
+.mp-auth-primary{width:100%;border:0;border-radius:10px;background:#c5dcae;color:#172116;font-weight:800;font-size:15px;padding:13px 10px;margin-top:16px;box-shadow:0 5px 0 #718a60;min-height:46px}
+.mp-auth-primary:disabled{opacity:.55;box-shadow:none}
+#mpLoginButton{display:none;background:#d3dfd0}
+.mp-auth-feedback{font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px;padding:10px;border-radius:9px;background:#111512;color:#c2cbc3;border:1px solid #303832;min-height:40px}
+.mp-auth-feedback.success{border-color:#47794b;color:#c5edc8;background:#142116}
+.mp-auth-feedback.error{border-color:#874848;color:#ffc7c7;background:#261515}
+.mp-auth-server{display:flex;flex-direction:column;gap:4px;border-top:1px solid #353b36;margin-top:16px;padding-top:12px}
+.mp-auth-server span{font-size:9px;letter-spacing:1.8px;color:#98a39a;font-weight:800}
+.mp-auth-server strong{font-size:12px;color:#e2e8e2}
+.mp-auth-server small{font-size:10px;color:#89938b;overflow-wrap:anywhere}
+.mp-auth-footer{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.mp-auth-footer button{flex:1;min-width:100px;padding:9px 7px;border:1px solid #373d38;border-radius:9px;background:#202521;color:#bdc5bd;font-size:11px}
+.mp-server-hidden{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+@media(max-width:380px){.mp-auth-card{padding:12px}.mp-auth-hero h2{font-size:21px}.mp-auth-emblem{width:50px;height:50px;flex-basis:50px}}
+
 </style>
 </head>
 
@@ -504,24 +541,31 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div id="partyMembers" class="ground-row">No party loaded.</div><div class="action-grid"><button onclick="mpPartyAction('leave')">Leave Party</button><button onclick="backToWorld()">⬅ Back to Game</button></div>
 </section>
 <section class="panel hidden" id="multiplayerPanel">
-<h2>🌐 Lost Ruin Online</h2>
-<p class="muted">Create an account or log in first. Your character, world, survivors, and multiplayer features remain hidden until the server confirms your account.</p>
-<div class="detail-stat" id="mpConnectionStatus" role="status" aria-live="polite">Offline · Multiplayer server not connected</div>
-<h3>🔐 Multiplayer Account</h3>
-<p class="muted">Create an account once, then log in from any device. Your multiplayer character name and race are permanent for this account.</p>
-<label for="mpServerSelect">Choose a server</label>
-<select id="mpServerSelect" style="width:100%;margin:6px 0 12px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
-<option value="wss://lost-ruins-1.onrender.com">Lost Ruin · Main Survival (Online)</option>
-</select>
-<label for="mpUsername">Account username</label><input id="mpUsername" maxlength="24" autocomplete="username" placeholder="3–24 letters, numbers, underscore" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
-<label for="mpPassword">Password</label><div style="display:flex;gap:6px;align-items:stretch;margin:6px 0 10px"><input id="mpPassword" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="At least 8 characters" style="flex:1;min-width:0;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px"><button id="mpPasswordEye" type="button" aria-label="Show password" onclick="mpTogglePassword()" style="padding:8px 12px">👁 Show</button></div>
-<div id="mpRegisterFields">
-<label for="mpCharacterName">Character name (permanent)</label><input id="mpCharacterName" maxlength="24" placeholder="Name other players will see" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
-<label for="mpRace">Race (permanent)</label><select id="mpRace" style="width:100%;margin:6px 0 10px;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px">
-<option value="human">🧑 Human</option><option value="orc">👹 Orc</option><option value="goblin">👺 Goblin</option><option value="elf">🧝 Elf</option><option value="dragonkin">🐉 Dragonkin</option><option value="dwarf">⛏️ Dwarf</option>
-</select></div>
-<button id="mpRegisterButton" class="full-button" onclick="mpConnect()">📝 Create Account</button><p id="mpAuthSwitchText" style="text-align:center;margin:12px 0 4px">Already have an account?</p><button id="mpLoginButton" class="full-button" onclick="mpSetAuthMode('login')">🔑 Login</button>
-<div class="action-grid"><button id="mpDisconnectButton" onclick="mpDisconnect()" disabled>Disconnect</button><button onclick="returnHome()">Back to Main Menu</button></div><button class="full-button" onclick="mpSwitchAccount()">Switch Account / Log Out</button>
+<div class="mp-auth-shell">
+  <div class="mp-auth-hero"><div class="mp-auth-emblem">🧭</div><div><p class="mp-kicker">LOST RUIN · ONLINE</p><h2>Enter the Lost World</h2><p>Make an account to save your multiplayer identity to the online server.</p></div></div>
+  <div class="mp-auth-status" id="mpConnectionStatus" role="status" aria-live="polite"><span class="mp-status-dot"></span><span>Not connected · Ready to connect to the server</span></div>
+  <div class="mp-auth-card">
+    <div class="mp-auth-tabs"><button id="mpRegisterTab" class="mp-auth-tab active" type="button" onclick="mpSetAuthMode('register')">Create account</button><button id="mpLoginTab" class="mp-auth-tab" type="button" onclick="mpSetAuthMode('login')">Log in</button></div>
+    <p class="mp-auth-note">Your username and password are sent to the Lost Ruin server. The server verifies your request and saves your account to the database before letting you enter.</p>
+    <label for="mpUsername">Account username</label>
+    <input id="mpUsername" maxlength="24" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="3–24 letters, numbers, or _">
+    <label for="mpPassword">Password</label>
+    <div class="mp-password-row"><input id="mpPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters"><button id="mpPasswordEye" type="button" aria-label="Show password" onclick="mpTogglePassword()">👁 Show</button></div>
+    <div id="mpRegisterFields" class="mp-register-fields">
+      <div class="mp-field-help">These character details cannot be changed after account creation.</div>
+      <label for="mpCharacterName">Character name</label>
+      <input id="mpCharacterName" maxlength="24" autocomplete="nickname" placeholder="2–24 characters">
+      <label for="mpRace">Choose your race</label>
+      <select id="mpRace"><option value="human">🧑 Human</option><option value="orc">👹 Orc</option><option value="goblin">👺 Goblin</option><option value="elf">🧝 Elf</option><option value="dragonkin">🐉 Dragonkin</option><option value="dwarf">⛏️ Dwarf</option></select>
+    </div>
+    <button id="mpRegisterButton" class="mp-auth-primary" type="button" onclick="mpConnect()">Create account &amp; save</button>
+    <button id="mpLoginButton" class="mp-auth-primary" type="button" onclick="mpConnect()">Log in to account</button>
+    <div id="mpAuthFeedback" class="mp-auth-feedback" role="status" aria-live="polite">Account creation will only be confirmed after the server replies.</div>
+    <div class="mp-auth-server"><span>SERVER</span><strong>Lost Ruin · Main Survival</strong><small id="mpServerAddressLabel">wss://lost-ruins-1.onrender.com</small></div>
+    <select id="mpServerSelect" aria-label="Multiplayer server" class="mp-server-hidden"><option value="wss://lost-ruins-1.onrender.com">Lost Ruin · Main Survival (Online)</option></select>
+  </div>
+  <div class="mp-auth-footer"><button id="mpDisconnectButton" type="button" onclick="mpDisconnect()" disabled>Disconnect</button><button type="button" onclick="mpSwitchAccount()">Switch account / log out</button><button type="button" onclick="returnHome()">Main menu</button></div>
+</div>
 <h3>🧭 Online Survivors <span id="mpPlayerCount">(0)</span></h3><p class="muted">Players on your exact tile can be inspected, privately messaged, or traded with.</p><div id="mpPlayerList" class="ground-row">Connect to a server to see other players.</div><div id="mpPrivateChatPanel" class="detail-stat hidden"><h3 id="mpPrivateChatTitle">Private Chat</h3><div id="mpPrivateChatLog" class="ground-row" style="white-space:pre-wrap;min-height:60px"></div><form onsubmit="mpSendPrivateChat(event)"><input id="mpPrivateChatInput" maxlength="240" placeholder="Message this player" style="width:100%;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:6px;margin:6px 0"><button class="full-button" type="submit">Send Private Message</button></form></div>
 <p class="muted">Online world changes are shared through the server when the matching server update is deployed.</p>
 
@@ -4619,6 +4663,8 @@ const MP_SERVER_KEY = "lostRuinOnlineServer";
 const MP_CLIENT_VERSION = 2;
 let mpAuthMode = "register";
 let mpPendingAuthMode = "register";
+let mpAuthTimer = null;
+let mpAuthError = "";
 let mpTradeOffers = [];
 const MP_SERVERS = {"main":"wss://lost-ruins-1.onrender.com"};
 let mpSocket = null;
@@ -4700,15 +4746,18 @@ function returnHome(){
 }
 function mpSetAuthMode(mode){
   mpAuthMode=mode==="login"?"login":"register";
-  const fields=document.getElementById("mpRegisterFields"),registerButton=document.getElementById("mpRegisterButton"),loginButton=document.getElementById("mpLoginButton"),switchText=document.getElementById("mpAuthSwitchText"),pw=document.getElementById("mpPassword");
-  if(fields)fields.classList.toggle("hidden",mpAuthMode==="login");
-  if(registerButton)registerButton.classList.toggle("hidden",mpAuthMode==="login");
-  if(loginButton){loginButton.textContent=mpAuthMode==="login"?"🔑 Login":"🔑 Login";loginButton.onclick=mpAuthMode==="login"?mpConnect:()=>mpSetAuthMode("login");}
-  if(switchText)switchText.textContent=mpAuthMode==="login"?"Need a new account?":"Already have an account?";
+  const fields=document.getElementById("mpRegisterFields"),registerButton=document.getElementById("mpRegisterButton"),loginButton=document.getElementById("mpLoginButton"),registerTab=document.getElementById("mpRegisterTab"),loginTab=document.getElementById("mpLoginTab"),pw=document.getElementById("mpPassword"),feedback=document.getElementById("mpAuthFeedback");
+  if(fields)fields.style.display=mpAuthMode==="login"?"none":"block";
+  if(registerButton)registerButton.style.display=mpAuthMode==="login"?"none":"block";
+  if(loginButton)loginButton.style.display=mpAuthMode==="login"?"block":"none";
+  if(registerTab)registerTab.classList.toggle("active",mpAuthMode==="register");
+  if(loginTab)loginTab.classList.toggle("active",mpAuthMode==="login");
   if(pw){pw.autocomplete=mpAuthMode==="login"?"current-password":"new-password";pw.value="";}
-  if(mpAuthMode==="login") { const un=document.getElementById("mpUsername");if(un&&!un.value){try{un.value=localStorage.getItem("lostRuinMpUsername")||"";}catch(e){}}const cn=document.getElementById("mpCharacterName"); if(cn)cn.value=""; const race=document.getElementById("mpRace"); if(race)race.selectedIndex=0; }
-  if(mpAuthMode==="login"&&registerButton){registerButton.classList.remove("hidden");registerButton.textContent="📝 Create Account Instead";registerButton.onclick=()=>mpSetAuthMode("register");}
-  else if(registerButton){registerButton.textContent="📝 Create Account";registerButton.onclick=mpConnect;}
+  if(mpAuthMode==="login"){
+    const un=document.getElementById("mpUsername");if(un&&!un.value){try{un.value=localStorage.getItem("lostRuinMpUsername")||"";}catch(e){}}
+    const cn=document.getElementById("mpCharacterName");if(cn)cn.value="";
+  }
+  if(feedback){feedback.className="mp-auth-feedback";feedback.textContent=mpAuthMode==="login"?"Enter the username and password for your existing account.":"Create a new account. The server must confirm and save it before you enter the world.";}
 }
 function mpSwitchAccount(){try{localStorage.removeItem("lostRuinMpSessionToken");}catch(e){}if(mpSocket)mpDisconnect();const pass=document.getElementById("mpPassword");if(pass)pass.value="";const panel=document.getElementById("multiplayerPanel");if(panel)panel.classList.remove("hidden");document.getElementById("startMenuOverlay")?.classList.add("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");mpSetAuthMode("login");mpSetStatus("Choose an account username and enter its password.");}
 function mpTogglePassword(){const input=document.getElementById("mpPassword"),button=document.getElementById("mpPasswordEye");if(!input)return;const show=input.type==="password";input.type=show?"text":"password";if(button){button.textContent=show?"🙈 Hide":"👁 Show";button.setAttribute("aria-label",show?"Hide password":"Show password");}}
@@ -4744,37 +4793,49 @@ function mpSetStatus(message){const el=document.getElementById("mpConnectionStat
 let mpGuildState=null,mpPartyState=null;
 function mpSend(payload){if(!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return false;try{mpSocket.send(JSON.stringify(payload));return true;}catch(e){mpSetStatus("Connection error · "+(e.message||"unable to send"));return false;}}
 function mpConnect(resumeOnly=false){
-  if(mpSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(mpSocket.readyState)){mpSetStatus("Already connected or connecting.");return;}
+  if(mpSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(mpSocket.readyState)){mpSetStatus("A server connection is already active. Wait for the current request or disconnect first.");return;}
   const url=document.getElementById("mpServerSelect")?.value||MP_SERVERS.main;
   const username=(document.getElementById("mpUsername")?.value||"").trim();
   const password=document.getElementById("mpPassword")?.value||"";
   const savedToken=(()=>{try{return localStorage.getItem("lostRuinMpSessionToken")||"";}catch(e){return "";}})();
-  const authMode=resumeOnly?"resume":mpAuthMode;
-  mpPendingAuthMode=authMode;
+  const authMode=resumeOnly?"resume":mpAuthMode;mpPendingAuthMode=authMode;mpAuthError="";
   const characterName=(document.getElementById("mpCharacterName")?.value||"").trim();
   const race=document.getElementById("mpRace")?.value||"human";
-  if(!/^[a-zA-Z0-9_]{3,24}$/.test(username)){mpSetStatus("Username must be 3–24 characters: letters, numbers, underscore.");return;}
-  if(authMode==="resume"&&!savedToken){mpSetStatus("Please log in to continue.");return;}
-  if(authMode!=="resume"&&(password.length<8||password.length>128)){mpSetStatus("Password must be 8–128 characters.");return;}
-  if(authMode==="register"&&!/^[\p{L}0-9 _'-]{2,24}$/u.test(characterName)){mpSetStatus("Character name must be 2–24 characters.");return;}
+  const feedback=document.getElementById("mpAuthFeedback");
+  const showFeedback=(message,kind="")=>{if(feedback){feedback.className="mp-auth-feedback"+(kind?" "+kind:"");feedback.textContent=message;}};
+  if(!/^[a-zA-Z0-9_]{3,24}$/.test(username)){const m="Username must be 3–24 characters using letters, numbers, or underscore.";mpSetStatus(m);showFeedback(m,"error");document.getElementById("mpUsername")?.focus();return;}
+  if(authMode==="resume"&&!savedToken){const m="No saved session. Please log in with your password.";mpSetStatus(m);showFeedback(m,"error");return;}
+  if(authMode!=="resume"&&(password.length<8||password.length>128)){const m="Password must be between 8 and 128 characters.";mpSetStatus(m);showFeedback(m,"error");document.getElementById("mpPassword")?.focus();return;}
+  if(authMode==="register"&&!/^[\p{L}0-9 _'-]{2,24}$/u.test(characterName)){const m="Character name must be 2–24 characters.";mpSetStatus(m);showFeedback(m,"error");document.getElementById("mpCharacterName")?.focus();return;}
   try{localStorage.setItem(MP_SERVER_KEY,url);localStorage.setItem("lostRuinMpUsername",username);}catch(e){}
-  mpSharedReady=false;mpSetStatus(authMode==="register"?"Connecting to create account…":authMode==="resume"?"Restoring your saved session…":"Connecting to log in…");
-  let socket;try{socket=new WebSocket(url);}catch(e){mpSetStatus("Could not start connection: "+(e.message||"invalid URL"));return;}mpSocket=socket;
+  mpSharedReady=false;
+  const busyButton=authMode==="login"?document.getElementById("mpLoginButton"):document.getElementById("mpRegisterButton");
+  if(busyButton){busyButton.disabled=true;busyButton.textContent=authMode==="register"?"Connecting & saving…":"Connecting & logging in…";}
+  const restoreButton=()=>{const rb=document.getElementById("mpRegisterButton"),lb=document.getElementById("mpLoginButton");if(rb){rb.disabled=false;rb.textContent="Create account & save";}if(lb){lb.disabled=false;lb.textContent="Log in to account";}};
+  mpSetStatus(authMode==="register"?"Connecting to the Lost Ruin server…":authMode==="resume"?"Restoring saved session…":"Connecting to log in…");
+  showFeedback("Connecting securely to the multiplayer server. Waiting for the server to confirm your account…");
+  let socket;try{socket=new WebSocket(url);}catch(e){const m="Could not start connection: "+(e.message||"invalid server URL");mpSetStatus(m);showFeedback(m,"error");restoreButton();return;}mpSocket=socket;
   socket.addEventListener("open",()=>{
     if(mpSocket!==socket)return;
-    mpSend({type:"auth",version:MP_CLIENT_VERSION,mode:authMode,username,password,token:savedToken,characterName,race,x:Number(player.x)||0,y:Number(player.y)||0,worldId:"lost-ruin-main"});
+    mpSetStatus("Connected to server · sending account request…");
+    if(!mpSend({type:"auth",version:MP_CLIENT_VERSION,mode:authMode,username,password,token:savedToken,characterName,race,x:Number(player.x)||0,y:Number(player.y)||0,worldId:"lost-ruin-main"})){mpAuthError="Could not send account request to server.";showFeedback(mpAuthError,"error");socket.close(4002,"Auth request send failed");return;}
+    if(mpAuthTimer)clearTimeout(mpAuthTimer);
+    mpAuthTimer=setTimeout(()=>{if(mpSocket!==socket||mpClientId)return;mpAuthError="The server connected but did not confirm the account within 15 seconds. No success was reported. Check Render logs.";mpSetStatus(mpAuthError);showFeedback(mpAuthError,"error");restoreButton();try{socket.close(4000,"Authentication response timeout");}catch(e){}},15000);
     mpHeartbeatTimer=setInterval(()=>mpSend({type:"ping",at:Date.now()}),25000);
     mpLocationTimer=setInterval(()=>{if(mpClientId)mpSend({type:"location",x:Number(player.x)||0,y:Number(player.y)||0,day:player.day,hour:player.hour,terrain:generateTerrain(player.x,player.y),level:getOverallPlayerLevel(),profile:player.characterProfile||{},equipment:player.equipment||{}});},1800);
   });
-  socket.addEventListener("message",event=>{if(mpSocket!==socket)return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}mpHandleMessage(msg);});
-  socket.addEventListener("error",()=>{if(mpSocket===socket)mpSetStatus("Connection failed · this server may not be deployed or reachable.");});
-  socket.addEventListener("close",event=>{if(mpSocket!==socket)return;mpClearTimers();mpSocket=null;mpClientId="";mpPlayers=[];mpRenderPlayers();if(localStorage.getItem("lostRuinMpSessionToken")){mpSetStatus("Connection lost · reconnecting…");setTimeout(()=>{if(!mpSocket&&localStorage.getItem("lostRuinMpSessionToken"))mpConnect(true);},3500);}else mpSetStatus("Disconnected · "+(event.reason||"server connection closed"));});
+  socket.addEventListener("message",event=>{if(mpSocket!==socket)return;let msg;try{msg=JSON.parse(event.data);}catch(e){mpSetStatus("Received an unreadable response from server.");return;}mpHandleMessage(msg);});
+  socket.addEventListener("error",()=>{if(mpSocket===socket){const m="Connection failed. Check that Render is live and the server URL is correct.";mpAuthError=m;mpSetStatus(m);showFeedback(m,"error");restoreButton();}});
+  socket.addEventListener("close",event=>{if(mpSocket!==socket)return;mpClearTimers();if(mpAuthTimer){clearTimeout(mpAuthTimer);mpAuthTimer=null;}mpSocket=null;mpClientId="";mpPlayers=[];mpRenderPlayers();restoreButton();if(mpAuthError){mpSetStatus(mpAuthError);showFeedback(mpAuthError,"error");return;}if(localStorage.getItem("lostRuinMpSessionToken")){mpSetStatus("Connection lost · trying to restore your saved session…");setTimeout(()=>{if(!mpSocket&&localStorage.getItem("lostRuinMpSessionToken"))mpConnect(true);},3500);}else mpSetStatus("Disconnected · "+(event.reason||"server connection closed"));
+  });
 }
 function mpClearTimers(){if(mpHeartbeatTimer)clearInterval(mpHeartbeatTimer);if(mpLocationTimer)clearInterval(mpLocationTimer);mpHeartbeatTimer=mpLocationTimer=null;}
 function mpDisconnect(){mpReconnectRequested=false;mpClearTimers();if(mpSocket){const socket=mpSocket;mpSocket=null;try{socket.close(1000,"Player disconnected");}catch(e){}}mpClientId="";mpSharedReady=false;mpPlayers=[];mpRenderPlayers();mpSetStatus("Disconnected · your local game is still available.");}
 function mpHandleMessage(msg){
   if(!msg||typeof msg.type!=="string")return;
   if(msg.type==="welcome"){
+    if(mpAuthTimer){clearTimeout(mpAuthTimer);mpAuthTimer=null;}mpAuthError="";
+    const regBtn=document.getElementById("mpRegisterButton"),loginBtn=document.getElementById("mpLoginButton");if(regBtn){regBtn.disabled=false;regBtn.textContent="Create account & save";}if(loginBtn){loginBtn.disabled=false;loginBtn.textContent="Log in to account";}
     mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];
     if(msg.account){try{localStorage.setItem("lostRuinMpAccount",JSON.stringify({username:msg.account.username,characterName:msg.account.characterName,race:msg.account.race}));if(msg.sessionToken)localStorage.setItem("lostRuinMpSessionToken",msg.sessionToken);const un=document.getElementById("mpUsername");if(un)un.value=msg.account.username;}catch(e){}
       player.characterProfile=player.characterProfile||{};player.characterProfile.name=msg.account.characterName;player.characterProfile.nameLocked=true;player.characterProfile.race=msg.account.race;player.characterProfile.raceLocked=true;saveGame();updateCharacter();}
@@ -4783,6 +4844,7 @@ function mpHandleMessage(msg){
     mpSetStatus("Connected · "+accountName+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");
     document.getElementById("multiplayerPanel")?.classList.add("hidden");
     backToWorld();
+    const feedback=document.getElementById("mpAuthFeedback");if(feedback){feedback.className="mp-auth-feedback success";feedback.textContent=completedAuthMode==="register"?"✓ Account created and accepted by the server. Welcome, "+accountName+"!":completedAuthMode==="login"?"✓ Login confirmed by the server. Welcome back, "+accountName+"!":"✓ Saved session restored for "+accountName+".";}
     if(completedAuthMode==="register")showWelcomeToast("Account created successfully! Welcome, "+accountName+"!");
     else if(completedAuthMode==="login")showWelcomeToast("Login successful! Welcome back, "+accountName+"!");
     else showWelcomeToast("Welcome back, "+accountName+"! Reconnected successfully.");
@@ -4802,7 +4864,7 @@ function mpHandleMessage(msg){
   else if(msg.type==="partyState"){mpPartyState=msg.party||null;renderGuildParty();if(msg.text)mpAddChatLine("Party",msg.text);}
   else if(msg.type==="partyInvite"){if(confirm((msg.fromName||"A survivor")+" invited you to join their party. Accept?"))mpSend({type:"partyAction",action:"accept",inviteId:msg.inviteId});else mpSend({type:"partyAction",action:"decline",inviteId:msg.inviteId});}
   else if(msg.type==="partyFollow"){if(msg.leaderId!==mpClientId){player.x=Number(msg.x)||0;player.y=Number(msg.y)||0;mapViewX=player.x;mapViewY=player.y;selectedLocation={x:player.x,y:player.y};updateScreen();drawMap();saveGame();showMessage("Your party followed its leader.");}}
-  else if(msg.type==="error"){mpAddChatLine("System",msg.message||"The server reported an error.");mpSetStatus(msg.message||"Server error");if(!mpClientId&&mpSocket&&mpSocket.readyState===WebSocket.OPEN){if((msg.message||"").toLowerCase().includes("session expired")){try{localStorage.removeItem("lostRuinMpSessionToken");}catch(e){}}try{mpSocket.close(4002,"Authentication failed");}catch(e){}}}
+  else if(msg.type==="error"){const message=String(msg.message||"The server reported an error.");mpAddChatLine("System",message);if(!mpClientId){mpAuthError=message;if(mpAuthTimer){clearTimeout(mpAuthTimer);mpAuthTimer=null;}const feedback=document.getElementById("mpAuthFeedback");if(feedback){feedback.className="mp-auth-feedback error";feedback.textContent="Server rejected the request: "+message;}mpSetStatus("Account request failed · "+message);if(message.toLowerCase().includes("session expired")){try{localStorage.removeItem("lostRuinMpSessionToken");}catch(e){}}if(mpSocket&&mpSocket.readyState===WebSocket.OPEN){try{mpSocket.close(4002,"Authentication failed");}catch(e){}}}else mpSetStatus(message);}
   else if(msg.type==="pong"){}
 }
 function mpRenderPlayers(){
