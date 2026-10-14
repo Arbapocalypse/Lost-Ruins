@@ -233,7 +233,7 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 .settlement-summary,.settlement-safety{padding:9px 11px;margin:7px 0;border:1px solid #343b3c;border-radius:10px;background:#171d1d;white-space:normal;line-height:1.4;font-size:.88rem}.settlement-safety{color:#c8d6cf;font-size:.82rem}.settlement-storage{margin:8px 0;padding:9px;border:1px solid #343b3c;border-radius:10px;background:#171b1b}.settlement-storage summary{font-weight:700;cursor:pointer}.stock-tabs,.storage-tabs,.store-tabs{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 9px}.stock-tabs button,.storage-tabs button,.store-tabs button{flex:1;min-width:72px;padding:7px 5px;font-size:.78rem}.stock-tabs button.active,.storage-tabs button.active,.store-tabs button.active{background:#3d6851;border-color:#6a9c7d}.stockpile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.stockpile-item{padding:7px;border:1px solid #343b3c;border-radius:8px;background:#202626;font-size:.82rem}.stockpile-item strong{float:right}.donate-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.donate-row select{flex:1;min-width:120px}.donate-row button{padding:7px}.store-category-note{font-size:.78rem;color:#b8c4bf;margin:5px 0 8px}
 
 
-.tile-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}.tile-tabs .profile-tab-button{padding:10px 5px;font-size:13px}.tile-tab-content{min-width:0}.area-poi{margin:7px 0;width:100%;text-align:left}.area-poi small{display:block;margin-top:4px;color:#c8c8c8;white-space:normal}.settlement-storage{margin:8px 0}
+.tile-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}.tile-tabs .profile-tab-button{padding:8px 4px;font-size:12px}.tile-tab-content{min-width:0}.tile-tab-content h3{font-size:.94rem;margin:10px 0 6px}.tile-tab-content>p.muted{font-size:.76rem;line-height:1.3;margin:5px 0 8px}.area-poi{margin:5px 0;width:100%;text-align:left}.area-poi small{display:block;margin-top:3px;color:#c8c8c8;white-space:normal;line-height:1.3;font-size:.78rem}.poi-result-card{padding:8px 9px;border:1px solid #38433b;border-radius:9px;background:linear-gradient(135deg,#202923,#191f1b);margin:6px 0}.poi-investigate-button{padding:7px 9px!important;font-size:.78rem!important;margin-top:6px;background:#34533d!important;border:1px solid #52765a!important}.area-explore-action{width:100%;text-align:left;margin:3px 0 7px;padding:9px 10px!important;border:1px solid #64866a!important;border-radius:9px!important;background:linear-gradient(135deg,#2b4932,#202e24)!important}.area-explore-action strong,.area-explore-action small{display:block}.area-explore-action small{font-size:.75rem;color:#d0ded1;margin-top:3px}.action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.action-grid button{min-width:0;padding:8px!important;font-size:.8rem}.settlement-storage{margin:8px 0}
 </style>
 </head>
 
@@ -4140,7 +4140,19 @@ async function exploreTerrainPOI(){
 function renderTileAreas(x,y){
  const box=document.getElementById('tileAreasList');if(!box)return;box.innerHTML='';
  const terrain=generateTerrain(x,y),td=getTileData(x,y),here=x===player.x&&y===player.y;
- const actions=document.getElementById('locationActions');if(actions){actions.innerHTML='';actions.classList.add('hidden');}
+ const actions=document.getElementById('locationActions');
+ if(actions){
+   actions.innerHTML='';
+   actions.classList.remove('hidden');
+   if(here){
+     const exploreBtn=document.createElement('button');
+     exploreBtn.className='area-explore-action';
+     exploreBtn.innerHTML='<strong>🔎 Explore Area</strong><small>Discover new points of interest · 6 energy</small>';
+     exploreBtn.disabled=player.dead||player.energy<6;
+     exploreBtn.onclick=exploreTerrainPOI;
+     actions.appendChild(exploreBtn);
+   }
+ }
  if(!here){
    const note=document.createElement('div');note.className='detail-stat';note.textContent='Travel here to reveal local areas, encounters, actions, and ground loot.';box.appendChild(note);
    const est=calculateTravel(x,y),travel=document.createElement('button');travel.className='travel-button area-poi';travel.innerHTML='<strong>🧭 Travel Here</strong><small>'+est.distance+' tile(s) · '+est.hours+' game hour(s) · '+est.energy+' energy</small>';travel.disabled=player.dead||player.energy<1;travel.onclick=()=>beginTravel(x,y);box.appendChild(travel);return;
@@ -4149,15 +4161,14 @@ function renderTileAreas(x,y){
  const buildings=(player.base?.buildings||[]).filter(b=>Number(b.x)===Number(x)&&Number(b.y)===Number(y)&&b.completed);
  buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed · '+(def.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to use</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
  if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y),btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach</small>';btn.onclick=()=>enterSettlement(x,y);box.appendChild(btn);}
- // Explore control stays above the POI results, never as a POI itself.
- const exploreCard=document.createElement('div');exploreCard.className='ground-row area-explore-control';
- const exploreTitle=document.createElement('strong');exploreTitle.textContent='🔎 Explore Area';exploreCard.appendChild(exploreTitle);
- const exploreDesc=document.createElement('small');exploreDesc.textContent='Reveal 2–3 random points of interest. Higher Exploration skill and Perception reveal more.';exploreCard.appendChild(exploreDesc);
- const exploreBtn=document.createElement('button');exploreBtn.style.marginTop='6px';exploreBtn.textContent='Explore · 6 energy';exploreBtn.disabled=player.dead||player.energy<6;exploreBtn.onclick=exploreTerrainPOI;exploreCard.appendChild(exploreBtn);box.appendChild(exploreCard);
  td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
+ // Purge investigated entries from old saves as well as the current display, so stale cards cannot linger in a slot.
+ if(Array.isArray(td.exploreResults)){
+   td.exploreResults=td.exploreResults.filter(entry=>entry&&Array.isArray(entry.poi)&&!entry.resolved&&!td.resolvedPOIs[entry.key]);
+ }
  const results=Array.isArray(td.exploreResults)?td.exploreResults:[];
- if(!results.length){const hint=document.createElement('div');hint.className='detail-stat';hint.textContent='No points of interest revealed yet. Explore this area to discover 2–3 random results.';box.appendChild(hint);}
- results.forEach(entry=>{if(!entry||!Array.isArray(entry.poi))return;const poi=entry.poi,key=entry.key;const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1];card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const resolved=!!entry.resolved||!!td.resolvedPOIs[key];const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent=resolved?'✓ Investigated':'🔎 Investigate · 4 energy';btn.disabled=resolved||player.dead;btn.onclick=()=>{resolvePointOfInterest(x,y,terrain,poi,key);entry.resolved=!!getTileData(x,y).resolvedPOIs?.[key];saveGame();renderTileAreas(x,y);};card.appendChild(btn);box.appendChild(card);});
+ if(!results.length){const hint=document.createElement('div');hint.className='detail-stat';hint.textContent='No points of interest remain. Explore this area to discover new ones.';box.appendChild(hint);}
+ results.forEach(entry=>{if(!entry||!Array.isArray(entry.poi))return;const poi=entry.poi,key=entry.key;const card=document.createElement('div');card.className='ground-row area-poi poi-result-card';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1];card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const btn=document.createElement('button');btn.className='poi-investigate-button';btn.textContent='🔎 Investigate · 4 energy';btn.disabled=player.dead||player.energy<4;btn.onclick=()=>{resolvePointOfInterest(x,y,terrain,poi,key);const data=getTileData(x,y);if(data.resolvedPOIs?.[key])data.exploreResults=(data.exploreResults||[]).filter(item=>item.key!==key);saveGame();renderTileAreas(x,y);};card.appendChild(btn);box.appendChild(card);});
  // All terrain actions are represented as named Areas, not a separate action list.
  const info=terrainInfo[terrain];(info?.actions||[]).filter(a=>!['buildBase','breedLivestock','captureWildlife','hunt'].includes(a.id)).forEach(action=>{
    const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=action.name;card.appendChild(title);const desc=document.createElement('small');desc.textContent=action.detail;card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent='▶ '+action.name.replace(/^\S+\s*/,'');btn.disabled=player.dead;btn.onclick=()=>performLocationAction(action);card.appendChild(btn);box.appendChild(card);
