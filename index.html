@@ -3645,7 +3645,7 @@ async function performLocationAction(action){
 
     case "captureWildlife": {
       if(!hasBuilding("livestockPen")){result="You need a completed Livestock Pen in your settlement before you can safely keep captured animals.";break;}
-      const animal=wildlifeEncounter(terrain);
+      const animal=action.targetAnimal||wildlifeEncounter(terrain);
       if(!animal){result="You spot tracks and distant movement, but the animals are too wary to approach. Try another tile or return later.";break;}
       // A modest capture chance keeps livestock valuable without making the action feel futile.
       const captureChance=terrain==="mountain"?0.42:terrain==="river"||terrain==="lake"?0.52:0.58;
@@ -3660,16 +3660,14 @@ async function performLocationAction(action){
     case "breedLivestock":
       result=breedLivestock();
       break;
-    case "hunt":
-      if(roll<.4)found="meat";
-      else if(roll<.55){
-        found="herb";
-        result="You find an herb while following animal tracks.";
-      }else if(roll<.7){
-        result="A dangerous animal spots you! You lose 8 energy.";
-        player.energy=Math.max(0,player.energy-8);
-      }else result="The animals escape.";
+    case "hunt": {
+      const target=action.targetAnimal;
+      if(roll<.62){found="meat";result=target?"You successfully hunted "+target.icon+" "+target.name+".":"You tracked and hunted an animal.";}
+      else if(roll<.76){found="herb";result="You lose the trail but find useful herbs along the way.";}
+      else if(roll<.88){result="The animal notices you and escapes. You lose 4 energy chasing it.";player.energy=Math.max(0,player.energy-4);}
+      else result="The animal escapes before you can get close.";
       break;
+    }
 
     case "drinkSource": {
       const terrainName=(terrainInfo[terrain]?.name||"").toLowerCase();
@@ -4042,6 +4040,7 @@ function switchTileTab(tab){
  if(tab==='loot'&&selectedLocation){updateGroundLoot(selectedLocation.x,selectedLocation.y);const n=document.getElementById('tileLootCount');if(n){const pile=groundLoot[locationKey(selectedLocation.x,selectedLocation.y)]||[];n.textContent=pile.length?'('+pile.reduce((sum,e)=>sum+(Number(e.amount)||0),0)+')':'';}}
 }
 function tilePointOfInterestDefs(x,y,terrain){
+ const td=getTileData(x,y);if(Array.isArray(td.poiSet)&&td.poiSet.length)return td.poiSet;
  const options={
   forest:[
    ['🌿','Berry Clearing','Wild berries grow beneath a canopy of fern.'],['🪵','Old Campsite','A cold fire ring and abandoned travel gear.'],['🦌','Animal Trail','Fresh tracks lead through thick undergrowth.'],['🪨','Mossy Stone Shrine','A weathered shrine sits among tangled roots.'],['🍄','Fungal Hollow','Fungi and damp leaf litter cover a sunken hollow.'],['🪤','Poacher Snare','A crude snare has been set along the trail.'],['🌳','Hollow Elder Tree','A huge tree has a dark cavity in its trunk.'],['🪶','Feathered Nest','A nest rests on a low branch above scattered bones.'],['🧺','Forager Cache','A woven basket is hidden under leaves.'],['🌫️','Misty Glade','Cold mist pools in a quiet clearing.']],
@@ -4058,9 +4057,19 @@ function tilePointOfInterestDefs(x,y,terrain){
   city:[
    ['🏪','Ruined Shopfront','Shelves and counters remain beneath the rubble.'],['🏢','Collapsed Apartment','A damaged residential block has unstable floors.'],['🚧','Roadblock','Wreckage blocks the old road.'],['🚇','Subway Entrance','Stairs descend into a dark underground station.'],['🚑','Abandoned Ambulance','A damaged emergency vehicle sits by the curb.'],['📦','Warehouse Loading Bay','Crates are scattered around a sealed loading door.'],['🏥','Clinic Ruins','Medical cabinets may remain inside the wreckage.'],['🚗','Wrecked Convoy','Several vehicles block a debris-strewn street.'],['🔐','Locked Service Room','A reinforced door is partly buried in rubble.'],['📡','Collapsed Relay Tower','Broken antenna parts cover the rooftop access.'],['🛡️','Makeshift Barricade','A barricade shows signs of a hurried defense.'],['🕯️','Memorial Corner','Candles and personal belongings remain untouched.']]
  };
- const list=options[terrain]||options.plains;
+ const extras={
+ forest:[['🦊','Fox Den','Fresh prints lead to a sheltered den.'],['🪺','Abandoned Nest','Feathers and nesting material are scattered below.'],['🧪','Herbalist Cache','A weatherproof bundle contains dried plant samples.'],['🪓','Fallen Timber','A storm-downed tree may provide usable wood.'],['🐝','Wild Beehive','A hive hangs above a patch of sticky bark.']],
+ plains:[['🐄','Grazing Cow','A calm cow grazes nearby. You may try to capture it or hunt it.'],['🐇','Hare Burrow','Small tracks vanish into a network of burrows.'],['🧳','Lost Traveller Pack','A travel pack lies beside the old trail.'],['🌻','Wildflower Patch','Flowers and useful herbs grow in the sun.'],['🐑','Feral Sheep','A wary sheep grazes at the edge of the grassland.']],
+ river:[['🦆','Duck Nest','A duck and its nest sit among the reeds.'],['🪝','Snagged Fishing Net','A torn net is caught on a branch.'],['🐢','River Turtle','A turtle basks on a warm rock.'],['🛶','Hidden Canoe Cache','A small bundle is wedged beneath the overturned canoe.'],['🐟','Fish Shoal','A dense shoal moves through the shallows.']],
+ lake:[['🦢','Waterfowl Nest','Waterfowl guard a nest near the shore.'],['🐸','Frog Marsh','Frogs call from a muddy pocket of reeds.'],['🪷','Medicinal Lily Patch','Broad leaves conceal useful aquatic plants.'],['🛶','Fisher Hide','A small fishing shelter stands behind reeds.'],['🦦','Otter Slide','Wet tracks lead from the bank into the water.']],
+ mountain:[['🐐','Mountain Goat','A sure-footed goat watches from a ledge.'],['🧗','Rope Anchor','An old climbing anchor marks a dangerous route.'],['🪨','Geode Pocket','A cracked boulder reveals a mineral-lined cavity.'],['🦇','Bat Roost','Bats stir inside a narrow crevice.'],['⛏️','Prospector Claim','Old tools mark a promising seam of ore.']],
+ volcano:[['🦎','Ashland Lizard','A heat-loving lizard darts between warm rocks.'],['🪨','Glassrock Deposit','Sharp glassy stone covers a cooled lava flow.'],['🧰','Buried Heatproof Pack','A scorched pack lies beneath volcanic ash.'],['🦅','Emberbird Nest','A large nest rests near a warm vent.'],['♨️','Sulfur Spring','Bubbling mineral water steams between black rocks.']],
+ city:[['🐀','Rat Nest','Rats scurry through a hole in the rubble.'],['🧰','Maintenance Locker','A locked utility locker is built into the wall.'],['🚕','Abandoned Taxi','The vehicle may contain tools or old supplies.'],['🩹','First-Aid Station','A damaged emergency cabinet remains on the wall.'],['🛡️','Survivor Checkpoint','Barricades and footprints suggest a recent camp.']]
+ };
+ const list=[...(options[terrain]||options.plains),...(extras[terrain]||[])];
  const seed=Math.abs((Math.imul((x|0)+101,73856093)^Math.imul((y|0)-37,19349663)^terrainHash(x,y,91))|0);
- const count=2+(seed%3);const out=[];for(let i=0;i<count;i++)out.push(list[(seed+i*3)%list.length]);return out;
+ const count=3+(seed%3);const out=[];for(let i=0;i<count;i++)out.push(list[(seed+i*5)%list.length]);
+ td.poiSet=out;return out;
 }
 function resolvePointOfInterest(x,y,terrain,poi,key){
  if(x!==player.x||y!==player.y){showMessage('Travel to this tile to investigate this point of interest.');return;}
@@ -4083,18 +4092,33 @@ function resolvePointOfInterest(x,y,terrain,poi,key){
 }
 
 function renderTileAreas(x,y){
- const box=document.getElementById('tileAreasList');if(!box)return;box.innerHTML='';const terrain=generateTerrain(x,y),td=getTileData(x,y),here=x===player.x&&y===player.y;
- const actions=document.getElementById('locationActions');if(actions)actions.classList.remove('hidden');
- if(!here){const note=document.createElement('div');note.className='detail-stat';note.textContent='Travel to this tile to reveal its points of interest and ground loot. The area is not visible from a distance.';box.appendChild(note);return;}
- if(isHeadquarters(x,y)&&player.base){const home=document.createElement('button');home.className='build-button area-poi';home.innerHTML='<strong>🏕️ '+(shelterTypes[player.base.shelterType]?.name||'Settlement Headquarters')+'</strong><small>Headquarters · Level '+(player.base.level||1)+'</small><small>Tap to manage settlement, stockpile, and construction</small>';home.onclick=()=>openBase();box.appendChild(home);}
+ const box=document.getElementById('tileAreasList');if(!box)return;box.innerHTML='';
+ const terrain=generateTerrain(x,y),td=getTileData(x,y),here=x===player.x&&y===player.y;
+ const actions=document.getElementById('locationActions');if(actions){actions.innerHTML='';actions.classList.add('hidden');}
+ if(!here){
+   const note=document.createElement('div');note.className='detail-stat';note.textContent='Travel here to reveal local areas, encounters, actions, and ground loot.';box.appendChild(note);
+   const est=calculateTravel(x,y),travel=document.createElement('button');travel.className='travel-button area-poi';travel.innerHTML='<strong>🧭 Travel Here</strong><small>'+est.distance+' tile(s) · '+est.hours+' game hour(s) · '+est.energy+' energy</small>';travel.disabled=player.dead||player.energy<1;travel.onclick=()=>beginTravel(x,y);box.appendChild(travel);return;
+ }
+ if(isHeadquarters(x,y)&&player.base){const home=document.createElement('button');home.className='build-button area-poi';home.innerHTML='<strong>🏕️ '+(shelterTypes[player.base.shelterType]?.name||'Settlement Headquarters')+'</strong><small>Headquarters · Level '+(player.base.level||1)+'</small><small>Manage settlement, stockpile, and construction</small>';home.onclick=()=>openBase();box.appendChild(home);}
  const buildings=(player.base?.buildings||[]).filter(b=>Number(b.x)===Number(x)&&Number(b.y)===Number(y)&&b.completed);
- buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed building · '+(def.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to open services</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
- if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y);const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach the settlement</small>';btn.onclick=()=>enterSettlement(x,y);box.appendChild(btn);}
- const poiList=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
- poiList.forEach((poi,i)=>{const key=terrain+':'+i;const btn=document.createElement('button');btn.className='build-button area-poi';const resolved=!!td.resolvedPOIs[key];btn.innerHTML='<strong>'+poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'')+'</strong><small>'+poi[2]+'</small><small>'+(resolved?'✓ Searched': '🔎 Investigate · Costs 4 energy')+'</small>';btn.disabled=resolved||player.dead;btn.onclick=()=>resolvePointOfInterest(x,y,terrain,poi,key);box.appendChild(btn);});
- if(!box.children.length)box.textContent='No points of interest found here yet.';
+ buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed · '+(def.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to use</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
+ if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y),btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach</small>';btn.onclick=()=>enterSettlement(x,y);box.appendChild(btn);}
+ const defs=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
+ defs.forEach((poi,i)=>{const key=terrain+':'+i,card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'');card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent=td.resolvedPOIs[key]?'✓ Investigated':'🔎 Investigate · 4 energy';btn.disabled=!!td.resolvedPOIs[key]||player.dead;btn.onclick=()=>resolvePointOfInterest(x,y,terrain,poi,key);card.appendChild(btn);box.appendChild(card);});
+ // All terrain actions are represented as named Areas, not a separate action list.
+ const info=terrainInfo[terrain];(info?.actions||[]).filter(a=>!['buildBase','breedLivestock'].includes(a.id)).forEach(action=>{
+   const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=action.name;card.appendChild(title);const desc=document.createElement('small');desc.textContent=action.detail;card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent='▶ '+action.name.replace(/^\S+\s*/,'');btn.disabled=player.dead;btn.onclick=()=>performLocationAction(action);card.appendChild(btn);box.appendChild(card);
+ });
+ // Wildlife identity is saved per tile and never rerolls when Explore is used.
+ if(['forest','plains','river','lake','mountain','volcano'].includes(terrain)){
+   if(!td.wildlifePOI){const pool=wildlifeByTerrain[terrain]||wildlifeByTerrain.forest||[];if(pool.length){const seed=Math.abs((Math.imul((x|0)+17,83492791)^Math.imul((y|0)-9,297121507))|0);const chosen=pool[seed%pool.length];td.wildlifePOI={...chosen,resolved:false};}}
+   const a=td.wildlifePOI;
+   if(a){const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=(a.icon||'🐾')+' '+a.name;card.appendChild(title);const desc=document.createElement('small');desc.textContent='Wildlife encounter. Choose whether to capture it alive or hunt it for supplies.';card.appendChild(desc);
+   [['🪤 Capture','captureWildlife'],['🏹 Hunt','hunt']].forEach(([label,id])=>{const btn=document.createElement('button');btn.textContent=label;btn.style.margin='6px 5px 0 0';btn.disabled=player.dead||a.resolved;btn.onclick=async()=>{if(a.resolved){showMessage('This wildlife encounter has already been resolved.');return;}const action={...((terrainInfo[terrain]?.actions||[]).find(z=>z.id===id)||{}),id,name:label,icon:a.icon,targetAnimal:a,cost:id==='hunt'?15:10,hours:2};await performLocationAction(action);a.resolved=true;saveGame();renderTileAreas(x,y);};card.appendChild(btn);});if(a.resolved){const done=document.createElement('small');done.textContent='✓ Encounter resolved';card.appendChild(done);}box.appendChild(card);}
+ }
+ if(isHeadquarters(x,y)&&player.base){const build=document.createElement('button');build.className='build-button area-poi';build.innerHTML='<strong>🏗️ Manage Construction</strong><small>Start or contribute to projects from Manage Settlement</small>';build.onclick=openBase;box.appendChild(build);}
+ if(!box.children.length)box.textContent='No areas have been discovered here yet. Explore to reveal local points of interest.';
 }
-
 function openLocation(x,y){
   if(!canSeeTile(x,y)){showNarration("Fog of War","You can only inspect tiles within one tile of your current location.");return;}
   selectedLocation = {x,y};
@@ -4127,7 +4151,7 @@ function openLocation(x,y){
     (isBase?" — Settlement Headquarters":"")+
     (isInsideTerritory(x,y)?" — Owned Territory":"");
 
-  document.getElementById("locationDescription").textContent = isKnown ? info.description+(town?"\n\n🏘️ You discovered "+town.name+", a "+town.type+" inhabited by "+raceName(town.race)+" of the "+town.faction+".":"") : "The terrain and resources are unknown. Travel here to identify this tile.";
+  document.getElementById("locationDescription").textContent = isKnown ? info.description+(town?" · "+town.name+" ("+raceName(town.race)+")":"") : "Unknown terrain. Travel here to identify it.";
   document.getElementById("locationLoot").textContent = isKnown ? info.loot+(clue?"\n\nFaction signs: "+clue.clue+"\nLikely inhabitants: "+clue.faction:"" )+(town?"\n\nSettlement discovered: "+town.name+". Its inhabitants may be friendly, wary, or hostile.":"") : "Unknown until you visit.";
   document.getElementById("tileExploration").textContent=isKnown ? tileExplorationText(x,y) : "Exploration: 0% · Terrain unidentified";
 
