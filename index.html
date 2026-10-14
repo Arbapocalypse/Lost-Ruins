@@ -4089,7 +4089,7 @@ function tilePointOfInterestDefs(x,y,terrain){
  };
  const list=[...(options[terrain]||options.plains),...(extras[terrain]||[])];
  const seed=Math.abs((Math.imul((x|0)+101,73856093)^Math.imul((y|0)-37,19349663)^terrainHash(x,y,91))|0);
- const count=3+(seed%3);const out=[];for(let i=0;i<count;i++)out.push(list[(seed+i*5)%list.length]);
+ const count=3+(seed%3);const out=[],used=new Set();for(let i=0;i<list.length&&out.length<count;i++){const poi=list[(seed+i*5)%list.length],identity=String(poi[1]||'').trim().toLowerCase();if(identity&&!used.has(identity)){used.add(identity);out.push(poi);}}
  td.poiSet=out;return out;
 }
 function resolvePointOfInterest(x,y,terrain,poi,key){
@@ -4114,23 +4114,27 @@ function resolvePointOfInterest(x,y,terrain,poi,key){
 
 async function exploreTerrainPOI(){
  if(player.dead)return;
- if(player.x!==selectedLocation.x||player.y!==selectedLocation.y){showNarration('Travel First','You must stand on this terrain tile to explore it.');return;}
- if(player.energy<10){showNarration('Too Exhausted','You need at least 10 energy to explore. Rest first.');return;}
- const x=player.x,y=player.y,terrain=generateTerrain(x,y),td=getTileData(x,y),defs=tilePointOfInterestDefs(x,y,terrain);
- const poi=defs[Math.floor(Math.random()*defs.length)]||['🔎','Wilderness Sign','You notice signs of activity nearby.'];
+ if(!selectedLocation||player.x!==selectedLocation.x||player.y!==selectedLocation.y){showNarration('Travel First','You must stand on this terrain tile to explore it.');return;}
+ if(player.energy<6){showNarration('Too Exhausted','You need at least 6 energy to explore. Rest first.');return;}
+ const x=player.x,y=player.y,terrain=generateTerrain(x,y),td=getTileData(x,y);
  player.energy=Math.max(0,player.energy-6);
- const progress=addTileExploration(x,y,15);
  markTileVisited(x,y);
  if(!await advanceTime(1,'Exploring '+(terrainInfo[terrain]?.name||terrain),'🔎'))return;
+ const progress=addTileExploration(x,y,15);
  gainXP('survival',4);gainXP('exploration',4);
- const lootPools={forest:['fruit','herb','wood','meat','berries'],plains:['fruit','herb','meat','cloth','wood','berries'],river:['meat','stone','herb','fishingRod'],lake:['meat','stone','herb','water'],mountain:['stone','ironOre','copperOre','wood','herb'],volcano:['stone','ironOre','copperOre','arcaneShard','ash'],city:['cloth','herb','water','scrapMetal','leather','stone']};
- const roll=Math.random();let result='';
- if(roll<.22){const events={forest:['You hear movement in the brush, but whatever made it is gone.','Fresh animal tracks lead away from the area.','A sheltered hollow reveals signs of a recent camp.'],plains:['You spot movement in the tall grass. It vanishes before you get close.','A shallow burrow is hidden beneath the grass.','You uncover a weathered trail marker.'],river:['Something glints between stones along the bank.','A fish splashes in the shallows and disappears.','The current has exposed a small hidden recess.'],lake:['Waterbirds scatter from a sheltered cove.','Ripples suggest wildlife nearby.','You find a nest tucked among reeds.'],mountain:['Loose stones reveal a narrow ledge.','A bird circles above the ridge.','You find a mineral-stained crack in the rock.'],volcano:['A cooling patch of ash reveals tracks.','A warm fissure vents steam nearby.','Dark glassy stones glimmer in the slope.'],city:['A loose panel hides a small compartment.','You find signs someone passed through recently.','A ruined cabinet has been overlooked.']};const arr=events[terrain]||events.plains;result=arr[Math.floor(Math.random()*arr.length)];}
- else {const pool=lootPools[terrain]||lootPools.plains;let id=pool[Math.floor(Math.random()*pool.length)];if(!items[id])id='herb';const amount=1+Math.floor(Math.random()*2);addGroundLoot(id,amount,x,y);result='Possible find: '+(items[id]?.icon||'📦')+' '+(items[id]?.name||id)+' ×'+amount+'. It has been placed in this tile’s Loot tab.';}
- td.lastExplorePOI={title:poi[0]+' '+poi[1],description:poi[2],result,at:Date.now()};
- td.discoveredPOIs=td.discoveredPOIs||{};td.discoveredPOIs['lastExplorePOI']=true;
- saveGame();updateScreen();updateGroundLoot(x,y);renderTileAreas(x,y);openLocation(x,y);
- showNarration(poi[0]+' '+poi[1],result+'\n\nExploration progress: '+progress+'%.');
+ // Each exploration replaces the previous set with a fresh, unique batch of clickable POIs.
+ const all=tilePointOfInterestDefs(x,y,terrain);
+ const seen=new Set();
+ const shuffled=all.slice().sort(()=>Math.random()-.5).filter(p=>{const k=String(p[1]||'').trim().toLowerCase();if(!k||seen.has(k))return false;seen.add(k);return true;});
+ const skillBonus=Math.floor(Math.max(0,skillLevel('exploration')-1)/5);
+ const perceptionBonus=Math.floor(Math.max(0,(Number(player.attributes?.perception)||1)-1)/3);
+ const baseCount=2+(Math.random()<.5?0:1);
+ const count=Math.min(shuffled.length,Math.min(8,baseCount+skillBonus+perceptionBonus));
+ td.exploreCycle=(Number(td.exploreCycle)||0)+1;
+ td.exploreResults=shuffled.slice(0,count).map((poi,i)=>({poi, key:'explore:'+td.exploreCycle+':'+i, resolved:false}));
+ td.lastExplorePOI={title:count+' points of interest revealed',description:'Exploration skill and Perception improve the number of discoveries.',result:'Explore again to replace these results with a fresh set.',at:Date.now()};
+ saveGame();updateScreen();updateGroundLoot(x,y);openLocation(x,y);switchTileTab('areas');
+ showNarration('Exploration','You searched the '+(terrainInfo[terrain]?.name||terrain)+'. '+count+' points of interest revealed.\nExploration progress: '+progress+'%.\n\nHigher Exploration skill and Perception reveal more results.');
 }
 
 function renderTileAreas(x,y){
@@ -4145,20 +4149,19 @@ function renderTileAreas(x,y){
  const buildings=(player.base?.buildings||[]).filter(b=>Number(b.x)===Number(x)&&Number(b.y)===Number(y)&&b.completed);
  buildings.forEach((b)=>{const def=buildingTypes[b.type];if(!def)return;const btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+def.icon+' '+def.name+'</strong><small>Completed · '+(def.category==='production'?'Production site':'Settlement service')+'</small><small>HP '+b.health+'/'+b.maxHealth+' · Tap to use</small>';btn.onclick=()=>openBuildingService((player.base.buildings||[]).indexOf(b));box.appendChild(btn);});
  if(discoveredTownAt(x,y)){const town=discoveredTownAt(x,y),btn=document.createElement('button');btn.className='build-button area-poi';btn.innerHTML='<strong>'+town.icon+' '+town.name+'</strong><small>'+raceName(town.race)+' settlement · '+town.faction+'</small><small>Tap to approach</small>';btn.onclick=()=>enterSettlement(x,y);box.appendChild(btn);}
- const defs=tilePointOfInterestDefs(x,y,terrain);td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
- const seenPOIs=new Set();
- defs.forEach((poi,i)=>{const poiIdentity=String(poi[1]||'').trim().toLowerCase();if(seenPOIs.has(poiIdentity))return;seenPOIs.add(poiIdentity);const key=terrain+':'+i,card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1]+(td.discoveredPOIs[key]?' · Discovered':'');card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent=td.resolvedPOIs[key]?'✓ Investigated':'🔎 Investigate · 4 energy';btn.disabled=!!td.resolvedPOIs[key]||player.dead;btn.onclick=()=>resolvePointOfInterest(x,y,terrain,poi,key);card.appendChild(btn);box.appendChild(card);});
+ // Explore control stays above the POI results, never as a POI itself.
+ const exploreCard=document.createElement('div');exploreCard.className='ground-row area-explore-control';
+ const exploreTitle=document.createElement('strong');exploreTitle.textContent='🔎 Explore Area';exploreCard.appendChild(exploreTitle);
+ const exploreDesc=document.createElement('small');exploreDesc.textContent='Reveal 2–3 random points of interest. Higher Exploration skill and Perception reveal more.';exploreCard.appendChild(exploreDesc);
+ const exploreBtn=document.createElement('button');exploreBtn.style.marginTop='6px';exploreBtn.textContent='Explore · 6 energy';exploreBtn.disabled=player.dead||player.energy<6;exploreBtn.onclick=exploreTerrainPOI;exploreCard.appendChild(exploreBtn);box.appendChild(exploreCard);
+ td.discoveredPOIs=td.discoveredPOIs||{};td.resolvedPOIs=td.resolvedPOIs||{};
+ const results=Array.isArray(td.exploreResults)?td.exploreResults:[];
+ if(!results.length){const hint=document.createElement('div');hint.className='detail-stat';hint.textContent='No points of interest revealed yet. Explore this area to discover 2–3 random results.';box.appendChild(hint);}
+ results.forEach(entry=>{if(!entry||!Array.isArray(entry.poi))return;const poi=entry.poi,key=entry.key;const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1];card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const resolved=!!entry.resolved||!!td.resolvedPOIs[key];const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent=resolved?'✓ Investigated':'🔎 Investigate · 4 energy';btn.disabled=resolved||player.dead;btn.onclick=()=>{resolvePointOfInterest(x,y,terrain,poi,key);entry.resolved=!!getTileData(x,y).resolvedPOIs?.[key];saveGame();renderTileAreas(x,y);};card.appendChild(btn);box.appendChild(card);});
  // All terrain actions are represented as named Areas, not a separate action list.
  const info=terrainInfo[terrain];(info?.actions||[]).filter(a=>!['buildBase','breedLivestock','captureWildlife','hunt'].includes(a.id)).forEach(action=>{
    const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=action.name;card.appendChild(title);const desc=document.createElement('small');desc.textContent=action.detail;card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent='▶ '+action.name.replace(/^\S+\s*/,'');btn.disabled=player.dead;btn.onclick=()=>performLocationAction(action);card.appendChild(btn);box.appendChild(card);
  });
- // Exploring is a single terrain POI action. Each use creates a fresh random discovery/result, while the static POI list remains stable and duplicate-free.
- const exploreCard=document.createElement('div');exploreCard.className='ground-row area-poi';
- const exploreTitle=document.createElement('strong');exploreTitle.textContent='🔎 Explore Area';exploreCard.appendChild(exploreTitle);
- const exploreDesc=document.createElement('small');exploreDesc.textContent='Search this terrain for a random point of interest, supplies, or an unexpected event.';exploreCard.appendChild(exploreDesc);
- const exploreBtn=document.createElement('button');exploreBtn.style.marginTop='6px';exploreBtn.textContent='Explore · 6 energy';exploreBtn.disabled=player.dead||player.energy<10;exploreBtn.onclick=exploreTerrainPOI;exploreCard.appendChild(exploreBtn);box.appendChild(exploreCard);
- if(td.lastExplorePOI){const last=document.createElement('div');last.className='ground-row area-poi';const lt=document.createElement('strong');lt.textContent='✨ Latest Discovery: '+td.lastExplorePOI.title;last.appendChild(lt);const ld=document.createElement('small');ld.textContent=td.lastExplorePOI.description+' Result: '+td.lastExplorePOI.result;last.appendChild(ld);box.appendChild(last);}
- // Wildlife identity is saved per tile and never rerolls when Explore is used.
  if(['forest','plains','river','lake','mountain','volcano'].includes(terrain)){
    if(!td.wildlifePOI){const pool=wildlifeByTerrain[terrain]||wildlifeByTerrain.forest||[];if(pool.length){const seed=Math.abs((Math.imul((x|0)+17,83492791)^Math.imul((y|0)-9,297121507))|0);const chosen=pool[seed%pool.length];td.wildlifePOI={...chosen,resolved:false};}}
    const a=td.wildlifePOI;
