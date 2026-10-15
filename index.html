@@ -355,7 +355,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div id="skillsCategoryDescription" class="muted"></div>
 <div id="professionAbilities"></div>
 <div id="skillsList"></div>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 <section class="panel hidden" id="inventoryPanel">
@@ -363,7 +362,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div id="inventory"></div>
 <p id="weightText">Weight: 0 / 20 kg</p>
 <p class="muted">Dropped items remain at your current location.</p>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 <!-- CHARACTER PROFILE: all details inside one profile card -->
@@ -429,7 +427,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
   </div>
   <button class="profile-button" onclick="openProfileEditor()">✎ Edit Profile</button>
 </div>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 <div id="attributeModal" class="stat-modal" onclick="if(event.target===this)closeAttributeModal()"><div class="stat-modal-card"><h2 id="attributeModalTitle">Attribute</h2><p id="attributeModalDescription"></p><div id="attributeModalEffect" class="detail-stat"></div><div class="stat-modal-actions"><button id="attributeSpendButton" onclick="spendAttributePoint()">+1 Stat Point</button><button onclick="closeAttributeModal()">Close</button></div></div></div>
@@ -494,7 +491,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <button class="full-button upgrade-button" id="upgradeBaseButton" onclick="upgradeBase()">Upgrade Shelter</button>
 <button class="full-button" id="retireButton" onclick="retireAtShelter()" style="background:#356447">🏡 Retire Here & Raise an Heir</button>
 <button class="full-button" onclick="destroyBase()" style="background:#8b3434">🧨 Destroy Shelter / Move Base</button>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 
@@ -511,7 +507,6 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 </div>
 <div id="craftingList"></div>
 <h3>♻️ Salvage Unused Equipment</h3><p class="muted">Salvage equipment for raw materials. Raw materials such as cloth, leather, wood, ore, ingots, and scrap metal cannot be disassembled.</p><div id="salvageList"></div>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
 </section>
 
 <section class="panel hidden" id="tradePanel">
@@ -531,14 +526,14 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 <div id="guildSummary" class="detail-stat">Connect to Multiplayer to use guilds.</div>
 <div id="guildCreateArea"><label for="guildNameInput">Guild name</label><input id="guildNameInput" maxlength="32" placeholder="Choose a guild name" style="width:100%;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px;margin:6px 0"><button class="full-button" onclick="mpGuildAction('create')">Create Guild</button></div>
 <h3>Online members to invite</h3><select id="guildInviteTarget" style="width:100%;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px"><option value="">No eligible online players</option></select><button class="full-button" onclick="mpGuildAction('invite')">Invite to Guild</button>
-<h3>Members & Positions</h3><div id="guildMembers" class="ground-row">No guild loaded.</div><div class="action-grid"><button onclick="mpGuildAction('leave')">Leave Guild</button><button onclick="backToWorld()">⬅ Back to Game</button></div>
+<h3>Members & Positions</h3><div id="guildMembers" class="ground-row">No guild loaded.</div><div class="action-grid"><button onclick="mpGuildAction('leave')">Leave Guild</button></div>
 </section>
 <section class="panel hidden" id="partyPanel">
 <h2>👥 Party</h2><p class="muted">Up to 10 players can follow the leader. Experience is divided among party members. When a battle starts, each member has 5 seconds to choose Offensive, Balanced, or Defensive; no choice defaults to Balanced. NPC groups can also contain up to 10 enemies.</p>
 <div id="partySummary" class="detail-stat">Connect to Multiplayer to use parties.</div>
 <button class="full-button" onclick="mpPartyAction('create')">Create Party</button><label for="partyLeaderSelect">Invite online player</label><select id="partyInviteTarget" style="width:100%;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px"><option value="">No eligible online players</option></select><button class="full-button" onclick="mpPartyAction('invite')">Invite to Party</button>
 <label for="partyStrategy">Party battle strategy</label><select id="partyStrategy" onchange="mpPartyAction('strategy')" style="width:100%;padding:10px;background:#222;color:#fff;border:1px solid #555;border-radius:6px"><option value="offensive">⚔️ Offensive</option><option value="balanced" selected>⚖️ Balanced</option><option value="defensive">🛡️ Defensive</option></select>
-<div id="partyMembers" class="ground-row">No party loaded.</div><div class="action-grid"><button onclick="mpPartyAction('leave')">Leave Party</button><button onclick="backToWorld()">⬅ Back to Game</button></div>
+<div id="partyMembers" class="ground-row">No party loaded.</div><div class="action-grid"><button onclick="mpPartyAction('leave')">Leave Party</button></div>
 </section>
 <section class="panel hidden" id="multiplayerPanel">
 <div class="mp-auth-shell">
@@ -573,15 +568,22 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
 
 <section class="panel hidden" id="collectionsPanel">
 <h2>🏆 Collections & Records</h2>
-<p class="muted">Track achievements, unlocked titles, earned nicknames, aliases, and equipment discovered during your journey.</p>
+<p class="muted">Browse each collection category separately. Records appear as you discover items and make progress.</p>
 <div id="collectionSummary" class="detail-stat"></div>
-<h3>🏅 Achievements & Titles</h3><div id="collectionAchievements"></div>
-<h3>🗣️ Nicknames & Alias</h3><div id="collectionNames"></div>
-<h3>🛡️ Armor Collection</h3><div id="collectionArmor"></div>
-<h3>⚔️ Weapons Collection</h3><div id="collectionWeapons"></div>
-<h3>🛠️ Tools Collection</h3><div id="collectionTools"></div>
-<h3>👹 Hostile Enemies Encountered</h3><p class="muted">Enemies are recorded after you encounter them. A first encounter appears as Unknown Hostile; later encounters identify that enemy.</p><div id="collectionEnemies"></div>
-<button class="full-button" onclick="backToWorld()">⬅ Back to Map</button>
+<div class="profile-tabs collection-tabs" role="tablist" aria-label="Collection categories">
+ <button class="profile-tab-button active" id="collectionTabAchievements" role="tab" aria-selected="true" onclick="switchCollectionTab('achievements')">🏅 Records</button>
+ <button class="profile-tab-button" id="collectionTabNames" role="tab" aria-selected="false" onclick="switchCollectionTab('names')">🗣️ Titles</button>
+ <button class="profile-tab-button" id="collectionTabArmor" role="tab" aria-selected="false" onclick="switchCollectionTab('armor')">🛡️ Armor</button>
+ <button class="profile-tab-button" id="collectionTabWeapons" role="tab" aria-selected="false" onclick="switchCollectionTab('weapons')">⚔️ Weapons</button>
+ <button class="profile-tab-button" id="collectionTabTools" role="tab" aria-selected="false" onclick="switchCollectionTab('tools')">🛠️ Tools</button>
+ <button class="profile-tab-button" id="collectionTabEnemies" role="tab" aria-selected="false" onclick="switchCollectionTab('enemies')">👹 Enemies</button>
+</div>
+<div id="collectionCategoryAchievements" class="collection-category-content"><h3>🏅 Achievements & Titles</h3><div id="collectionAchievements"></div></div>
+<div id="collectionCategoryNames" class="collection-category-content hidden"><h3>🗣️ Nicknames & Alias</h3><div id="collectionNames"></div></div>
+<div id="collectionCategoryArmor" class="collection-category-content hidden"><h3>🛡️ Armor Collection</h3><div id="collectionArmor"></div></div>
+<div id="collectionCategoryWeapons" class="collection-category-content hidden"><h3>⚔️ Weapons Collection</h3><div id="collectionWeapons"></div></div>
+<div id="collectionCategoryTools" class="collection-category-content hidden"><h3>🛠️ Tools Collection</h3><div id="collectionTools"></div></div>
+<div id="collectionCategoryEnemies" class="collection-category-content hidden"><h3>👹 Hostile Enemies Encountered</h3><p class="muted">Enemies are recorded after you encounter them. A first encounter appears as Unknown Hostile; later encounters identify that enemy.</p><div id="collectionEnemies"></div></div>
 </section>
 
 <section class="panel hidden" id="battlePanel">
@@ -1689,6 +1691,11 @@ function showNarration(title,text){
   if(/journey complete|travel success|hostile encounter|hostile|you rest|rest complete|rested|negotiation success|negotiated|cooking complete|construction complete|shelter built|bonfire built|mana discovered|equipment found|old-world equipment found|crafting complete|production building upgraded/i.test(String(title)))scheduleNarrationAutoHide();
 }
 
+function randomWorldSpawn(){
+  // The world is procedurally generated and effectively unbounded; spread new characters across it.
+  return {x:Math.floor(Math.random()*20001)-10000,y:Math.floor(Math.random()*20001)-10000};
+}
+
 function showDeathScreen(){
   if(deathProcessing)return;
   deathProcessing=true;
@@ -1704,12 +1711,9 @@ function showDeathScreen(){
     const alreadyDropped=(Array.isArray(player.inventory)?player.inventory:[]).some(entry=>entry.id===id);
     if(!alreadyDropped)addGroundLoot(id,1,oldX,oldY);
   });
-  // A new life begins at least 100 Manhattan tiles from the death site.
-  let dx=0,dy=0;
-  do{
-    dx=Math.floor(Math.random()*301)-150;
-    dy=Math.floor(Math.random()*301)-150;
-  }while(Math.abs(dx)+Math.abs(dy)<100);
+  // Respawn roughly 100 tiles away in a random direction from the death site.
+  const angle=Math.random()*Math.PI*2;
+  const dx=Math.round(Math.cos(angle)*100),dy=Math.round(Math.sin(angle)*100);
   const spawnX=oldX+dx, spawnY=oldY+dy;
   player={
     level:1,characterXP:0,statPoints:0,attributes:{strength:1,agility:1,vitality:1,charisma:1,intelligence:1,endurance:1,perception:1,luck:1,magic:0},manaUnlocked:false,mana:0,maxMana:0,manaDiscovery:{teacher:false,location:false},
@@ -4551,6 +4555,9 @@ function navGo(destination){
 }
 
 function hideScreens(){
+  // Every interface transition closes the More drawer so it never overlays the selected screen.
+  const drawer=document.getElementById("menuDrawer");
+  if(drawer){drawer.classList.remove("open");drawer.setAttribute("aria-hidden","true");drawer.style.display="none";}
   [
     "worldMapPanel","locationPanel","skillsPanel","inventoryPanel",
     "characterPanel","basePanel","economyPanel","craftingPanel","tradePanel","collectionsPanel","multiplayerPanel","guildPanel","partyPanel","battlePanel","navigationPanel"
@@ -4572,28 +4579,28 @@ function backToWorld(){
   requestAnimationFrame(()=>{drawMap();[top,bottom].forEach(nav=>{if(nav)nav.classList.remove("hidden");});});
 }
 
-function toggleInventory(){
+function toggleInventory(){toggleMenu(false);
   if(player.dead)return;
   hideScreens();
   document.getElementById("inventoryPanel").classList.remove("hidden");
   updateInventory();
 }
 
-function toggleCharacter(){
+function toggleCharacter(){toggleMenu(false);
   if(player.dead)return;
   hideScreens();
   document.getElementById("characterPanel").classList.remove("hidden");
   updateCharacter();
 }
 
-function toggleSkills(){
+function toggleSkills(){toggleMenu(false);
   if(player.dead)return;
   hideScreens();
   document.getElementById("skillsPanel").classList.remove("hidden");
   updateSkills();
 }
 
-function openBase(){
+function openBase(){toggleMenu(false);
   if(player.dead)return;
   if(!player.base){
     showMessage("Build a settlement first.");
@@ -4732,7 +4739,12 @@ function startSinglePlayer(){
   toggleMenu(false);
   activeSaveMode="single";activeAccountUsername="";
   if(initialGameSnapshot)restoreGameSnapshot(initialGameSnapshot);
-  loadGame();
+  const hadSave=loadGame();
+  if(!hadSave){
+    const spawn=randomWorldSpawn();player.x=spawn.x;player.y=spawn.y;player.dead=false;
+    selectedLocation={x:spawn.x,y:spawn.y};mapViewX=spawn.x;mapViewY=spawn.y;
+    saveGame();
+  }
   document.getElementById("startMenuOverlay")?.classList.add("hidden");
   document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");document.getElementById("quickChat")?.classList.add("hidden");
   try{localStorage.setItem("lostRuinPlayMode","single");}catch(e){}
@@ -4792,8 +4804,8 @@ function mpOpenPrivateChat(id){const p=mpPlayers.find(x=>x.id===id);if(!p||Numbe
 function mpSendPrivateChat(event){if(event)event.preventDefault();const input=document.getElementById("mpPrivateChatInput"),text=(input?.value||"").trim(),target=window.mpPrivateTarget;if(!text||!target)return;if(!mpSend({type:"privateChat",toId:target,text})){showMessage("You are offline. Reconnect to multiplayer first.");return;}if(input)input.value="";}
 function mpAppendPrivateMessage(name,text){const log=document.getElementById("mpPrivateChatLog");if(!log)return;log.textContent+=(log.textContent?"\n":"")+name+": "+String(text||"").slice(0,240);log.scrollTop=log.scrollHeight;}
 function mpOpenPanel(){startMultiplayer();}
-function openGuildPanel(){if(player.dead)return;hideScreens();document.getElementById("guildPanel")?.classList.remove("hidden");renderGuildParty();}
-function openPartyPanel(){if(player.dead)return;hideScreens();document.getElementById("partyPanel")?.classList.remove("hidden");renderGuildParty();}
+function openGuildPanel(){if(player.dead)return;toggleMenu(false);hideScreens();document.getElementById("guildPanel")?.classList.remove("hidden");renderGuildParty();}
+function openPartyPanel(){if(player.dead)return;toggleMenu(false);hideScreens();document.getElementById("partyPanel")?.classList.remove("hidden");renderGuildParty();}
 function mpGuildAction(action,memberId,role){if(!mpClientId){showMessage("Log in to Multiplayer first.");return;}const msg={type:"guildAction",action};if(action==="create")msg.name=(document.getElementById("guildNameInput")?.value||"").trim();if(action==="invite")msg.targetId=document.getElementById("guildInviteTarget")?.value||"";if(action==="role"){msg.memberId=memberId;msg.role=role;}if(!mpSend(msg))showMessage("Not connected to the server.");}
 function mpPartyAction(action){if(!mpClientId){showMessage("Log in to Multiplayer first.");return;}const msg={type:"partyAction",action};if(action==="invite")msg.targetId=document.getElementById("partyInviteTarget")?.value||"";if(action==="strategy")msg.strategy=document.getElementById("partyStrategy")?.value||"balanced";if(!mpSend(msg))showMessage("Not connected to the server.");}
 function renderGuildParty(){
@@ -4941,10 +4953,10 @@ function activateMultiplayerSave(account){
   const remote=account.gameSave&&account.gameSave.player?account.gameSave:null;
   if(remote){try{localStorage.setItem(key,JSON.stringify(remote));}catch(e){}restoreGameSnapshot(remote);}
   else if(local&&local.player){restoreGameSnapshot(local);}
-  else if(initialGameSnapshot){restoreGameSnapshot(initialGameSnapshot);}
-  else {player={...player,x:0,y:0,health:100,energy:100,hunger:100,thirst:100,day:1,hour:8,dead:false,base:null,inventory:[],skills:newSkills()};world={};groundLoot={};bonfires={};tileData={};}
+  else if(initialGameSnapshot){restoreGameSnapshot(initialGameSnapshot);const spawn=randomWorldSpawn();player.x=spawn.x;player.y=spawn.y;player.dead=false;world={};groundLoot={};bonfires={};tileData={};selectedLocation={x:spawn.x,y:spawn.y};mapViewX=spawn.x;mapViewY=spawn.y;}
+  else {const spawn=randomWorldSpawn();player={...player,x:spawn.x,y:spawn.y,health:100,energy:100,hunger:100,thirst:100,day:1,hour:8,dead:false,base:null,inventory:[],skills:newSkills()};world={};groundLoot={};bonfires={};tileData={};selectedLocation={x:spawn.x,y:spawn.y};mapViewX=spawn.x;mapViewY=spawn.y;}
   player.characterProfile=player.characterProfile||{};player.characterProfile.name=account.characterName||username;player.characterProfile.nameLocked=true;player.characterProfile.race=account.race||"human";player.characterProfile.raceLocked=true;
-  updateScreen();drawMap();
+  updateScreen();drawMap();saveGame();
 }
 function sendMultiplayerAccountSave(){
   if(activeSaveMode!=="multi"||!activeAccountUsername||!mpClientId||!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return;
@@ -5727,8 +5739,8 @@ async function craftItem(id){
  finally{craftingInProgress=false;document.querySelectorAll('#craftingList button').forEach(b=>{const recipeId=b.dataset.recipeId;const recipe=craftRecipes.find(x=>x.id===recipeId);const blacksmith=player.characterProfile?.mainProfession==="blacksmith"||player.characterProfile?.subProfession==="blacksmith";b.disabled=!!recipe&&(player.dead||!canPayRecipe(recipe.req)||(recipe.tier>=2&&!hasBuilding("blacksmith")&&!blacksmith)||(recipe.tier>=3&&((!hasBuilding("blacksmith")&&!blacksmith)||!hasBuilding("warehouse"))));});}
 }
 function buildingService(type){return hasBuilding(type)&&baseAtHome();}
-function openCrafting(){if(player.dead)return;hideScreens();document.getElementById("craftingPanel").classList.remove("hidden");renderCrafting();}
-function openTrade(){if(player.dead)return;hideScreens();document.getElementById("tradePanel").classList.remove("hidden");renderTrade();refreshWalletUI();}
+function openCrafting(){if(player.dead)return;toggleMenu(false);hideScreens();document.getElementById("craftingPanel").classList.remove("hidden");renderCrafting();}
+function openTrade(){if(player.dead)return;toggleMenu(false);hideScreens();document.getElementById("tradePanel").classList.remove("hidden");renderTrade();refreshWalletUI();}
 function openEconomy(){openTrade();}
 function recipeCategory(r){
  if(r.category)return r.category;
@@ -5871,7 +5883,17 @@ function renderStall(targetId='stallUI'){const el=document.getElementById(target
 function npcBuyFromStall(){if(!player.base||!hasBuilding("plaza")||!baseAtHome())return;const stall=player.base.stall;if(!stall?.open)return;const stock=Object.entries(stall.items||{}).filter(([id,n])=>n>0&&items[id]);if(!stock.length){showMessage("No listed goods are available for NPC shoppers.");return;}const [id]=stock[Math.floor(Math.random()*stock.length)];const price=Math.max(1,Math.round((tradePrices[id]||items[id].value||3)*(.55+(Math.random()*.25))*(player.characterProfile?.mainProfession==="trader"?1.15:1)));stall.items[id]--;if(stall.items[id]<=0)delete stall.items[id];player.coins=(player.coins||0)+price;adjustReputation(1,discoveredTownAt(player.x,player.y)?.faction||"");player.npcTrades=(player.npcTrades||0)+1;recordAchievementProgress("npcTrader",1);saveGame();renderEconomy();showMessage("An NPC shopper bought "+items[id].name+" for "+price+" coins.");}
 
 
-function openCollections(){if(player.dead)return;hideScreens();document.getElementById("collectionsPanel").classList.remove("hidden");renderCollections();}
+function switchCollectionTab(category){
+ const categories=["achievements","names","armor","weapons","tools","enemies"];
+ categories.forEach(key=>{
+  const content=document.getElementById("collectionCategory"+key.charAt(0).toUpperCase()+key.slice(1));
+  const button=document.getElementById("collectionTab"+key.charAt(0).toUpperCase()+key.slice(1));
+  if(content)content.classList.toggle("hidden",key!==category);
+  if(button){button.classList.toggle("active",key===category);button.setAttribute("aria-selected",String(key===category));}
+ });
+}
+
+function openCollections(){if(player.dead)return;toggleMenu(false);hideScreens();document.getElementById("collectionsPanel").classList.remove("hidden");switchCollectionTab("achievements");renderCollections();}
 function renderCollections(){
  const found=player.collectionFound||(player.collectionFound={});
  const owned=new Set(Object.keys(found));
