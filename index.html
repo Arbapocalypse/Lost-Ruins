@@ -686,7 +686,13 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
    GAME DATA AND DEFAULTS
 ========================= */
 
-const SAVE_KEY = "lostRuinAutoSave";
+const SINGLE_PLAYER_SAVE_KEY = "lostRuinSinglePlayerSave";
+let activeSaveMode = "single";
+let activeAccountUsername = "";
+function getSaveKey(){
+  if(activeSaveMode === "multi" && activeAccountUsername) return "lostRuinMpSave:" + activeAccountUsername.toLowerCase();
+  return SINGLE_PLAYER_SAVE_KEY;
+}
 // Balanced difficulty tuning. These values are intentionally conservative so existing saves remain playable.
 const BALANCE = Object.freeze({
   hungerPerHour: 1.5,
@@ -1795,7 +1801,7 @@ function newGameMessage(){
 
 function restartGame(){
   if(!confirm("Start a NEW ACCOUNT? This permanently deletes this device's LOST RUIN save, including your race, inventory, skills, settlement, and discoveries."))return;
-  try{localStorage.removeItem(SAVE_KEY);}catch(e){}
+  try{localStorage.removeItem(getSaveKey());}catch(e){}
   location.reload();
 }
 
@@ -4725,12 +4731,17 @@ function finishTutorial(){const overlay=document.getElementById("tutorialOverlay
 function maybeStartTutorial(){let seen=false;try{seen=localStorage.getItem(TUTORIAL_SEEN_KEY)==="1";}catch(e){}if(!seen){tutorialIndex=0;renderTutorialStep();const overlay=document.getElementById("tutorialOverlay");if(overlay)overlay.style.display="flex";}}
 
 function startSinglePlayer(){
+  toggleMenu(false);
+  activeSaveMode="single";activeAccountUsername="";
+  if(initialGameSnapshot)restoreGameSnapshot(initialGameSnapshot);
+  loadGame();
   document.getElementById("startMenuOverlay")?.classList.add("hidden");
   document.getElementById("topNav")?.classList.remove("hidden");document.getElementById("bottomNav")?.classList.remove("hidden");document.getElementById("quickChat")?.classList.add("hidden");
   try{localStorage.setItem("lostRuinPlayMode","single");}catch(e){}
   hideScreens();document.getElementById("worldMapPanel")?.classList.remove("hidden");document.getElementById("navigationPanel")?.classList.remove("hidden");updateScreen();requestAnimationFrame(()=>drawMap());maybeStartTutorial();
 }
 function startMultiplayer(){
+  toggleMenu(false);
   try{localStorage.setItem("lostRuinPlayMode","multi");}catch(e){}
   document.getElementById("startMenuOverlay")?.classList.add("hidden");if(document.getElementById("startMenuOverlay"))document.getElementById("startMenuOverlay").style.display="none";
   document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");
@@ -4740,6 +4751,8 @@ function startMultiplayer(){
   mpSetAuthMode("register");mpSetStatus("Create an account or choose Login. Your character and world stay hidden until authentication succeeds.");
 }
 function returnHome(){
+  toggleMenu(false);
+  document.getElementById("menuDrawer")?.classList.remove("open");
   hideScreens();document.getElementById("startMenuOverlay")?.classList.remove("hidden");if(document.getElementById("startMenuOverlay"))document.getElementById("startMenuOverlay").style.display="flex";
   document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");
   const card=document.querySelector("#startMenuOverlay .start-card");if(card)card.innerHTML='<h1>🧭 LOST RUIN</h1><p>Choose how you want to survive.</p><button onclick="startSinglePlayer()">🎮 Single Player <small>Local save on this device</small></button><button onclick="startMultiplayer()">🌐 Multiplayer <small>Account and other survivors</small></button><p class="muted">Multiplayer requires an available online server.</p>';
@@ -4786,7 +4799,7 @@ function renderGuildParty(){
  const targets=[...document.querySelectorAll("#guildInviteTarget,#partyInviteTarget")];targets.forEach(sel=>{const old=sel.value;sel.textContent="";const people=mpPlayers.filter(p=>p.id!==mpClientId);if(!people.length){const o=document.createElement("option");o.value="";o.textContent="No other players online";sel.appendChild(o);}else people.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=`${p.name} · ${p.x}, ${p.y}`;sel.appendChild(o);});if(people.some(p=>p.id===old))sel.value=old;});
  const create=document.getElementById("guildCreateArea");if(create)create.style.display=g?"none":"block";const strat=document.getElementById("partyStrategy");if(strat&&ps)strat.value=ps.strategy||"balanced";
 }
-function openMultiplayer(){hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");}
+function openMultiplayer(){toggleMenu(false);hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");}
 
 
 function mpSetStatus(message){const el=document.getElementById("mpConnectionStatus");if(el)el.textContent=message;const connected=!!mpSocket&&mpSocket.readyState===WebSocket.OPEN;const disconnect=document.getElementById("mpDisconnectButton"),input=document.getElementById("mpChatInput"),send=document.getElementById("mpSendButton");if(disconnect)disconnect.disabled=!connected;if(input)input.disabled=!connected;if(send)send.disabled=!connected;}
@@ -4837,8 +4850,11 @@ function mpHandleMessage(msg){
     if(mpAuthTimer){clearTimeout(mpAuthTimer);mpAuthTimer=null;}mpAuthError="";
     const regBtn=document.getElementById("mpRegisterButton"),loginBtn=document.getElementById("mpLoginButton");if(regBtn){regBtn.disabled=false;regBtn.textContent="Create account & save";}if(loginBtn){loginBtn.disabled=false;loginBtn.textContent="Log in to account";}
     mpClientId=String(msg.id||"");mpPlayers=Array.isArray(msg.players)?msg.players:[];
-    if(msg.account){try{localStorage.setItem("lostRuinMpAccount",JSON.stringify({username:msg.account.username,characterName:msg.account.characterName,race:msg.account.race}));if(msg.sessionToken)localStorage.setItem("lostRuinMpSessionToken",msg.sessionToken);const un=document.getElementById("mpUsername");if(un)un.value=msg.account.username;}catch(e){}
-      player.characterProfile=player.characterProfile||{};player.characterProfile.name=msg.account.characterName;player.characterProfile.nameLocked=true;player.characterProfile.race=msg.account.race;player.characterProfile.raceLocked=true;saveGame();updateCharacter();}
+    if(msg.account){
+      try{localStorage.setItem("lostRuinMpAccount",JSON.stringify({username:msg.account.username,characterName:msg.account.characterName,race:msg.account.race}));if(msg.sessionToken)localStorage.setItem("lostRuinMpSessionToken",msg.sessionToken);localStorage.setItem("lostRuinMpUsername",msg.account.username);const un=document.getElementById("mpUsername");if(un)un.value=msg.account.username;}catch(e){}
+      activateMultiplayerSave(msg.account);
+      player.characterProfile=player.characterProfile||{};player.characterProfile.name=msg.account.characterName;player.characterProfile.nameLocked=true;player.characterProfile.race=msg.account.race;player.characterProfile.raceLocked=true;saveGame();updateCharacter();
+    }
     const completedAuthMode=mpPendingAuthMode;
     const accountName=(msg.account?.characterName||msg.name||"Survivor");
     mpSetStatus("Connected · "+accountName+" · "+(msg.serverName||"Lost Ruin Online"));mpRenderPlayers();mpRenderTradeUI();mpAddChatLine("System","Connected to Lost Ruin Online.");
@@ -4901,6 +4917,38 @@ function mpSendChat(event){if(event)event.preventDefault();const input=document.
    SAVING AND LOADING
 ========================= */
 
+let initialGameSnapshot=null;
+let mpSaveSendTimer=null;
+function captureGameSnapshot(){return {version:32,player:JSON.parse(JSON.stringify(player)),world:JSON.parse(JSON.stringify(world)),groundLoot:JSON.parse(JSON.stringify(groundLoot)),bonfires:JSON.parse(JSON.stringify(bonfires)),tileData:JSON.parse(JSON.stringify(tileData))};}
+function restoreGameSnapshot(data){
+  if(!data||!data.player)return false;
+  player=JSON.parse(JSON.stringify(data.player));world=JSON.parse(JSON.stringify(data.world||{}));groundLoot=JSON.parse(JSON.stringify(data.groundLoot||{}));bonfires=JSON.parse(JSON.stringify(data.bonfires||{}));tileData=JSON.parse(JSON.stringify(data.tileData||{}));
+  ensureAttributes();ensureCharacterProfile();ensureEquipment();ensureEconomyData();syncAttributeDerivedStats();
+  selectedLocation={x:player.x||0,y:player.y||0};mapViewX=player.x||0;mapViewY=player.y||0;
+  updateScreen();updateWorldClockDisplay();drawMap();return true;
+}
+function activateMultiplayerSave(account){
+  const username=String(account.username||"").toLowerCase();if(!username)return;
+  activeSaveMode="multi";activeAccountUsername=username;
+  const key=getSaveKey();let local=null;
+  try{local=JSON.parse(localStorage.getItem(key)||"null");}catch(e){}
+  // Server save is authoritative so the same account follows the player across devices.
+  const remote=account.gameSave&&account.gameSave.player?account.gameSave:null;
+  if(remote){try{localStorage.setItem(key,JSON.stringify(remote));}catch(e){}restoreGameSnapshot(remote);}
+  else if(local&&local.player){restoreGameSnapshot(local);}
+  else if(initialGameSnapshot){restoreGameSnapshot(initialGameSnapshot);}
+  else {player={...player,x:0,y:0,health:100,energy:100,hunger:100,thirst:100,day:1,hour:8,dead:false,base:null,inventory:[],skills:newSkills()};world={};groundLoot={};bonfires={};tileData={};}
+  player.characterProfile=player.characterProfile||{};player.characterProfile.name=account.characterName||username;player.characterProfile.nameLocked=true;player.characterProfile.race=account.race||"human";player.characterProfile.raceLocked=true;
+  updateScreen();drawMap();
+}
+function sendMultiplayerAccountSave(){
+  if(activeSaveMode!=="multi"||!activeAccountUsername||!mpClientId||!mpSocket||mpSocket.readyState!==WebSocket.OPEN)return;
+  try{const gameSave=captureGameSnapshot();const encoded=JSON.stringify(gameSave);if(encoded.length>230000){console.warn("Account save too large for one server message; only the character and current explored state can be saved safely.");gameSave.tileData={};gameSave.groundLoot={};gameSave.bonfires={};}
+    mpSend({type:"accountSave",gameSave});
+  }catch(e){console.warn("Could not prepare multiplayer account save",e);}
+}
+function scheduleMultiplayerAccountSave(){if(activeSaveMode!=="multi")return;if(mpSaveSendTimer)clearTimeout(mpSaveSendTimer);mpSaveSendTimer=setTimeout(sendMultiplayerAccountSave,900);}
+
 function showWelcomeToast(message){
   let toast=document.getElementById("welcomeToast");if(!toast){toast=document.createElement("div");toast.id="welcomeToast";toast.style.cssText="position:fixed;z-index:2147483647;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:92vw;background:#203d29;color:#fff;border:2px solid #8fc79a;border-radius:12px;padding:14px 18px;box-shadow:0 8px 28px #000d;text-align:center;font-weight:bold;font-size:15px;line-height:1.35;pointer-events:none;transition:opacity .35s";document.body.appendChild(toast);}toast.textContent=message;toast.style.display="block";toast.style.opacity="1";clearTimeout(window.__lostRuinWelcomeTimer);window.__lostRuinWelcomeTimer=setTimeout(()=>{toast.style.opacity="0";setTimeout(()=>{if(toast)toast.style.display="none";},400);},4000);
 }
@@ -4933,15 +4981,16 @@ function mpApplySharedWorld(state){
   updateScreen();updateGroundLoot(player.x,player.y);drawMap();saveGameLocalOnly();
   if(mpClientId&&mpSocket&&mpSocket.readyState===WebSocket.OPEN)setTimeout(mpSendSharedWorld,250);
 }
-function saveGameLocalOnly(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({version:31,player,world,groundLoot,bonfires,tileData}));}catch(e){}}
+function saveGameLocalOnly(){try{localStorage.setItem(getSaveKey(),JSON.stringify({version:32,player,world,groundLoot,bonfires,tileData}));scheduleMultiplayerAccountSave();}catch(e){}}
 
 function saveGame(){
   player.spiritStones=player.spiritStones||{low:0,medium:0,high:0,supreme:0};
   try{
-    localStorage.setItem(SAVE_KEY,JSON.stringify({
+    localStorage.setItem(getSaveKey(),JSON.stringify({
       version:30,player,world,groundLoot,bonfires,tileData
     }));
     if(mpClientId && mpSocket && mpSocket.readyState===WebSocket.OPEN) mpSendSharedWorld();
+    scheduleMultiplayerAccountSave();
   }catch(e){
     console.error("Auto-save failed:",e);
   }
@@ -4949,7 +4998,7 @@ function saveGame(){
 
 function loadGame(){
   try{
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(getSaveKey());
     if(!raw)return false;
 
     const data = JSON.parse(raw);
@@ -5853,6 +5902,9 @@ function renderCollections(){
    START GAME
 ========================= */
 
+initialGameSnapshot = captureGameSnapshot();
+// Migrate the old shared local save to the dedicated single-player slot once.
+try{if(!localStorage.getItem(SINGLE_PLAYER_SAVE_KEY)&&localStorage.getItem("lostRuinAutoSave"))localStorage.setItem(SINGLE_PLAYER_SAVE_KEY,localStorage.getItem("lostRuinAutoSave"));}catch(e){}
 const loaded = loadGame();
 // Always start at the mode-selection home screen after a page reload.
 try{const pc=document.getElementById("mpPrivateChatPanel");if(pc&&pc.parentElement?.id==="multiplayerPanel")document.body.appendChild(pc);document.getElementById("startMenuOverlay")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");hideScreens();}catch(e){}

@@ -372,7 +372,7 @@ async function handleAuth(c, msg) {
   c.accountKey = username.toLowerCase(); c.account = account; c.name = account.characterName; c.race = account.race; c.level = Number(account.level) || 0;
   c.roomId = cleanText(msg.worldId, 48) || 'lost-ruin-main'; c.x = validCoord(Number(msg.x)); c.y = validCoord(Number(msg.y)); c.joined = true; clients.set(c.id, c);
   const players = roomMembers(c.roomId).map(publicPlayer);
-  send(c.ws, { type: 'welcome', id: c.id, name: c.name, serverName: 'Lost Ruin Online', sessionToken, account: { username: account.username, characterName: account.characterName, race: account.race }, players, worldState: worldFor(c.roomId) });
+  send(c.ws, { type: 'welcome', id: c.id, name: c.name, serverName: 'Lost Ruin Online', sessionToken, account: { username: account.username, characterName: account.characterName, race: account.race, gameSave: account.gameSave || null }, players, worldState: worldFor(c.roomId) });
   for (const peer of roomMembers(c.roomId)) if (peer.id !== c.id) send(peer.ws, { type: 'system', text: `${c.name} joined the world.` });
   broadcastPlayers(c.roomId); sendGuild(c); send(c.ws, { type: 'partyState', party: null }); return true;
 }
@@ -398,6 +398,18 @@ wss.on('connection', (ws) => {
         for (const id of p.members) { if (id === c.id) continue; const peer = clients.get(id); if (peer) { peer.x = c.x; peer.y = c.y; send(peer.ws, { type: 'partyFollow', leaderId: c.id, x: c.x, y: c.y }); } }
       }
       broadcastPlayers(c.roomId); return;
+    }
+    if (msg.type === 'accountSave') {
+      if (!c.account || !c.accountKey) { fail(ws, 'Log in before saving your character.'); return; }
+      const incoming = msg.gameSave;
+      if (!incoming || typeof incoming !== 'object' || !incoming.player || typeof incoming.player !== 'object') { fail(ws, 'Invalid account save data.'); return; }
+      let serialized; try { serialized = JSON.stringify(incoming); } catch { fail(ws, 'Account save could not be encoded.'); return; }
+      if (serialized.length > 230000) { fail(ws, 'Account save is too large. Explore less before saving again.'); return; }
+      c.account.gameSave = incoming;
+      c.account.updatedAt = Date.now();
+      accounts.set(c.accountKey, c.account);
+      persist().then(ok => { if (!ok) send(ws, { type: 'saveError', message: 'The server could not persist your latest account save. It remains saved on this device.' }); });
+      return;
     }
     if (msg.type === 'guildAction') { handleGuildAction(c, msg); return; }
     if (msg.type === 'partyAction') { handlePartyAction(c, msg); return; }
