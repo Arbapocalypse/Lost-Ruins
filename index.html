@@ -651,7 +651,7 @@ html[data-world-season="spring"] #map{filter:saturate(1.08)}html[data-world-seas
       <button onclick="navGo('trade')">🏪 Trade<span>Stores and supplies</span></button>
       <button onclick="navGo('collections')">🏆 Collections<span>Achievements and titles</span></button>
       <button onclick="openTutorial()">📖 Survival Tutorial<span>Review the basics anytime</span></button>
-      <button onclick="returnHome()">🏠 Home<span>Return to Single Player / Multiplayer selection</span></button>
+      <button onclick="returnHome()">🚪 Logout<span>Disconnect from the server and return to the main menu</span></button>
     </div>
   </div>
 </div>
@@ -4219,10 +4219,7 @@ function renderTileAreas(x,y){
  const results=Array.isArray(td.exploreResults)?td.exploreResults:[];
  if(!results.length){const hint=document.createElement('div');hint.className='detail-stat';hint.textContent='No points of interest remain. Explore this area to discover new ones.';box.appendChild(hint);}
  results.forEach(entry=>{if(!entry||!Array.isArray(entry.poi))return;const poi=entry.poi,key=entry.key;const card=document.createElement('div');card.className='ground-row area-poi poi-result-card';const title=document.createElement('strong');title.textContent=poi[0]+' '+poi[1];card.appendChild(title);const desc=document.createElement('small');desc.textContent=poi[2];card.appendChild(desc);const btn=document.createElement('button');btn.className='poi-investigate-button';btn.textContent='🔎 Investigate · 4 energy';btn.disabled=player.dead||player.energy<4;btn.onclick=()=>{resolvePointOfInterest(x,y,terrain,poi,key);const data=getTileData(x,y);if(data.resolvedPOIs?.[key])data.exploreResults=(data.exploreResults||[]).filter(item=>item.key!==key);saveGame();renderTileAreas(x,y);};card.appendChild(btn);box.appendChild(card);});
- // All terrain actions are represented as named Areas, not a separate action list.
- const info=terrainInfo[terrain];(info?.actions||[]).filter(a=>!['buildBase','breedLivestock','captureWildlife','hunt'].includes(a.id)).forEach(action=>{
-   const card=document.createElement('div');card.className='ground-row area-poi';const title=document.createElement('strong');title.textContent=action.name;card.appendChild(title);const desc=document.createElement('small');desc.textContent=action.detail;card.appendChild(desc);const btn=document.createElement('button');btn.style.marginTop='6px';btn.textContent='▶ '+action.name.replace(/^\S+\s*/,'');btn.disabled=player.dead;btn.onclick=()=>performLocationAction(action);card.appendChild(btn);box.appendChild(card);
- });
+ // Terrain actions belong in the separate Available Actions section, not in Points of Interest.
  if(['forest','plains','river','lake','mountain','volcano'].includes(terrain)){
    if(!td.wildlifePOI){const pool=wildlifeByTerrain[terrain]||wildlifeByTerrain.forest||[];if(pool.length){const seed=Math.abs((Math.imul((x|0)+17,83492791)^Math.imul((y|0)-9,297121507))|0);const chosen=pool[seed%pool.length];td.wildlifePOI={...chosen,resolved:false};}}
    const a=td.wildlifePOI;
@@ -4531,6 +4528,7 @@ async function upgradeBase(){
 function toggleMenu(force){
   const drawer=document.getElementById("menuDrawer");
   const shouldOpen=typeof force==="boolean"?force:!drawer.classList.contains("open");
+  drawer.style.display=shouldOpen?"block":"none";
   drawer.classList.toggle("open",shouldOpen);
   drawer.setAttribute("aria-hidden",String(!shouldOpen));
 }
@@ -4742,20 +4740,27 @@ function startSinglePlayer(){
 }
 function startMultiplayer(){
   toggleMenu(false);
+  const drawer=document.getElementById("menuDrawer");if(drawer){drawer.classList.remove("open");drawer.setAttribute("aria-hidden","true");drawer.style.display="none";}
   try{localStorage.setItem("lostRuinPlayMode","multi");}catch(e){}
-  document.getElementById("startMenuOverlay")?.classList.add("hidden");if(document.getElementById("startMenuOverlay"))document.getElementById("startMenuOverlay").style.display="none";
+  const start=document.getElementById("startMenuOverlay");if(start){start.classList.add("hidden");start.style.display="none";}
   document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");
   hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");
   const token=(()=>{try{return localStorage.getItem("lostRuinMpSessionToken")||"";}catch(e){return "";}})();
-  if(token){const saved=(()=>{try{return JSON.parse(localStorage.getItem("lostRuinMpAccount")||"{}");}catch(e){return {};}})();const u=document.getElementById("mpUsername");if(u&&saved.username)u.value=saved.username;if(mpSocket&&mpSocket.readyState===WebSocket.OPEN){mpSetStatus("Logged in as "+(saved.username||"your account")+" · online");mpRenderPlayers();return;}if(mpSocket===null){mpAuthMode="resume";mpConnect(true);return;}}
-  mpSetAuthMode("register");mpSetStatus("Create an account or choose Login. Your character and world stay hidden until authentication succeeds.");
+  const saved=(()=>{try{return JSON.parse(localStorage.getItem("lostRuinMpAccount")||"{}");}catch(e){return {};}})();
+  const remembered=(()=>{try{return localStorage.getItem("lostRuinMpUsername")||saved.username||"";}catch(e){return saved.username||"";}})();
+  const u=document.getElementById("mpUsername");if(u&&remembered)u.value=remembered;
+  if(token){if(mpSocket&&mpSocket.readyState===WebSocket.OPEN){mpSetStatus("Logged in as "+(remembered||"your account")+" · online");mpRenderPlayers();return;}if(mpSocket===null){mpAuthMode="resume";mpConnect(true);return;}}
+  mpSetAuthMode(remembered?"login":"register");mpSetStatus(remembered?"Enter your password to log in again.":"Create an account or choose Login. Your character and world stay hidden until authentication succeeds.");
 }
 function returnHome(){
+  // Logout: remove the resume token first so the socket close handler cannot auto-reconnect.
+  try{localStorage.removeItem("lostRuinMpSessionToken");localStorage.setItem("lostRuinPlayMode","menu");}catch(e){}
+  if(typeof mpDisconnect==="function")mpDisconnect();
   toggleMenu(false);
-  document.getElementById("menuDrawer")?.classList.remove("open");
-  hideScreens();document.getElementById("startMenuOverlay")?.classList.remove("hidden");if(document.getElementById("startMenuOverlay"))document.getElementById("startMenuOverlay").style.display="flex";
+  const drawer=document.getElementById("menuDrawer");if(drawer){drawer.classList.remove("open");drawer.setAttribute("aria-hidden","true");drawer.style.display="none";}
+  hideScreens();const start=document.getElementById("startMenuOverlay");if(start){start.classList.remove("hidden");start.style.display="flex";}
   document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");
-  const card=document.querySelector("#startMenuOverlay .start-card");if(card)card.innerHTML='<h1>🧭 LOST RUIN</h1><p>Choose how you want to survive.</p><button onclick="startSinglePlayer()">🎮 Single Player <small>Local save on this device</small></button><button onclick="startMultiplayer()">🌐 Multiplayer <small>Account and other survivors</small></button><p class="muted">Multiplayer requires an available online server.</p>';
+  const card=document.querySelector("#startMenuOverlay .start-card");if(card)card.innerHTML='<h1>🧭 LOST RUIN</h1><p>You have logged out. Choose how you want to survive.</p><button onclick="startSinglePlayer()">🎮 Single Player <small>Local save on this device</small></button><button onclick="startMultiplayer()">🌐 Multiplayer <small>Log in or create an account</small></button><p class="muted">Multiplayer requires an available online server.</p>';
 }
 function mpSetAuthMode(mode){
   mpAuthMode=mode==="login"?"login":"register";
@@ -4799,7 +4804,7 @@ function renderGuildParty(){
  const targets=[...document.querySelectorAll("#guildInviteTarget,#partyInviteTarget")];targets.forEach(sel=>{const old=sel.value;sel.textContent="";const people=mpPlayers.filter(p=>p.id!==mpClientId);if(!people.length){const o=document.createElement("option");o.value="";o.textContent="No other players online";sel.appendChild(o);}else people.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=`${p.name} · ${p.x}, ${p.y}`;sel.appendChild(o);});if(people.some(p=>p.id===old))sel.value=old;});
  const create=document.getElementById("guildCreateArea");if(create)create.style.display=g?"none":"block";const strat=document.getElementById("partyStrategy");if(strat&&ps)strat.value=ps.strategy||"balanced";
 }
-function openMultiplayer(){toggleMenu(false);hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");}
+function openMultiplayer(){toggleMenu(false);const drawer=document.getElementById("menuDrawer");if(drawer){drawer.classList.remove("open");drawer.setAttribute("aria-hidden","true");drawer.style.display="none";}hideScreens();const start=document.getElementById("startMenuOverlay");if(start){start.classList.add("hidden");start.style.display="none";}document.getElementById("multiplayerPanel")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");}
 
 
 function mpSetStatus(message){const el=document.getElementById("mpConnectionStatus");if(el)el.textContent=message;const connected=!!mpSocket&&mpSocket.readyState===WebSocket.OPEN;const disconnect=document.getElementById("mpDisconnectButton"),input=document.getElementById("mpChatInput"),send=document.getElementById("mpSendButton");if(disconnect)disconnect.disabled=!connected;if(input)input.disabled=!connected;if(send)send.disabled=!connected;}
@@ -5907,7 +5912,7 @@ initialGameSnapshot = captureGameSnapshot();
 try{if(!localStorage.getItem(SINGLE_PLAYER_SAVE_KEY)&&localStorage.getItem("lostRuinAutoSave"))localStorage.setItem(SINGLE_PLAYER_SAVE_KEY,localStorage.getItem("lostRuinAutoSave"));}catch(e){}
 const loaded = loadGame();
 // Always start at the mode-selection home screen after a page reload.
-try{const pc=document.getElementById("mpPrivateChatPanel");if(pc&&pc.parentElement?.id==="multiplayerPanel")document.body.appendChild(pc);document.getElementById("startMenuOverlay")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");hideScreens();}catch(e){}
+try{const pc=document.getElementById("mpPrivateChatPanel");if(pc&&pc.parentElement?.id==="multiplayerPanel")document.body.appendChild(pc);const drawer=document.getElementById("menuDrawer");if(drawer){drawer.classList.remove("open");drawer.setAttribute("aria-hidden","true");drawer.style.display="none";}document.getElementById("startMenuOverlay")?.classList.remove("hidden");document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");hideScreens();}catch(e){}
 ensureCharacterProfile();
 ensureEconomyData();
 selectedLocation={x:player.x,y:player.y};
