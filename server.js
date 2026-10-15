@@ -249,18 +249,19 @@ function sendGuild(c, text = '') {
   const g = c.accountKey ? guildForAccount(c.accountKey) : null;
   if (!g) { send(c.ws, { type: 'guildState', guild: null, text }); return; }
   const members = Object.entries(g.members).map(([key, role]) => { const acc = accounts.get(key); const online = [...clients.values()].find(p => p.joined && p.accountKey === key); return { id: online?.id || key, name: online?.name || acc?.characterName || acc?.username || key, role, online: !!online }; });
-  send(c.ws, { type: 'guildState', guild: { id: g.id, name: g.name, leaderId: g.leaderId, leaderName: g.leaderName, members }, text });
+  const leaderOnline = [...clients.values()].find(p => p.joined && p.accountKey === g.leaderKey);
+  send(c.ws, { type: 'guildState', guild: { id: g.id, name: g.name, leaderId: leaderOnline?.id || g.leaderKey, leaderName: leaderOnline?.name || g.leaderName, members }, text });
 }
 function broadcastGuild(g, text = '') { for (const c of clients.values()) if (c.joined && c.accountKey && g.members[c.accountKey]) sendGuild(c, text); }
 function sendParty(p, text = '') {
   if (!p) return;
-  const members = p.members.map(id => clients.get(id)).filter(Boolean).map(c => ({ id: c.id, name: c.name, scout: /scout/i.test(String(c.profile?.mainProfession || c.profile?.subProfession || '')), guildMate: !!(guildForAccount(c.accountKey) && p.members.some(id => { const q = clients.get(id); return q && guildForAccount(q.accountKey)?.id === guildForAccount(c.accountKey)?.id; })) }));
+  const members = p.members.map(id => clients.get(id)).filter(Boolean).map(c => ({ id: c.id, name: c.name, race: c.race, level: c.level || 0, position: p.formation?.[c.id] || '', profession: c.profile?.mainProfession || c.profile?.subProfession || '', scout: /scout/i.test(String(c.profile?.mainProfession || c.profile?.subProfession || '')), guildMate: !!(guildForAccount(c.accountKey) && p.members.some(id => { const q = clients.get(id); return q && guildForAccount(q.accountKey)?.id === guildForAccount(c.accountKey)?.id; })) }));
   for (const id of p.members) { const c = clients.get(id); if (c) send(c.ws, { type: 'partyState', party: { id: p.id, leaderId: p.leaderId, leaderName: clients.get(p.leaderId)?.name || p.leaderName, strategy: p.strategy, members }, text }); }
 }
 function partyOf(c) { const id = playerParty.get(c.id); return id ? parties.get(id) : null; }
 function removePartyMember(c) {
   const p = partyOf(c); if (!p) return;
-  p.members = p.members.filter(id => id !== c.id); playerParty.delete(c.id);
+  p.members = p.members.filter(id => id !== c.id); playerParty.delete(c.id); if (p.formation) delete p.formation[c.id];
   if (p.members.length < 2) { for (const id of p.members) playerParty.delete(id); for (const id of p.members) { const peer = clients.get(id); if (peer) send(peer.ws, { type: 'partyState', party: null, text: 'Party disbanded.' }); } parties.delete(p.id); }
   else { if (p.leaderId === c.id) { p.leaderId = p.members[0]; p.leaderName = clients.get(p.leaderId)?.name || 'Survivor'; } sendParty(p, c.name + ' left the party.'); }
 }
@@ -304,10 +305,10 @@ function handleGuildAction(c, msg) {
 }
 function handlePartyAction(c, msg) {
   const action = cleanText(msg.action, 20); let p = partyOf(c);
-  if (action === 'state') { sendParty(p); return; }
-  if (action === 'create') { if (p) { sendParty(p, 'You are already in a party.'); return; } p = { id: crypto.randomUUID(), leaderId: c.id, leaderName: c.name, members: [c.id], strategy: 'balanced', roomId: c.roomId }; parties.set(p.id, p); playerParty.set(c.id, p.id); sendParty(p, 'Party created.'); return; }
+  if (action === 'state') { if (p) sendParty(p); else send(c.ws, { type: 'partyState', party: null, text: 'You are not in a party.' }); return; }
+  if (action === 'create') { if (p) { sendParty(p, 'You are already in a party.'); return; } p = { id: crypto.randomUUID(), leaderId: c.id, leaderName: c.name, members: [c.id], strategy: 'balanced', formation: { [c.id]: 'front-center' }, roomId: c.roomId }; parties.set(p.id, p); playerParty.set(c.id, p.id); sendParty(p, 'Party created.'); return; }
   if (action === 'invite') {
-    if (!p) { p = { id: crypto.randomUUID(), leaderId: c.id, leaderName: c.name, members: [c.id], strategy: 'balanced', roomId: c.roomId }; parties.set(p.id, p); playerParty.set(c.id, p.id); }
+    if (!p) { p = { id: crypto.randomUUID(), leaderId: c.id, leaderName: c.name, members: [c.id], strategy: 'balanced', formation: { [c.id]: 'front-center' }, roomId: c.roomId }; parties.set(p.id, p); playerParty.set(c.id, p.id); }
     if (p.leaderId !== c.id) { fail(c.ws, 'Only the party leader can invite players.'); return; }
     if (p.members.length >= 10) { fail(c.ws, 'A party can have at most 10 members.'); return; }
     const target = clients.get(cleanText(msg.targetId, 80)); if (!target || !target.joined || target.roomId !== c.roomId || playerParty.has(target.id)) { fail(c.ws, 'That player is unavailable or already in a party.'); return; }
@@ -316,11 +317,21 @@ function handlePartyAction(c, msg) {
   if (action === 'accept') {
     const inv = partyInvites.get(cleanText(msg.inviteId, 80)); if (!inv || inv.toId !== c.id || inv.expires < Date.now()) { fail(c.ws, 'Party invitation expired.'); return; }
     p = parties.get(inv.partyId); if (!p || p.members.length >= 10 || playerParty.has(c.id)) { fail(c.ws, 'Party is full (10 members maximum) or you are already in a party.'); return; }
-    p.members.push(c.id); playerParty.set(c.id, p.id); partyInvites.delete(cleanText(msg.inviteId, 80)); const leader = clients.get(p.leaderId);
+    p.members.push(c.id); playerParty.set(c.id, p.id); p.formation = p.formation || {}; const occupied = new Set(Object.values(p.formation)); p.formation[c.id] = ['front-left','front-center','front-right','middle-left','middle-center','middle-right','back-left','back-center','back-right','reserve'].find(pos => !occupied.has(pos)) || 'reserve'; partyInvites.delete(cleanText(msg.inviteId, 80)); const leader = clients.get(p.leaderId);
     if (leader) { c.x = leader.x; c.y = leader.y; send(c.ws, { type: 'partyFollow', leaderId: leader.id, x: leader.x, y: leader.y }); }
     sendParty(p, c.name + ' joined the party.'); return;
   }
   if (action === 'decline') { const inv = partyInvites.get(cleanText(msg.inviteId, 80)); if (inv && inv.toId === c.id) partyInvites.delete(cleanText(msg.inviteId, 80)); return; }
+  if (action === 'formation') {
+    if (!p || p.leaderId !== c.id) { fail(c.ws, 'Only the party leader can arrange formation.'); return; }
+    const memberId = cleanText(msg.memberId, 80), position = cleanText(msg.position, 24);
+    const allowed = ['front-left','front-center','front-right','middle-left','middle-center','middle-right','back-left','back-center','back-right','reserve'];
+    if (!p.members.includes(memberId) || !allowed.includes(position)) { fail(c.ws, 'Invalid party member or formation slot.'); return; }
+    p.formation = p.formation || {};
+    const occupant = Object.keys(p.formation).find(id => id !== memberId && p.formation[id] === position);
+    if (occupant) p.formation[occupant] = p.formation[memberId] || 'reserve';
+    p.formation[memberId] = position; sendParty(p, 'Party formation updated.'); return;
+  }
   if (action === 'strategy') { if (!p || p.leaderId !== c.id) { fail(c.ws, 'Only the party leader can change strategy.'); return; } const strategy = ['offensive', 'balanced', 'defensive'].includes(msg.strategy) ? msg.strategy : 'balanced'; p.strategy = strategy; sendParty(p, 'Party strategy changed to ' + strategy + '.'); return; }
   if (action === 'leave') { removePartyMember(c); send(c.ws, { type: 'partyState', party: null, text: 'You left the party.' }); return; }
   fail(c.ws, 'Unknown party action.');
@@ -370,7 +381,7 @@ async function handleAuth(c, msg) {
     return false;
   }
   c.accountKey = username.toLowerCase(); c.account = account; c.name = account.characterName; c.race = account.race; c.level = Number(account.level) || 0;
-  c.roomId = cleanText(msg.worldId, 48) || 'lost-ruin-main'; c.x = validCoord(Number(msg.x)); c.y = validCoord(Number(msg.y)); c.joined = true; clients.set(c.id, c);
+  c.roomId = cleanText(msg.worldId, 48) || 'lost-ruin-main'; c.x = validCoord(Number(msg.x)); c.y = validCoord(Number(msg.y)); c.joined = true; clients.set(c.id, c); const existingGuild = guildForAccount(c.accountKey); if (existingGuild && existingGuild.leaderKey === c.accountKey) { existingGuild.leaderId = c.id; existingGuild.leaderName = c.name; }
   const players = roomMembers(c.roomId).map(publicPlayer);
   send(c.ws, { type: 'welcome', id: c.id, name: c.name, serverName: 'Lost Ruin Online', sessionToken, account: { username: account.username, characterName: account.characterName, race: account.race, gameSave: account.gameSave || null }, players, worldState: worldFor(c.roomId) });
   for (const peer of roomMembers(c.roomId)) if (peer.id !== c.id) send(peer.ws, { type: 'system', text: `${c.name} joined the world.` });
