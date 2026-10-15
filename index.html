@@ -4781,7 +4781,7 @@ function startMultiplayer(){
   try{localStorage.setItem("lostRuinPlayMode","multi");}catch(e){}
   const start=document.getElementById("startMenuOverlay");if(start){start.classList.add("hidden");start.style.display="none";}
   document.getElementById("topNav")?.classList.add("hidden");document.getElementById("bottomNav")?.classList.add("hidden");document.getElementById("quickChat")?.classList.add("hidden");
-  hideScreens();document.getElementById("multiplayerPanel")?.classList.remove("hidden");
+  hideScreens();const authPanel=document.getElementById("multiplayerPanel");if(authPanel){authPanel.classList.remove("hidden");authPanel.style.display="block";}
   const token=(()=>{try{return localStorage.getItem("lostRuinMpSessionToken")||"";}catch(e){return "";}})();
   const saved=(()=>{try{return JSON.parse(localStorage.getItem("lostRuinMpAccount")||"{}");}catch(e){return {};}})();
   const remembered=(()=>{try{return localStorage.getItem("lostRuinMpUsername")||saved.username||"";}catch(e){return saved.username||"";}})();
@@ -4868,6 +4868,20 @@ function renderGuildParty(){
  renderPartyFormationControls();
 }
 function renderPartyBrowser(list){const root=document.getElementById("partyBrowser");if(!root)return;root.textContent="";if(!list.length){const empty=document.createElement("div");empty.className="muted";empty.textContent="No open parties are available in this world right now.";root.appendChild(empty);return;}list.forEach(p=>{const row=document.createElement("div");row.className="party-member-row";const main=document.createElement("div");main.className="party-member-main";const name=document.createElement("strong");name.textContent=(p.leaderName||"Survivor")+"'s Party";const meta=document.createElement("small");meta.textContent=(p.members||0)+" / 10 members · "+(p.strategy||"balanced");main.append(name,meta);const btn=document.createElement("button");btn.type="button";btn.textContent="Join";btn.disabled=!!mpPartyState;btn.onclick=()=>mpPartyAction("join",p.id);row.append(main,btn);root.appendChild(row);});}
+// Shared WebSocket sender used by authentication and all multiplayer actions.
+// This must exist before mpConnect's open handler runs; otherwise the socket opens
+// but the auth packet is never sent, leaving the UI stuck on "Connecting".
+function mpSend(message){
+  if(!mpSocket || mpSocket.readyState!==WebSocket.OPEN) return false;
+  try{
+    mpSocket.send(JSON.stringify(message));
+    return true;
+  }catch(error){
+    console.error("Lost Ruin multiplayer send failed:",error);
+    return false;
+  }
+}
+
 function mpConnect(resumeOnly=false){
   if(mpSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(mpSocket.readyState)){mpSetStatus("A server connection is already active. Wait for the current request or disconnect first.");return;}
   const url=document.getElementById("mpServerSelect")?.value||MP_SERVERS.main;
