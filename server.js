@@ -306,6 +306,19 @@ function handleGuildAction(c, msg) {
 function handlePartyAction(c, msg) {
   const action = cleanText(msg.action, 20); let p = partyOf(c);
   if (action === 'state') { if (p) sendParty(p); else send(c.ws, { type: 'partyState', party: null, text: 'You are not in a party.' }); return; }
+  if (action === 'list') {
+    const available = [...parties.values()].filter(x => x.roomId === c.roomId && x.members.length < 10 && !x.members.includes(c.id)).map(x => ({ id: x.id, leaderName: clients.get(x.leaderId)?.name || x.leaderName || 'Survivor', members: x.members.length, strategy: x.strategy || 'balanced' }));
+    send(c.ws, { type: 'partyList', parties: available }); return;
+  }
+  if (action === 'join') {
+    if (p) { fail(c.ws, 'Leave your current party before joining another.'); return; }
+    const partyId = cleanText(msg.partyId, 80); p = parties.get(partyId);
+    if (!p || p.roomId !== c.roomId || p.members.length >= 10 || !clients.get(p.leaderId)?.joined) { fail(c.ws, 'That party is no longer available. Refresh the party list.'); return; }
+    p.members.push(c.id); playerParty.set(c.id, p.id); p.formation = p.formation || {};
+    const occupied = new Set(Object.values(p.formation)); p.formation[c.id] = ['front-left','front-center','front-right','middle-left','middle-center','middle-right','back-left','back-center','back-right','reserve'].find(pos => !occupied.has(pos)) || 'reserve';
+    const leader = clients.get(p.leaderId); if (leader) { c.x = leader.x; c.y = leader.y; send(c.ws, { type: 'partyFollow', leaderId: leader.id, x: leader.x, y: leader.y }); }
+    sendParty(p, c.name + ' joined the party.'); return;
+  }
   if (action === 'create') { if (p) { sendParty(p, 'You are already in a party.'); return; } p = { id: crypto.randomUUID(), leaderId: c.id, leaderName: c.name, members: [c.id], strategy: 'balanced', formation: { [c.id]: 'front-center' }, roomId: c.roomId }; parties.set(p.id, p); playerParty.set(c.id, p.id); sendParty(p, 'Party created.'); return; }
   if (action === 'invite') {
     if (!p) { p = { id: crypto.randomUUID(), leaderId: c.id, leaderName: c.name, members: [c.id], strategy: 'balanced', formation: { [c.id]: 'front-center' }, roomId: c.roomId }; parties.set(p.id, p); playerParty.set(c.id, p.id); }
